@@ -1,27 +1,33 @@
-#include "AppBase.h"
+Ôªø#include "AppBase.h"
 
 namespace My
 {
 	using namespace std;
 
-	// RegisterClassEx()ø°º≠ ∏‚πˆ «‘ºˆ∏¶ ¡˜¡¢ µÓ∑œ«“ ºˆ∞° æ¯±‚ ∂ßπÆø°
-	// ≈¨∑°Ω∫¿« ∏‚πˆ «‘ºˆø°º≠ ∞£¡¢¿˚¿∏∑Œ ∏ﬁΩ√¡ˆ∏¶ √≥∏Æ«“ ºˆ ¿÷µµ∑œ µµøÕ¡›¥œ¥Ÿ.
+	// RegisterClassEx()ÏóêÏÑú Î©§Î≤Ñ Ìï®ÏàòÎ•º ÏßÅÏ†ë Îì±Î°ùÌï† ÏàòÍ∞Ä ÏóÜÍ∏∞ ÎïåÎ¨∏Ïóê
+	// ÌÅ¥ÎûòÏä§Ïùò Î©§Î≤Ñ Ìï®ÏàòÏóêÏÑú Í∞ÑÏ†ëÏ†ÅÏúºÎ°ú Î©îÏãúÏßÄÎ•º Ï≤òÎ¶¨Ìï† Ïàò ÏûàÎèÑÎ°ù ÎèÑÏôÄÏ§çÎãàÎã§.
 	AppBase* g_appBase = nullptr;
 
-	// RegisterClassEx()ø°º≠ Ω«¡¶∑Œ µÓ∑œµ… ƒ›πÈ «‘ºˆ
+	// RegisterClassEx()ÏóêÏÑú Ïã§Ï†úÎ°ú Îì±Î°ùÎê† ÏΩúÎ∞± Ìï®Ïàò
 	LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
-		// g_appBase∏¶ ¿ÃøÎ«ÿº≠ ∞£¡¢¿˚¿∏∑Œ ∏‚πˆ «‘ºˆ »£√‚
+		// g_appBaseÎ•º Ïù¥Ïö©Ìï¥ÏÑú Í∞ÑÏ†ëÏ†ÅÏúºÎ°ú Î©§Î≤Ñ Ìï®Ïàò Ìò∏Ï∂ú
+		if (g_appBase == nullptr)
+		{
+			return DefWindowProcW(hWnd, msg, wParam, lParam);
+		}
+
 		return g_appBase->MsgProc(hWnd, msg, wParam, lParam);
 	}
 
-	// ¿©µµøÏ «¡∑ŒΩ√¿˙
-	// Windows∞° ¿¸¥ﬁ«œ¥¬ √¢ ¿Ã∫•∆Æ √≥∏Æ
+	// ÏúàÎèÑÏö∞ ÌîÑÎ°úÏãúÏ†Ä
+	// WindowsÍ∞Ä Ï†ÑÎã¨ÌïòÎäî Ï∞Ω Ïù¥Î≤§Ìä∏ Ï≤òÎ¶¨
 	LRESULT AppBase::MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		switch (msg)
 		{
 		case WM_DESTROY:
+			m_mainWindow = nullptr;
 			::PostQuitMessage(0);
 			return 0;
 		}
@@ -31,20 +37,32 @@ namespace My
 
 	AppBase::AppBase()
 		: m_screenWidth(1280), m_screenHeight(720),
-		m_mainWindow(nullptr), numQualityLevels(0)
+		m_mainWindow(nullptr), numQualityLevels(0), m_screenViewport(D3D11_VIEWPORT())
 	{
 		g_appBase = this;
 	}
 
 	AppBase::~AppBase()
 	{
-		g_appBase = nullptr;
+		if (m_mainWindow)
+		{
+			DestroyWindow(m_mainWindow);
+		}
 
-		DestroyWindow(m_mainWindow);
+		g_appBase = nullptr;
 	}
 
+
 	void AppBase::Update(float dt) {}
-	void AppBase::Render() {}
+	void AppBase::Render()
+	{
+		float cyberPunkColor[4] = { 0.047f, 0.031f, 0.125f, 1.0f };
+
+		m_context->ClearRenderTargetView(m_renderTargetView.Get(), cyberPunkColor);
+		m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
+
+		m_swapChain->Present(1, 0);
+	}
 
 	int AppBase::Run()
 	{
@@ -59,7 +77,7 @@ namespace My
 			}
 			else
 			{
-
+				Render();
 			}
 		}
 
@@ -72,12 +90,15 @@ namespace My
 		if (!InitMainWindow())
 			return false;
 
+		if (!InitDirect3D())
+			return false;
+
 		return true;
 	}
 
 	bool AppBase::InitMainWindow()
 	{
-		// √¢ ≈¨∑°Ω∫ µÓ∑œ
+		// Ï∞Ω ÌÅ¥ÎûòÏä§ Îì±Î°ù
 		WNDCLASSEX wc =
 		{
 			sizeof(WNDCLASSEX),CS_CLASSDC,
@@ -85,7 +106,7 @@ namespace My
 			0L,0L,
 			GetModuleHandle(NULL),
 			NULL,
-			NULL,
+			LoadCursor(nullptr, IDC_ARROW),
 			NULL,
 			NULL,
 			L"CyberPunk",
@@ -94,7 +115,7 @@ namespace My
 
 		if (!RegisterClassEx(&wc))
 		{
-			cout << "RegisterClassEx() failed." << endl;
+			std::cerr << "RegisterClassEx() failed." << endl;
 			return false;
 		}
 
@@ -105,15 +126,15 @@ namespace My
 		m_mainWindow = CreateWindow(
 			wc.lpszClassName, L"CyberPunk",
 			WS_OVERLAPPEDWINDOW,
-			100,	// ¿©µµøÏ ¡¬√¯ ªÛ¥‹¿« x ¡¬«•
-			100,	// ¿©µµøÏ ¡¬√¯ ªÛ¥‹¿« y ¡¬«•
-			wr.right - wr.left,	 // ¿©µµøÏ ∞°∑Œ πÊ«‚ «ÿªÛµµ
-			wr.bottom - wr.top,	 // ¿©µµøÏ ºº∑Œ πÊ«‚ «ÿªÛµµ
+			100,	// ÏúàÎèÑÏö∞ Ï¢åÏ∏° ÏÉÅÎã®Ïùò x Ï¢åÌëú
+			100,	// ÏúàÎèÑÏö∞ Ï¢åÏ∏° ÏÉÅÎã®Ïùò y Ï¢åÌëú
+			wr.right - wr.left,	 // ÏúàÎèÑÏö∞ Í∞ÄÎ°ú Î∞©Ìñ• Ìï¥ÏÉÅÎèÑ
+			wr.bottom - wr.top,	 // ÏúàÎèÑÏö∞ ÏÑ∏Î°ú Î∞©Ìñ• Ìï¥ÏÉÅÎèÑ
 			NULL, NULL, wc.hInstance, NULL);
 
 		if (!m_mainWindow)
 		{
-			cout << "CreateWindow() failed.\n";
+			std::cerr << "CreateWindow() failed.\n";
 			return false;
 		}
 
@@ -123,4 +144,157 @@ namespace My
 		return true;
 	}
 
+	bool AppBase::InitDirect3D()
+	{
+		// m_device, m_context ÏÉùÏÑ±
+		UINT createDeviceFlags = 0;
+#if defined(DEBUG) || defined(_DEBUG)
+		createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
+
+		ComPtr<ID3D11Device> device;
+		ComPtr<ID3D11DeviceContext> context;
+
+		const D3D_FEATURE_LEVEL featureLevels[2] = {
+		D3D_FEATURE_LEVEL_11_0, // Îçî ÎÜíÏùÄ Î≤ÑÏ†ÑÏù¥ Î®ºÏ†Ä Ïò§ÎèÑÎ°ù ÏÑ§Ï†ï
+		D3D_FEATURE_LEVEL_9_3 };
+		D3D_FEATURE_LEVEL featureLevel;
+
+		if (FAILED(D3D11CreateDevice(
+			nullptr,    // Specify nullptr to use the default adapter.
+			D3D_DRIVER_TYPE_HARDWARE, // Create a device using the hardware graphics driver.
+			0, // Should be 0 unless the driver is D3D_DRIVER_TYPE_SOFTWARE.
+			createDeviceFlags, // Set debug and Direct2D compatibility flags.
+			featureLevels,     // List of feature levels this app can support.
+			ARRAYSIZE(featureLevels), // Size of the list above.
+			D3D11_SDK_VERSION,     // Always set this to D3D11_SDK_VERSION for Microsoft Store apps.
+			device.GetAddressOf(), // Returns the Direct3D device created.
+			&featureLevel,         // Returns feature level of device created.
+			context.GetAddressOf() // Returns the device immediate context.
+		))) {
+			std::cerr << "D3D11CreateDevice() failed." << endl;
+			return false;
+		}
+
+		if (featureLevel != D3D_FEATURE_LEVEL_11_0) {
+			std::cerr << "D3D Feature Level 11 unsupported." << endl;
+			return false;
+		}
+
+		// 4X MSAA ÏßÄÏõêÌïòÎäîÏßÄ ÌôïÏù∏
+		device->CheckMultisampleQualityLevels(DXGI_FORMAT_R8G8B8A8_UNORM, 4, &numQualityLevels);
+		if (numQualityLevels <= 0) {
+			std::cerr << "MSAA not supported." << endl;
+		}
+
+		if (FAILED(device.As(&m_device))) {
+			std::cerr << "device.AS() failed." << endl;
+			return false;
+		}
+
+		if (FAILED(context.As(&m_context))) {
+			std::cerr << "context.As() failed." << endl;
+			return false;
+		}
+
+		// swapchain ÏÉùÏÑ±
+		DXGI_SWAP_CHAIN_DESC sd;
+		ZeroMemory(&sd, sizeof(sd));
+
+		sd.BufferDesc.Width = m_screenWidth;	  // set the back buffer width
+		sd.BufferDesc.Height = m_screenHeight;	  // set the back buffer height
+		sd.BufferDesc.RefreshRate.Numerator = 60; // use 32-bit color
+		sd.BufferDesc.RefreshRate.Denominator = 1;
+		sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		sd.BufferCount = 2;	 // double buffering
+
+		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		sd.OutputWindow = m_mainWindow; // the window to be used
+		sd.Windowed = TRUE;             // windowed/full-screen mode
+		sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // allow full-screen switching
+		sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+
+		if (numQualityLevels > 0)
+		{
+			sd.SampleDesc.Count = 4;	// how many multisamples
+			sd.SampleDesc.Quality = numQualityLevels - 1;
+		}
+		else
+		{
+			sd.SampleDesc.Count = 1;
+			sd.SampleDesc.Quality = 0;
+		}
+
+		if (FAILED(D3D11CreateDeviceAndSwapChain(
+			0, // Default adapter
+			D3D_DRIVER_TYPE_HARDWARE,
+			0, // No software device
+			createDeviceFlags, featureLevels, 1, D3D11_SDK_VERSION, &sd,
+			m_swapChain.GetAddressOf(), m_device.GetAddressOf(), &featureLevel,
+			m_context.GetAddressOf()))) {
+			std::cerr << "D3D11CreateDeviceAndSwapChain() failed." << endl;
+			return false;
+		}
+
+		if (!CreateRenderTargetView())
+			return false;
+
+		SetViewPort();
+
+		// Create a rasterizer state
+		D3D11_RASTERIZER_DESC rastDesc;
+		ZeroMemory(&rastDesc, sizeof(D3D11_RASTERIZER_DESC)); // Need this
+		rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID;
+		// rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
+		rastDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_NONE;
+		rastDesc.FrontCounterClockwise = false;
+		rastDesc.DepthClipEnable = true; // <- zNear, zFar ÌôïÏù∏Ïóê ÌïÑÏöî
+
+		if (FAILED(m_device->CreateRasterizerState(&rastDesc,
+			m_rasterizerState.GetAddressOf())))
+		{
+			std::cerr << "CreateRasterizerState() failed \n";
+		}
+
+		return true;
+	}
+
+	void AppBase::SetViewPort()
+	{
+		ZeroMemory(&m_screenViewport, sizeof(D3D11_VIEWPORT));
+		m_screenViewport.TopLeftX = 0;
+		m_screenViewport.TopLeftY = 0;
+
+		m_screenViewport.Width = static_cast<float>(m_screenWidth);
+		m_screenViewport.Height = static_cast<float>(m_screenHeight);
+		m_screenViewport.MinDepth = 0.0f;
+		m_screenViewport.MaxDepth = 1.0f;	// Note: important for depth buffering
+
+		m_context->RSSetViewports(1, &m_screenViewport);
+	}
+
+	bool AppBase::CreateRenderTargetView()
+	{
+		ComPtr<ID3D11Texture2D> backBuffer;
+		m_swapChain->GetBuffer(0, IID_PPV_ARGS(backBuffer.GetAddressOf()));
+		if (backBuffer)
+		{
+			m_device->CreateRenderTargetView(
+				backBuffer.Get(), nullptr, m_renderTargetView.GetAddressOf()
+			);
+		}
+		else
+		{
+			std::cerr << "CreateRenderTargetView() failed\n";
+			return false;
+		}
+
+		return true;
+	}
+
+
 }
+
+
+
+

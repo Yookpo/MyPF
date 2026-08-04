@@ -6,7 +6,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR param, int
 
 	if (!app.Initialize())
 	{
-		std::cout << "Initialization failed.\n";
+		std::cerr << "Initialization failed.\n";
 		return -1;
 	}
 
