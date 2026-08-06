@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "GeometryGenerator.h"
 
 namespace My
 {
@@ -14,14 +15,51 @@ namespace My
 
 		SetViewPort(screenWidth, screenHeight);
 
+		MeshData triangle = GeometryGenerator::MakeTriangle();
+
+		D3D11Utils::CreateVertexBuffer(m_device, triangle.vertices,
+			m_vertexBuffer);
+		m_indexCount = UINT(triangle.indices.size());
+		D3D11Utils::CreateIndexBuffer(m_device, triangle.indices, m_indexBuffer);
+
+		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = {
+			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,
+			D3D11_INPUT_PER_VERTEX_DATA,0},
+			{"COLOR",0,DXGI_FORMAT_R32G32B32_FLOAT,0,4 * 3,
+			D3D11_INPUT_PER_VERTEX_DATA,0}
+		};
+
+		D3D11Utils::CreateVertexShaderAndInputLayout(
+			m_device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader,
+			m_inputLayout
+		);
+
+		D3D11Utils::CreatePixelShader(
+			m_device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader
+		);
+
 		return true;
 	}
 
 	void Renderer::BeginFrame(const std::array<float, 4>& color)
 	{
-
 		m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
 		m_context->ClearRenderTargetView(m_renderTargetView.Get(), color.data());
+	}
+
+	void Renderer::DrawTriangle()
+	{
+		UINT stride = sizeof(Vertex);
+		UINT offset = 0;
+		m_context->IASetInputLayout(m_inputLayout.Get());
+		m_context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
+		m_context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+		m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		m_context->VSSetShader(m_vertexShader.Get(), 0, 0);
+		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
+
+		m_context->DrawIndexed(m_indexCount, 0, 0);
 	}
 
 	bool Renderer::EndFrame()
@@ -31,9 +69,11 @@ namespace My
 			OutputDebugStringW(L"IDXGISwapChain::Present failed");
 			return false;
 		}
-		
+
 		return true;
 	}
+
+
 
 
 	bool Renderer::InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight)
@@ -84,20 +124,20 @@ namespace My
 
 
 
-		//// Create a rasterizer state
-		//D3D11_RASTERIZER_DESC rastDesc;
-		//ZeroMemory(&rastDesc, sizeof(D3D11_RASTERIZER_DESC)); // Need this
-		//rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID;
-		//// rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
-		//rastDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_NONE;
-		//rastDesc.FrontCounterClockwise = false;
-		//rastDesc.DepthClipEnable = true; // <- zNear, zFar 확인에 필요
+		// Create a rasterizer state
+		D3D11_RASTERIZER_DESC rastDesc;
+		ZeroMemory(&rastDesc, sizeof(D3D11_RASTERIZER_DESC)); // Need this
+		rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID;
+		// rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
+		rastDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_NONE;
+		rastDesc.FrontCounterClockwise = false;
+		rastDesc.DepthClipEnable = true; // <- zNear, zFar 확인에 필요
 
-		//if (FAILED(m_device->CreateRasterizerState(&rastDesc,
-		//	m_rasterizerState.GetAddressOf())))
-		//{
-		//	std::cerr << "CreateRasterizerState() failed \n";
-		//}
+		if (FAILED(m_device->CreateRasterizerState(&rastDesc,
+			m_rasterizerState.GetAddressOf())))
+		{
+			std::cerr << "CreateRasterizerState() failed \n";
+		}
 
 		return true;
 	}

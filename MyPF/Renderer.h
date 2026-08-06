@@ -1,21 +1,9 @@
 #pragma once
-#include <iostream>
-#include <vector>
-#include <array>
-#include <memory>
-#include <windows.h>
-
-#include <d3d11.h>
-#include <d3dcompiler.h>
-#include <wrl.h>
+#include "D3D11Utils.h"
 
 
 namespace My
 {
-	using Microsoft::WRL::ComPtr;
-	using std::vector;
-	using std::wstring;
-
 	class Renderer
 	{
 	public:
@@ -24,6 +12,8 @@ namespace My
 		void BeginFrame(const std::array<float, 4>& color);
 
 		bool EndFrame();
+
+		void DrawTriangle();
 
 	private:
 		bool InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight);
@@ -36,7 +26,18 @@ namespace My
 		ComPtr<ID3D11DeviceContext> m_context;
 		ComPtr<IDXGISwapChain> m_swapChain;	// 완성된 화면을 창에 표시
 		ComPtr<ID3D11RenderTargetView> m_renderTargetView;	// 백 버퍼를 렌더링 대상으로 연결
-		//ComPtr<ID3D11RasterizerState> m_rasterizerState;
+		ComPtr<ID3D11RasterizerState> m_rasterizerState;
+
+		//shader
+		ComPtr<ID3D11VertexShader> m_vertexShader;
+		ComPtr<ID3D11PixelShader> m_pixelShader;
+		ComPtr<ID3D11InputLayout> m_inputLayout;
+
+		//meshes
+		ComPtr<ID3D11Buffer> m_vertexBuffer;
+		ComPtr<ID3D11Buffer> m_indexBuffer;
+		UINT m_indexCount = 0;
+
 
 		D3D11_VIEWPORT m_screenViewport;
 	};

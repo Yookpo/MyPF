@@ -60,6 +60,8 @@ namespace My
 
 		m_renderer.BeginFrame(cyberPunkColor);
 
+		m_renderer.DrawTriangle();
+
 		if (!m_renderer.EndFrame())
 		{
 			OutputDebugStringW(L"Rendering failed, Program shutting down");
