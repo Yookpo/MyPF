@@ -23,6 +23,6 @@ namespace My
 	public:
 		static MeshData MakeTriangle();
 
-
+		// 필요한 지형데이터 입력함수 작성
 	};
 }

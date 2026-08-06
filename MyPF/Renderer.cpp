@@ -41,10 +41,10 @@ namespace My
 		return true;
 	}
 
-	void Renderer::BeginFrame(const std::array<float, 4>& color)
+	void Renderer::BeginFrame(const std::array<float, 4>& m_backgroundColor)
 	{
 		m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
-		m_context->ClearRenderTargetView(m_renderTargetView.Get(), color.data());
+		m_context->ClearRenderTargetView(m_renderTargetView.Get(), m_backgroundColor.data());
 	}
 
 	void Renderer::DrawTriangle()

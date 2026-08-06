@@ -39,6 +39,8 @@ namespace My
 		int m_screenHeight;
 
 		Renderer m_renderer;
+
+		std::array<float, 4> m_backgroundColor;
 	};
 
 }

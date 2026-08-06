@@ -42,7 +42,7 @@ namespace My
 
 	AppBase::AppBase()
 		: m_screenWidth(1280), m_screenHeight(720),
-		m_mainWindow(nullptr), m_renderer{}
+		m_mainWindow(nullptr), m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }
 	{
 		g_appBase = this;
 	}
@@ -66,9 +66,7 @@ namespace My
 	void AppBase::Update(float dt) {}
 	void AppBase::Render()
 	{
-		std::array<float, 4> cyberPunkColor = { 0.047f, 0.031f, 0.125f, 1.0f };
-
-		m_renderer.BeginFrame(cyberPunkColor);
+		m_renderer.BeginFrame(m_backgroundColor);
 
 		m_renderer.DrawTriangle();
 
@@ -86,6 +84,10 @@ namespace My
 		// ImGui 로직
 		// 이후 ImGui UI 컨트롤 추가는 ImGui::NewFrame()과 ImGui::Render() 사이인 여기에 위치
 		ImGui::Begin("Test Window");
+
+		if (ImGui::ColorEdit4("Control BackColor", m_backgroundColor.data(), 0))
+		{
+		}
 
 		ImGui::End();
 	}

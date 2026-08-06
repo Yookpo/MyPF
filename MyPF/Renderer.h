@@ -9,7 +9,7 @@ namespace My
 	public:
 		bool Initialize(HWND mainWindow, int screenWidth, int screenHeight);
 
-		void BeginFrame(const std::array<float, 4>& color);
+		void BeginFrame(const std::array<float, 4>& m_backgroundColor);
 
 		bool EndFrame();
 
