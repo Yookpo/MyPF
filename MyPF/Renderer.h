@@ -15,6 +15,9 @@ namespace My
 
 		void DrawTriangle();
 
+		ComPtr<ID3D11Device> GetDevice() const { return m_device; }
+		ComPtr<ID3D11DeviceContext> GetContext() const { return m_context; }
+
 	private:
 		bool InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight);
 		void SetViewPort(int screenWidth, int screenHeight);

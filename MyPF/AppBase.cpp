@@ -24,6 +24,11 @@ namespace My
 	// Windows가 전달하는 창 이벤트 처리
 	LRESULT AppBase::MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
+		if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+		{
+			return true;
+		}
+
 		switch (msg)
 		{
 		case WM_DESTROY:
@@ -50,6 +55,11 @@ namespace My
 		}
 
 		g_appBase = nullptr;
+
+		// ImGui 소멸
+		ImGui_ImplDX11_Shutdown();
+		ImGui_ImplWin32_Shutdown();
+		ImGui::DestroyContext();
 	}
 
 
@@ -62,11 +72,22 @@ namespace My
 
 		m_renderer.DrawTriangle();
 
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
 		if (!m_renderer.EndFrame())
 		{
 			OutputDebugStringW(L"Rendering failed, Program shutting down");
 			PostQuitMessage(-1);
 		}
+	}
+
+	void AppBase::UpdateUI()
+	{
+		// ImGui 로직
+		// 이후 ImGui UI 컨트롤 추가는 ImGui::NewFrame()과 ImGui::Render() 사이인 여기에 위치
+		ImGui::Begin("Test Window");
+
+		ImGui::End();
 	}
 
 	int AppBase::Run()
@@ -82,7 +103,17 @@ namespace My
 			}
 			else
 			{
+				// ImGui 프레임 시작
+				// 백버퍼 렌더링 호출 전에 ImGui 렌더링 준비, 컨트롤 설정, 렌더링 요청 함수 호출
+				ImGui_ImplWin32_NewFrame();
+				ImGui_ImplDX11_NewFrame();
+				ImGui::NewFrame();
+
 				Update(1.0f);
+
+				UpdateUI();
+				ImGui::Render();
+
 				Render();
 			}
 		}
@@ -97,6 +128,9 @@ namespace My
 			return false;
 
 		if (!m_renderer.Initialize(m_mainWindow, m_screenWidth, m_screenHeight))
+			return false;
+
+		if (!InitGUI())
 			return false;
 
 		return true;
@@ -146,6 +180,24 @@ namespace My
 
 		ShowWindow(m_mainWindow, SW_SHOWDEFAULT);
 		UpdateWindow(m_mainWindow);
+
+		return true;
+	}
+	bool AppBase::InitGUI()
+	{
+		// ImGui 생성 및 초기화
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+
+		// Setup Platform/Renderer backends
+		if (!ImGui_ImplDX11_Init(m_renderer.GetDevice().Get(), m_renderer.GetContext().Get())) {
+			return false;
+		}
+
+		if (!ImGui_ImplWin32_Init((void*)m_mainWindow)) {
+			return false;
+		}
 
 		return true;
 	}
