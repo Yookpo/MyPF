@@ -89,6 +89,9 @@ namespace My
 		{
 		}
 
+		Vector3& cur = m_renderer.GetModelTranslate();
+		ImGui::DragFloat3("Move", &cur.x, 0.01f, -1.0f, 1.0f);
+
 		ImGui::End();
 	}
 

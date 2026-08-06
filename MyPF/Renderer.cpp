@@ -1,5 +1,4 @@
 #include "Renderer.h"
-#include "GeometryGenerator.h"
 
 namespace My
 {
@@ -21,6 +20,9 @@ namespace My
 			m_vertexBuffer);
 		m_indexCount = UINT(triangle.indices.size());
 		D3D11Utils::CreateIndexBuffer(m_device, triangle.indices, m_indexBuffer);
+
+		m_constantBufferData.model = Matrix();
+		D3D11Utils::CreateConstantBuffer(m_device, m_constantBufferData, m_constantBuffer);
 
 		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = {
 			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,
@@ -49,6 +51,11 @@ namespace My
 
 	void Renderer::DrawTriangle()
 	{
+		m_constantBufferData.model = Matrix::CreateTranslation(m_modelTranslation);
+		m_constantBufferData.model = m_constantBufferData.model.Transpose();
+
+		D3D11Utils::UpdateBuffer(m_context, m_constantBufferData, m_constantBuffer);
+
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
 		m_context->IASetInputLayout(m_inputLayout.Get());
@@ -57,6 +64,7 @@ namespace My
 		m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		m_context->VSSetShader(m_vertexShader.Get(), 0, 0);
+		m_context->VSSetConstantBuffers(0, 1, m_constantBuffer.GetAddressOf());
 		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
 		m_context->DrawIndexed(m_indexCount, 0, 0);

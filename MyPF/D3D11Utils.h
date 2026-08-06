@@ -63,8 +63,44 @@ namespace My
 			}
 		}
 
+		template <typename T_CONSTANT>
+		static void CreateConstantBuffer(ComPtr<ID3D11Device>& device,
+			const T_CONSTANT& constantBufferData,
+			ComPtr<ID3D11Buffer>& constantBuffer)
+		{
+			D3D11_BUFFER_DESC cbDesc;
+			cbDesc.ByteWidth = sizeof(constantBufferData);
+			cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+			cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+			cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+			cbDesc.MiscFlags = 0;
+			cbDesc.StructureByteStride = 0;
 
+			D3D11_SUBRESOURCE_DATA initData;
+			initData.pSysMem = &constantBufferData;
+			initData.SysMemPitch = 0;
+			initData.SysMemSlicePitch = 0;
 
+			auto hr = device->CreateBuffer(&cbDesc, &initData,
+				constantBuffer.GetAddressOf());
+			if (FAILED(hr)) {
+				OutputDebugStringW(L"CreateConstantBuffer() CreateBuffer failed()");
+			}
+		}
+		template <typename T_DATA>
+		static void UpdateBuffer(ComPtr<ID3D11DeviceContext>& context,
+			const T_DATA& bufferData,
+			ComPtr<ID3D11Buffer>& buffer) {
+
+			if (!buffer) {
+				OutputDebugStringW(L"UpdateBuffer() buffer was not initialized.");
+			}
+
+			D3D11_MAPPED_SUBRESOURCE ms;
+			context->Map(buffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+			memcpy(ms.pData, &bufferData, sizeof(bufferData));
+			context->Unmap(buffer.Get(), NULL);
+		}
 	};
 }
 

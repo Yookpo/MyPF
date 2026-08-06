@@ -1,6 +1,6 @@
 #pragma once
 #include "D3D11Utils.h"
-
+#include "GeometryGenerator.h"
 
 namespace My
 {
@@ -17,6 +17,9 @@ namespace My
 
 		ComPtr<ID3D11Device> GetDevice() const { return m_device; }
 		ComPtr<ID3D11DeviceContext> GetContext() const { return m_context; }
+
+		Vector3& GetModelTranslate() { return m_modelTranslation; }
+		//void SetModelTranslate(Vector3& newTranslate) { m_modelTranslation = std::move(newTranslate); }
 
 	private:
 		bool InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight);
@@ -41,6 +44,9 @@ namespace My
 		ComPtr<ID3D11Buffer> m_indexBuffer;
 		UINT m_indexCount = 0;
 
+		BasicVertexConstantData m_constantBufferData;
+		ComPtr<ID3D11Buffer> m_constantBuffer;
+		Vector3 m_modelTranslation = Vector3(0.0f);
 
 		D3D11_VIEWPORT m_screenViewport;
 	};
