@@ -68,7 +68,12 @@ namespace My
 	{
 		m_renderer.BeginFrame(m_backgroundColor);
 
-		m_renderer.DrawTriangle();
+		if (!m_renderer.DrawTriangle())
+		{
+			OutputDebugStringW(L"Draw Triangle failed, Program shutting down");
+			PostQuitMessage(-1);
+			return;
+		}
 
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
@@ -99,6 +104,7 @@ namespace My
 	{
 		// Main Message loop
 		MSG msg = { 0 };
+
 		while (WM_QUIT != msg.message)
 		{
 			if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -108,13 +114,15 @@ namespace My
 			}
 			else
 			{
+				m_gameTimer.Tick();
+
 				// ImGui 프레임 시작
 				// 백버퍼 렌더링 호출 전에 ImGui 렌더링 준비, 컨트롤 설정, 렌더링 요청 함수 호출
 				ImGui_ImplWin32_NewFrame();
 				ImGui_ImplDX11_NewFrame();
 				ImGui::NewFrame();
 
-				Update(1.0f);
+				Update(m_gameTimer.GetDeltaTime());
 
 				UpdateUI();
 				ImGui::Render();

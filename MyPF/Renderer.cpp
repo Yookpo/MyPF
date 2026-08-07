@@ -16,13 +16,25 @@ namespace My
 
 		MeshData triangle = GeometryGenerator::MakeTriangle();
 
-		D3D11Utils::CreateVertexBuffer(m_device, triangle.vertices,
-			m_vertexBuffer);
-		m_indexCount = UINT(triangle.indices.size());
-		D3D11Utils::CreateIndexBuffer(m_device, triangle.indices, m_indexBuffer);
+		if (!D3D11Utils::CreateVertexBuffer(m_device, triangle.vertices,
+			m_vertexBuffer))
+		{
+			return false;
+		}
 
+		if (!D3D11Utils::CreateIndexBuffer(m_device, triangle.indices, m_indexBuffer))
+		{
+			return false;
+		}
+
+		m_indexCount = UINT(triangle.indices.size());
+		
 		m_constantBufferData.model = Matrix();
-		D3D11Utils::CreateConstantBuffer(m_device, m_constantBufferData, m_constantBuffer);
+
+		if (!D3D11Utils::CreateConstantBuffer(m_device, m_constantBufferData, m_constantBuffer))
+		{
+			return false;
+		}
 
 		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = {
 			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,
@@ -31,14 +43,20 @@ namespace My
 			D3D11_INPUT_PER_VERTEX_DATA,0}
 		};
 
-		D3D11Utils::CreateVertexShaderAndInputLayout(
+		if (!D3D11Utils::CreateVertexShaderAndInputLayout(
 			m_device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader,
 			m_inputLayout
-		);
+		))
+		{
+			return false;
+		}
 
-		D3D11Utils::CreatePixelShader(
+		if (!D3D11Utils::CreatePixelShader(
 			m_device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader
-		);
+		))
+		{
+			return false;
+		}
 
 		return true;
 	}
@@ -49,15 +67,19 @@ namespace My
 		m_context->ClearRenderTargetView(m_renderTargetView.Get(), m_backgroundColor.data());
 	}
 
-	void Renderer::DrawTriangle()
+	bool Renderer::DrawTriangle()
 	{
 		m_constantBufferData.model = Matrix::CreateTranslation(m_modelTranslation);
 		m_constantBufferData.model = m_constantBufferData.model.Transpose();
 
-		D3D11Utils::UpdateBuffer(m_context, m_constantBufferData, m_constantBuffer);
+		if (!D3D11Utils::UpdateBuffer(m_context, m_constantBufferData, m_constantBuffer))
+		{
+			return false;
+		}
 
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
+
 		m_context->IASetInputLayout(m_inputLayout.Get());
 		m_context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
 		m_context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
@@ -68,6 +90,8 @@ namespace My
 		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
 		m_context->DrawIndexed(m_indexCount, 0, 0);
+
+		return true;
 	}
 
 	bool Renderer::EndFrame()
@@ -80,8 +104,6 @@ namespace My
 
 		return true;
 	}
-
-
 
 
 	bool Renderer::InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight)
@@ -120,17 +142,17 @@ namespace My
 			0, // No software device
 			createDeviceFlags, featureLevels, 1, D3D11_SDK_VERSION, &sd,
 			m_swapChain.GetAddressOf(), m_device.GetAddressOf(), &featureLevel,
-			m_context.GetAddressOf()))) {
-			std::cerr << "D3D11CreateDeviceAndSwapChain() failed." << std::endl;
+			m_context.GetAddressOf()))) 
+		{
+			OutputDebugStringW(L"D3D11CreateDeviceAndSwapChain() failed");
 			return false;
 		}
 
-		if (featureLevel != D3D_FEATURE_LEVEL_11_0) {
-			std::cerr << "D3D Feature Level 11 unsupported." << std::endl;
+		if (featureLevel != D3D_FEATURE_LEVEL_11_0) 
+		{
+			OutputDebugStringW(L"D3D Feature Level 11 unsupported");
 			return false;
 		}
-
-
 
 		// Create a rasterizer state
 		D3D11_RASTERIZER_DESC rastDesc;
@@ -144,8 +166,12 @@ namespace My
 		if (FAILED(m_device->CreateRasterizerState(&rastDesc,
 			m_rasterizerState.GetAddressOf())))
 		{
-			std::cerr << "CreateRasterizerState() failed \n";
+			OutputDebugStringW(L"CreateRasterizerState() failed");
+			return false;
 		}
+
+		// 초기화 후 해당 래스터 초기화 할 때 바로 적용
+		m_context->RSSetState(m_rasterizerState.Get());
 
 		return true;
 	}
@@ -170,6 +196,7 @@ namespace My
 
 		if (FAILED(m_swapChain->GetBuffer(0, IID_PPV_ARGS(backBuffer.GetAddressOf()))))
 		{
+			OutputDebugStringW(L"GetBuffer() failed");
 			return false;
 		}
 
@@ -179,12 +206,13 @@ namespace My
 				backBuffer.Get(), nullptr, m_renderTargetView.GetAddressOf()
 			)))
 			{
+				OutputDebugStringW(L"CreateRTV() failed");
 				return false;
 			}
 		}
 		else
 		{
-			std::cerr << "CreateRenderTargetView() failed\n";
+			OutputDebugStringW(L"BackBuffer is Empty");
 			return false;
 		}
 

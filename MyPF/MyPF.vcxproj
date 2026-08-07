@@ -133,6 +133,7 @@
   <ItemGroup>
     <ClCompile Include="AppBase.cpp" />
     <ClCompile Include="D3D11Utils.cpp" />
+    <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="ImGui\imgui.cpp" />
     <ClCompile Include="ImGui\imgui_demo.cpp" />
@@ -147,6 +148,7 @@
   <ItemGroup>
     <ClInclude Include="AppBase.h" />
     <ClInclude Include="D3D11Utils.h" />
+    <ClInclude Include="GameTimer.h" />
     <ClInclude Include="GeometryGenerator.h" />
     <ClInclude Include="ImGui\imconfig.h" />
     <ClInclude Include="ImGui\imgui.h" />

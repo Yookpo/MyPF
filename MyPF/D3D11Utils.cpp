@@ -10,9 +10,14 @@ namespace My
 			}
 
 			// 에러 메시지가 있으면 출력
-			if (errorBlob) {
-				std::cout << "Shader compile error\n"
-					<< (char*)errorBlob->GetBufferPointer() << std::endl;
+			if (errorBlob) 
+			{
+				OutputDebugStringA("Shader compile error:\n");
+
+				const char* errorMessage = static_cast<const char*>(errorBlob->GetBufferPointer());
+
+				OutputDebugStringA(errorMessage);
+				OutputDebugStringA("\n");
 			}
 		}
 	}
@@ -50,7 +55,7 @@ namespace My
 		}
 		return true;
 	}
-	void D3D11Utils::CreateVertexShaderAndInputLayout(ComPtr<ID3D11Device>& device, const wstring& fileName, const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader, ComPtr<ID3D11InputLayout>& m_inputLayout)
+	bool D3D11Utils::CreateVertexShaderAndInputLayout(ComPtr<ID3D11Device>& device, const wstring& fileName, const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader, ComPtr<ID3D11InputLayout>& m_inputLayout)
 	{
 		ComPtr<ID3DBlob> shaderBlob;
 		ComPtr<ID3DBlob> errorBlob;
@@ -65,13 +70,29 @@ namespace My
 
 		CheckResult(hr, errorBlob.Get());
 
-		device->CreateVertexShader(shaderBlob->GetBufferPointer(),
-			shaderBlob->GetBufferSize(), NULL, &m_vertexShader);
-		device->CreateInputLayout(inputElements.data(), static_cast<UINT>(inputElements.size()),
-			shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), &m_inputLayout);
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(L"Shader Compile() failed");
+			return false;
+		}
 
+		if (FAILED(device->CreateVertexShader(shaderBlob->GetBufferPointer(),
+			shaderBlob->GetBufferSize(), NULL, &m_vertexShader)))
+		{
+			OutputDebugStringW(L"CreateVertexShader() failed");
+			return false;
+		}
+
+		if (FAILED(device->CreateInputLayout(inputElements.data(), static_cast<UINT>(inputElements.size()),
+			shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), &m_inputLayout)))
+		{
+			OutputDebugStringW(L"CreateInputLayout() failed");
+			return false;
+		}
+
+		return true;
 	}
-	void D3D11Utils::CreatePixelShader(ComPtr<ID3D11Device>& device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader)
+	bool D3D11Utils::CreatePixelShader(ComPtr<ID3D11Device>& device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader)
 	{
 		ComPtr<ID3DBlob> shaderBlob;
 		ComPtr<ID3DBlob> errorBlob;
@@ -85,12 +106,29 @@ namespace My
 
 		CheckResult(hr, errorBlob.Get());
 
-		device->CreatePixelShader(shaderBlob->GetBufferPointer(),
-			shaderBlob->GetBufferSize(), NULL, &m_pixelShader);
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(L"Shader Compile() failed");
+			return false;
+		}
+
+		if (FAILED(device->CreatePixelShader(shaderBlob->GetBufferPointer(),
+			shaderBlob->GetBufferSize(), NULL, &m_pixelShader)))
+		{
+			OutputDebugStringW(L"CreatePixelShader() failed");
+			return false;
+		}
+
+		return true;
 	}
 
-	void D3D11Utils::CreateIndexBuffer(ComPtr<ID3D11Device>& device, const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer)
+	bool D3D11Utils::CreateIndexBuffer(ComPtr<ID3D11Device>& device, const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer)
 	{
+		if (!device || !indices.size())
+		{
+			return false;
+		}
+
 		D3D11_BUFFER_DESC bufferDesc = {};
 		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE; // 초기화 후 변경X
 		bufferDesc.ByteWidth = UINT(sizeof(uint32_t) * indices.size());
@@ -103,8 +141,14 @@ namespace My
 		indexBufferData.SysMemPitch = 0;
 		indexBufferData.SysMemSlicePitch = 0;
 
-		device->CreateBuffer(&bufferDesc, &indexBufferData,
-			indexBuffer.GetAddressOf());
+		if (FAILED(device->CreateBuffer(&bufferDesc, &indexBufferData,
+			indexBuffer.GetAddressOf())))
+		{
+			OutputDebugStringW(L"CreateIndexBuffer failed");
+			return false;
+		}
+
+		return true;
 	}
 }
 

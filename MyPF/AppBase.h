@@ -1,5 +1,6 @@
 #pragma once
 #include "Renderer.h"
+#include "GameTimer.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -7,11 +8,14 @@
 #include "ImGui/imgui_impl_dx11.h"
 #include "ImGui/imgui_impl_win32.h"
 
+
+
 // ImGui 용 WndProcHandler
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace My
 {
+
 	class AppBase
 	{
 	public:
@@ -39,6 +43,7 @@ namespace My
 		int m_screenHeight;
 
 		Renderer m_renderer;
+		GameTimer m_gameTimer;
 
 		std::array<float, 4> m_backgroundColor;
 	};

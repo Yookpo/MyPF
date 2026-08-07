@@ -13,7 +13,7 @@ namespace My
 
 		bool EndFrame();
 
-		void DrawTriangle();
+		bool DrawTriangle();
 
 		ComPtr<ID3D11Device> GetDevice() const { return m_device; }
 		ComPtr<ID3D11DeviceContext> GetContext() const { return m_context; }
