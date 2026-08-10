@@ -31,6 +31,14 @@ namespace My
 
 		switch (msg)
 		{
+		case WM_SIZE:
+			m_screenWidth = int(LOWORD(lParam));
+			m_screenHeight = int(HIWORD(lParam));
+			m_guiWidth = 0;
+
+			m_renderer.Resize(m_screenWidth, m_screenHeight);
+			break;
+
 		case WM_DESTROY:
 			m_mainWindow = nullptr;
 			::PostQuitMessage(0);
@@ -113,6 +121,9 @@ namespace My
 		// Main Message loop
 		MSG msg = { 0 };
 		m_gameTimer.Reset();
+		
+		// 기존에 guiWidth 변화없다면 뷰포트 변화안함
+		static float previousGuiWidth = m_guiWidth;
 
 		while (WM_QUIT != msg.message)
 		{
@@ -135,7 +146,12 @@ namespace My
 
 				ImGui::Render();
 
-				m_renderer.SetSceneViewport(m_guiWidth, 0, m_screenWidth - m_guiWidth, m_screenHeight);
+				if (previousGuiWidth != m_guiWidth)
+				{
+					previousGuiWidth = m_guiWidth;
+					m_renderer.SetSceneViewport(m_guiWidth, 0, m_screenWidth - m_guiWidth, m_screenHeight);
+				}
+				
 
 				Update(m_gameTimer.GetDeltaTime());
 

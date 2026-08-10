@@ -90,16 +90,30 @@ namespace My
 			return false;
 		}
 
-		// AspectRatio 갱신
-		m_aspect = GetAspectRatio(screenWidth, screenHeight);
-
 		// 현재 RTV/DSV 연결 해제
 		m_context->OMSetRenderTargets(0, nullptr, nullptr);
 		m_renderTargetView.Reset();
 		m_depthStencilView.Reset();
+		m_depthStencilState.Reset();
 
-
-
+		HRESULT hr = m_swapChain->ResizeBuffers(0,	// 현재 개수 유지
+			screenWidth, screenHeight,	// 해상도 변경
+			DXGI_FORMAT_UNKNOWN,	// 현재 포맷 유지
+			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
+		);
+		if (FAILED(hr))
+		{
+			return false;
+		}
+		if (!CreateRenderTargetView())
+		{
+			return false;
+		}
+		if (!D3D11Utils::CreateDepthBuffer(m_device, screenWidth, screenHeight,
+			m_depthStencilView, m_depthStencilState))
+		{
+			return false;
+		}
 
 		return true;
 	}
@@ -202,6 +216,7 @@ namespace My
 		{
 			return false;
 		}
+
 		this->SetViewPort(topLeftX, topLeftY, width, height);
 		m_aspect = GetAspectRatio(width, height);
 
