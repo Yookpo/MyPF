@@ -2,8 +2,15 @@
 
 namespace My
 {
+	float Renderer::GetAspectRatio(int screenWidth, int screenHeight) const
+	{
+		return float(screenWidth) / screenHeight;
+	}
+
 	bool Renderer::Initialize(HWND mainWindow, int screenWidth, int screenHeight)
 	{
+		m_aspect = GetAspectRatio(screenWidth, screenHeight);
+
 		if (!InitDirect3D(mainWindow, screenWidth, screenHeight))
 		{
 			return false;
@@ -14,24 +21,32 @@ namespace My
 
 		SetViewPort(screenWidth, screenHeight);
 
-		MeshData triangle = GeometryGenerator::MakeTriangle();
+		//MeshData triangle = GeometryGenerator::MakeTriangle();
+		MeshData cube = GeometryGenerator::MakeCube();
 
-		if (!D3D11Utils::CreateVertexBuffer(m_device, triangle.vertices,
+		if (!D3D11Utils::CreateVertexBuffer(m_device, cube.vertices,
 			m_vertexBuffer))
 		{
 			return false;
 		}
 
-		if (!D3D11Utils::CreateIndexBuffer(m_device, triangle.indices, m_indexBuffer))
+		m_indexCount = UINT(cube.indices.size());
+
+		if (!D3D11Utils::CreateIndexBuffer(m_device, cube.indices, m_indexBuffer))
 		{
 			return false;
 		}
 
-		m_indexCount = UINT(triangle.indices.size());
-		
 		m_constantBufferData.model = Matrix();
-
+		m_constantBufferData.view = Matrix();
+		m_constantBufferData.projection = Matrix();
+		
 		if (!D3D11Utils::CreateConstantBuffer(m_device, m_constantBufferData, m_constantBuffer))
+		{
+			return false;
+		}
+
+		if (!D3D11Utils::CreateDepthBuffer(m_device, screenWidth, screenHeight, m_depthStencilView, m_depthStencilState))
 		{
 			return false;
 		}
@@ -63,8 +78,13 @@ namespace My
 
 	void Renderer::BeginFrame(const std::array<float, 4>& m_backgroundColor)
 	{
-		m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
 		m_context->ClearRenderTargetView(m_renderTargetView.Get(), m_backgroundColor.data());
+		m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		// 비교: Depth Buffer를 사용하지 않는 경우
+		// m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
+		m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), m_depthStencilView.Get());
+		m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
+
 	}
 
 	bool Renderer::DrawTriangle()
@@ -76,6 +96,52 @@ namespace My
 		{
 			return false;
 		}
+
+		UINT stride = sizeof(Vertex);
+		UINT offset = 0;
+
+		m_context->IASetInputLayout(m_inputLayout.Get());
+		m_context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
+		m_context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+		m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		m_context->VSSetShader(m_vertexShader.Get(), 0, 0);
+		m_context->VSSetConstantBuffers(0, 1, m_constantBuffer.GetAddressOf());
+		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
+
+		m_context->DrawIndexed(m_indexCount, 0, 0);
+
+		return true;
+	}
+
+	bool Renderer::DrawCube()
+	{
+		using namespace DirectX;
+
+		// 모델 변환
+		m_constantBufferData.model =
+			Matrix::CreateScale(m_modelScaling) * Matrix::CreateRotationY(m_modelRotation.y) *
+			Matrix::CreateRotationX(m_modelRotation.x) * Matrix::CreateRotationZ(m_modelRotation.z) *
+			Matrix::CreateTranslation(m_modelTranslation);
+		m_constantBufferData.model = m_constantBufferData.model.Transpose();
+
+		// 시점 변환
+		// m_constantBufferData.view = XMMatrixLookAtLH(m_viewEye, m_viewFocus, m_viewUp);
+		m_constantBufferData.view = XMMatrixLookToLH(m_viewEyePos, m_viewEyeDir, m_viewUp);
+		m_constantBufferData.view = m_constantBufferData.view.Transpose();
+
+		// 프로젝션
+		if (m_usePerspectiveProjection) {
+			m_constantBufferData.projection = XMMatrixPerspectiveFovLH(
+				XMConvertToRadians(m_projFovAngleY), m_aspect, m_nearZ, m_farZ);
+		}
+		else {
+			m_constantBufferData.projection =
+				XMMatrixOrthographicOffCenterLH(-m_aspect, m_aspect, -1.0f, 1.0f, m_nearZ, m_farZ);
+		}
+		m_constantBufferData.projection = m_constantBufferData.projection.Transpose();
+
+		D3D11Utils::UpdateBuffer(m_context, m_constantBufferData, m_constantBuffer);
 
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
@@ -142,13 +208,13 @@ namespace My
 			0, // No software device
 			createDeviceFlags, featureLevels, 1, D3D11_SDK_VERSION, &sd,
 			m_swapChain.GetAddressOf(), m_device.GetAddressOf(), &featureLevel,
-			m_context.GetAddressOf()))) 
+			m_context.GetAddressOf())))
 		{
 			OutputDebugStringW(L"D3D11CreateDeviceAndSwapChain() failed");
 			return false;
 		}
 
-		if (featureLevel != D3D_FEATURE_LEVEL_11_0) 
+		if (featureLevel != D3D_FEATURE_LEVEL_11_0)
 		{
 			OutputDebugStringW(L"D3D Feature Level 11 unsupported");
 			return false;

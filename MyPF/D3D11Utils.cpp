@@ -21,9 +21,23 @@ namespace My
 			}
 		}
 	}
-	bool D3D11Utils::CreateDepthBuffer(ComPtr<ID3D11Device>& device, int screenWidth, int screenHeight, ComPtr<ID3D11DepthStencilView>& depthStencilView)
+	bool D3D11Utils::CreateDepthBuffer(ComPtr<ID3D11Device>& device, int screenWidth, int screenHeight, 
+		ComPtr<ID3D11DepthStencilView>& depthStencilView, ComPtr<ID3D11DepthStencilState>& depthStencilState)
 	{
+		if (!device)
+		{
+			OutputDebugStringW(L"Device is empty. must be initialized");
+			return false;
+		}
+
+		if (screenWidth <= 0 || screenHeight <= 0)
+		{
+			OutputDebugStringW(L"Screen size must be over 0");
+			return false;
+		}
+
 		D3D11_TEXTURE2D_DESC depthStencilBufferDesc;
+		ZeroMemory(&depthStencilBufferDesc, sizeof(depthStencilBufferDesc));
 		depthStencilBufferDesc.Width = screenWidth;
 		depthStencilBufferDesc.Height = screenHeight;
 		depthStencilBufferDesc.MipLevels = 1;
@@ -37,6 +51,9 @@ namespace My
 		//    depthStencilBufferDesc.SampleDesc.Count = 1; // how many multisamples
 		//    depthStencilBufferDesc.SampleDesc.Quality = 0;
 		//}
+		depthStencilBufferDesc.SampleDesc.Count = 1; // how many multisamples
+		depthStencilBufferDesc.SampleDesc.Quality = 0;
+
 		depthStencilBufferDesc.Usage = D3D11_USAGE_DEFAULT;
 		depthStencilBufferDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 		depthStencilBufferDesc.CPUAccessFlags = 0;
@@ -47,12 +64,28 @@ namespace My
 		if (FAILED(device->CreateTexture2D(&depthStencilBufferDesc, 0, depthStencilBuffer.GetAddressOf())))
 		{
 			OutputDebugStringW(L"CreateTexture2D() failed");
+			return false;
 		}
 		if (FAILED(device->CreateDepthStencilView(depthStencilBuffer.Get(), 0, depthStencilView.GetAddressOf())
 		))
 		{
 			OutputDebugStringW(L"CreateDepthStencilView() failed");
+			return false;
 		}
+
+		// Create depth stencil state
+		D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
+		ZeroMemory(&depthStencilDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+		depthStencilDesc.DepthEnable = true;
+		depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK::D3D11_DEPTH_WRITE_MASK_ALL;
+		depthStencilDesc.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS;
+		if (FAILED(device->CreateDepthStencilState(&depthStencilDesc, depthStencilState.GetAddressOf())))
+		{
+			OutputDebugStringW(L"CreateDepthStencilState() failed");
+			return false;
+		}
+
+
 		return true;
 	}
 	bool D3D11Utils::CreateVertexShaderAndInputLayout(ComPtr<ID3D11Device>& device, const wstring& fileName, const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader, ComPtr<ID3D11InputLayout>& m_inputLayout)

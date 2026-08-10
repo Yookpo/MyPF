@@ -14,18 +14,21 @@ namespace My
 		bool EndFrame();
 
 		bool DrawTriangle();
+		bool DrawCube();
 
 		ComPtr<ID3D11Device> GetDevice() const { return m_device; }
 		ComPtr<ID3D11DeviceContext> GetContext() const { return m_context; }
 
 		Vector3& GetModelTranslate() { return m_modelTranslation; }
 		//void SetModelTranslate(Vector3& newTranslate) { m_modelTranslation = std::move(newTranslate); }
+		Vector3& GetModelRotation() { return m_modelRotation; }
+		Vector3& GetModelScaling() { return m_modelScaling; }
 
 	private:
 		bool InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight);
 		void SetViewPort(int screenWidth, int screenHeight);
 		bool CreateRenderTargetView();
-
+		float GetAspectRatio(int screenWidth, int screenHeight) const;
 
 	private:
 		ComPtr<ID3D11Device> m_device;
@@ -34,19 +37,35 @@ namespace My
 		ComPtr<ID3D11RenderTargetView> m_renderTargetView;	// 백 버퍼를 렌더링 대상으로 연결
 		ComPtr<ID3D11RasterizerState> m_rasterizerState;
 
-		//shader
+		// Depth buffer
+		ComPtr<ID3D11DepthStencilView> m_depthStencilView;
+		ComPtr<ID3D11DepthStencilState> m_depthStencilState;
+
+		// shader
 		ComPtr<ID3D11VertexShader> m_vertexShader;
 		ComPtr<ID3D11PixelShader> m_pixelShader;
 		ComPtr<ID3D11InputLayout> m_inputLayout;
 
-		//meshes
+		// meshes
 		ComPtr<ID3D11Buffer> m_vertexBuffer;
 		ComPtr<ID3D11Buffer> m_indexBuffer;
 		UINT m_indexCount = 0;
 
 		BasicVertexConstantData m_constantBufferData;
 		ComPtr<ID3D11Buffer> m_constantBuffer;
+
+		// Data
+		bool m_usePerspectiveProjection = true;
 		Vector3 m_modelTranslation = Vector3(0.0f);
+		Vector3 m_modelRotation = Vector3(0.0f);
+		Vector3 m_modelScaling = Vector3(0.5f);
+		Vector3 m_viewEyePos = { 0.0f, 0.0f, -2.0f };
+		Vector3 m_viewEyeDir = { 0.0f, 0.0f, 1.0f };
+		Vector3 m_viewUp = { 0.0f, 1.0f, 0.0f };
+		float m_projFovAngleY = 70.0f;
+		float m_nearZ = 0.01f;
+		float m_farZ = 100.0f;
+		float m_aspect;
 
 		D3D11_VIEWPORT m_screenViewport;
 	};

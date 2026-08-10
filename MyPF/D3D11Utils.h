@@ -1,6 +1,7 @@
 #pragma once
 #include <d3d11.h>
 #include <d3dcompiler.h>
+#include <directxtk/SimpleMath.h>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -21,7 +22,7 @@ namespace My
 	public:
 		static bool CreateDepthBuffer(
 			ComPtr<ID3D11Device>& device, int screenWidth,
-			int screenHeight, ComPtr<ID3D11DepthStencilView>& depthStencilView);
+			int screenHeight, ComPtr<ID3D11DepthStencilView>& depthStencilView, ComPtr<ID3D11DepthStencilState>& depthStencilState);
 
 		static bool CreateVertexShaderAndInputLayout(
 			ComPtr<ID3D11Device>& device, const wstring& fileName,

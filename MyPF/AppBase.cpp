@@ -68,9 +68,9 @@ namespace My
 	{
 		m_renderer.BeginFrame(m_backgroundColor);
 
-		if (!m_renderer.DrawTriangle())
+		if (!m_renderer.DrawCube())
 		{
-			OutputDebugStringW(L"Draw Triangle failed, Program shutting down");
+			OutputDebugStringW(L"Draw Cube failed, Program shutting down");
 			PostQuitMessage(-1);
 			return;
 		}
@@ -97,7 +97,11 @@ namespace My
 		}
 
 		Vector3& cur = m_renderer.GetModelTranslate();
+		Vector3& rot = m_renderer.GetModelRotation();
+		Vector3& scale = m_renderer.GetModelScaling();
 		ImGui::DragFloat3("Move", &cur.x, 0.01f, -1.0f, 1.0f);
+		ImGui::SliderFloat3("Rotate(Rad)", &rot.x, -3.14f, 3.14f);
+		ImGui::SliderFloat3("Scaling", &scale.x, 0.1f, 2.0f);
 
 		ImGui::End();
 	}

@@ -9,7 +9,6 @@
 #include "ImGui/imgui_impl_win32.h"
 
 
-
 // ImGui ¿ë WndProcHandler
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

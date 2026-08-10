@@ -6,17 +6,18 @@ namespace My
 {
 	using DirectX::SimpleMath::Vector2;
 	using DirectX::SimpleMath::Vector3;
-
 	using DirectX::SimpleMath::Matrix;
 
 	struct BasicVertexConstantData
 	{
 		Matrix model;
+		Matrix view;
+		Matrix projection;
 	};
 
 	struct Vertex {
 		Vector3 position;
-		Vector3 normal;	// 지금은 컬러
+		Vector3 color;
 	};
 
 	struct MeshData {
@@ -29,6 +30,7 @@ namespace My
 	{
 	public:
 		static MeshData MakeTriangle();
+		static MeshData MakeCube();
 
 		// 필요한 지형데이터 입력함수 작성
 	};
