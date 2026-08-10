@@ -8,13 +8,15 @@ namespace My
 	{
 	public:
 		bool Initialize(HWND mainWindow, int screenWidth, int screenHeight);
+		bool Resize(int screenWidth, int screenHeight);
 
 		void BeginFrame(const std::array<float, 4>& m_backgroundColor);
-
 		bool EndFrame();
 
 		bool DrawTriangle();
 		bool DrawCube();
+
+		bool SetSceneViewport(float topLeftX, float topLeftY, float width, float height);
 
 		ComPtr<ID3D11Device> GetDevice() const { return m_device; }
 		ComPtr<ID3D11DeviceContext> GetContext() const { return m_context; }
@@ -26,9 +28,9 @@ namespace My
 
 	private:
 		bool InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight);
-		void SetViewPort(int screenWidth, int screenHeight);
 		bool CreateRenderTargetView();
-		float GetAspectRatio(int screenWidth, int screenHeight) const;
+		void SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight);
+		float GetAspectRatio(float screenWidth, float screenHeight) const;
 
 	private:
 		ComPtr<ID3D11Device> m_device;

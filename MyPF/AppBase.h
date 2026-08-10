@@ -40,6 +40,7 @@ namespace My
 		HWND m_mainWindow;
 		int m_screenWidth;	// 렌더링할 최종 화면의 해상도
 		int m_screenHeight;
+		float m_guiWidth = 0;
 
 		Renderer m_renderer;
 		GameTimer m_gameTimer;

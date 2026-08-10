@@ -2,9 +2,9 @@
 
 namespace My
 {
-	float Renderer::GetAspectRatio(int screenWidth, int screenHeight) const
+	float Renderer::GetAspectRatio(float screenWidth, float screenHeight) const
 	{
-		return float(screenWidth) / screenHeight;
+		return (screenWidth / screenHeight);
 	}
 
 	bool Renderer::Initialize(HWND mainWindow, int screenWidth, int screenHeight)
@@ -19,7 +19,7 @@ namespace My
 		if (!CreateRenderTargetView())
 			return false;
 
-		SetViewPort(screenWidth, screenHeight);
+		SetViewPort(0, 0, static_cast<float>(screenWidth), static_cast<float>(screenHeight));
 
 		//MeshData triangle = GeometryGenerator::MakeTriangle();
 		MeshData cube = GeometryGenerator::MakeCube();
@@ -40,7 +40,7 @@ namespace My
 		m_constantBufferData.model = Matrix();
 		m_constantBufferData.view = Matrix();
 		m_constantBufferData.projection = Matrix();
-		
+
 		if (!D3D11Utils::CreateConstantBuffer(m_device, m_constantBufferData, m_constantBuffer))
 		{
 			return false;
@@ -72,6 +72,34 @@ namespace My
 		{
 			return false;
 		}
+
+		return true;
+	}
+
+	bool Renderer::Resize(int screenWidth, int screenHeight)
+	{
+		// 창 최소화 상태이므로 작업 없이 넘어가기
+		if (screenWidth <= 0 || screenHeight <= 0)
+		{
+			return true;
+		}
+
+		if (!m_device || !m_context || !m_swapChain)
+		{
+			OutputDebugStringW(L"No Device for resizing");
+			return false;
+		}
+
+		// AspectRatio 갱신
+		m_aspect = GetAspectRatio(screenWidth, screenHeight);
+
+		// 현재 RTV/DSV 연결 해제
+		m_context->OMSetRenderTargets(0, nullptr, nullptr);
+		m_renderTargetView.Reset();
+		m_depthStencilView.Reset();
+
+
+
 
 		return true;
 	}
@@ -141,7 +169,10 @@ namespace My
 		}
 		m_constantBufferData.projection = m_constantBufferData.projection.Transpose();
 
-		D3D11Utils::UpdateBuffer(m_context, m_constantBufferData, m_constantBuffer);
+		if (!D3D11Utils::UpdateBuffer(m_context, m_constantBufferData, m_constantBuffer))
+		{
+			return false;
+		}
 
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
@@ -156,6 +187,23 @@ namespace My
 		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
 		m_context->DrawIndexed(m_indexCount, 0, 0);
+
+		return true;
+	}
+
+	bool Renderer::SetSceneViewport(float topLeftX, float topLeftY, float width, float height)
+	{
+		if (!m_context)
+		{
+			OutputDebugStringW(L"Context is Empty");
+			return false;
+		}
+		if (width <= 0 || height <= 0)
+		{
+			return false;
+		}
+		this->SetViewPort(topLeftX, topLeftY, width, height);
+		m_aspect = GetAspectRatio(width, height);
 
 		return true;
 	}
@@ -242,14 +290,14 @@ namespace My
 		return true;
 	}
 
-	void Renderer::SetViewPort(int screenWidth, int screenHeight)
+	void Renderer::SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight)
 	{
 		ZeroMemory(&m_screenViewport, sizeof(D3D11_VIEWPORT));
-		m_screenViewport.TopLeftX = 0;
-		m_screenViewport.TopLeftY = 0;
+		m_screenViewport.TopLeftX = topLeftX;
+		m_screenViewport.TopLeftY = topLeftY;
 
-		m_screenViewport.Width = static_cast<float>(screenWidth);
-		m_screenViewport.Height = static_cast<float>(screenHeight);
+		m_screenViewport.Width = screenWidth;
+		m_screenViewport.Height = screenHeight;
 		m_screenViewport.MinDepth = 0.0f;
 		m_screenViewport.MaxDepth = 1.0f;	// Note: important for depth buffering
 

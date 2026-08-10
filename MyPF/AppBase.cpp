@@ -88,8 +88,8 @@ namespace My
 	{
 		// ImGui 로직
 		// 이후 ImGui UI 컨트롤 추가는 ImGui::NewFrame()과 ImGui::Render() 사이인 여기에 위치
+		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
 		ImGui::Begin("Test Window");
-
 		ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 		if (ImGui::ColorEdit4("Control BackColor", m_backgroundColor.data(), 0))
@@ -102,6 +102,8 @@ namespace My
 		ImGui::DragFloat3("Move", &cur.x, 0.01f, -1.0f, 1.0f);
 		ImGui::SliderFloat3("Rotate(Rad)", &rot.x, -3.14f, 3.14f);
 		ImGui::SliderFloat3("Scaling", &scale.x, 0.1f, 2.0f);
+
+		m_guiWidth = ImGui::GetWindowSize().x;
 
 		ImGui::End();
 	}
@@ -129,10 +131,13 @@ namespace My
 				ImGui_ImplDX11_NewFrame();
 				ImGui::NewFrame();
 
-				Update(m_gameTimer.GetDeltaTime());
-
 				UpdateUI();
+
 				ImGui::Render();
+
+				m_renderer.SetSceneViewport(m_guiWidth, 0, m_screenWidth - m_guiWidth, m_screenHeight);
+
+				Update(m_gameTimer.GetDeltaTime());
 
 				Render();
 			}
