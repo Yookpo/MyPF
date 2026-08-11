@@ -50,7 +50,8 @@ namespace My
 
 	AppBase::AppBase()
 		: m_screenWidth(1280), m_screenHeight(720),
-		m_mainWindow(nullptr), m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }
+		m_mainWindow(nullptr), m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f },
+		m_selectedObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -121,7 +122,7 @@ namespace My
 		// Main Message loop
 		MSG msg = { 0 };
 		m_gameTimer.Reset();
-		
+
 		// 기존에 guiWidth 변화없다면 뷰포트 변화안함
 		static float previousGuiWidth = m_guiWidth;
 
@@ -151,7 +152,7 @@ namespace My
 					previousGuiWidth = m_guiWidth;
 					m_renderer.SetSceneViewport(m_guiWidth, 0, m_screenWidth - m_guiWidth, m_screenHeight);
 				}
-				
+
 
 				Update(m_gameTimer.GetDeltaTime());
 
@@ -167,6 +168,11 @@ namespace My
 	{
 		if (!InitMainWindow())
 			return false;
+
+		auto obj = m_scene.CreateGameObject("cube");
+		m_selectedObject = &obj;
+		m_selectedObject->GetTransform().SetScale(Vector3(0.5f, 0.5f, 0.5f));
+
 
 		if (!m_renderer.Initialize(m_mainWindow, m_screenWidth, m_screenHeight))
 			return false;

@@ -1,6 +1,7 @@
 #pragma once
 #include "Renderer.h"
 #include "GameTimer.h"
+#include "Scene.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -44,6 +45,10 @@ namespace My
 
 		Renderer m_renderer;
 		GameTimer m_gameTimer;
+		Scene m_scene;
+		GameObject* m_selectedObject;
+
+
 
 		std::array<float, 4> m_backgroundColor;
 	};
