@@ -13,7 +13,6 @@ namespace My
 		void BeginFrame(const std::array<float, 4>& m_backgroundColor);
 		bool EndFrame();
 
-		bool DrawTriangle();
 		bool DrawCube(const Matrix&);
 
 		bool SetSceneViewport(float topLeftX, float topLeftY, float width, float height);
