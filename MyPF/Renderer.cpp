@@ -21,21 +21,6 @@ namespace My
 
 		SetViewPort(0, 0, static_cast<float>(screenWidth), static_cast<float>(screenHeight));
 
-		//MeshData triangle = GeometryGenerator::MakeTriangle();
-		MeshData cube = GeometryGenerator::MakeCube();
-
-		if (!D3D11Utils::CreateVertexBuffer(m_device, cube.vertices,
-			m_vertexBuffer))
-		{
-			return false;
-		}
-
-		m_indexCount = UINT(cube.indices.size());
-
-		if (!D3D11Utils::CreateIndexBuffer(m_device, cube.indices, m_indexBuffer))
-		{
-			return false;
-		}
 
 		m_constantBufferData.model = Matrix();
 		m_constantBufferData.view = Matrix();
@@ -129,7 +114,7 @@ namespace My
 
 	}
 
-	bool Renderer::DrawCube(const Matrix& worldMatrix)
+	bool Renderer::DrawMesh(const Mesh& mesh, const Matrix& worldMatrix)
 	{
 		using namespace DirectX;
 
@@ -161,16 +146,18 @@ namespace My
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
 
+		ID3D11Buffer* meshVertexBuffer = mesh.GetVertexBuffer();
+
 		m_context->IASetInputLayout(m_inputLayout.Get());
-		m_context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
-		m_context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+		m_context->IASetVertexBuffers(0, 1, &meshVertexBuffer, &stride, &offset);
+		m_context->IASetIndexBuffer(mesh.GetIndexBuffer(), DXGI_FORMAT_R32_UINT, 0);
 		m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		m_context->VSSetShader(m_vertexShader.Get(), 0, 0);
 		m_context->VSSetConstantBuffers(0, 1, m_constantBuffer.GetAddressOf());
 		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
-		m_context->DrawIndexed(m_indexCount, 0, 0);
+		m_context->DrawIndexed(mesh.GetIndexCount(), 0, 0);
 
 		return true;
 	}

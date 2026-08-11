@@ -10,7 +10,7 @@ namespace My
 			}
 
 			// 에러 메시지가 있으면 출력
-			if (errorBlob) 
+			if (errorBlob)
 			{
 				OutputDebugStringA("Shader compile error:\n");
 
@@ -21,7 +21,7 @@ namespace My
 			}
 		}
 	}
-	bool D3D11Utils::CreateDepthBuffer(ComPtr<ID3D11Device>& device, int screenWidth, int screenHeight, 
+	bool D3D11Utils::CreateDepthBuffer(ComPtr<ID3D11Device>& device, int screenWidth, int screenHeight,
 		ComPtr<ID3D11DepthStencilView>& depthStencilView, ComPtr<ID3D11DepthStencilState>& depthStencilState)
 	{
 		if (!device)
@@ -155,7 +155,7 @@ namespace My
 		return true;
 	}
 
-	bool D3D11Utils::CreateIndexBuffer(ComPtr<ID3D11Device>& device, const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer)
+	bool D3D11Utils::CreateIndexBuffer(ID3D11Device* device, const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer)
 	{
 		if (!device || !indices.size())
 		{

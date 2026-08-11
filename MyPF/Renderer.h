@@ -1,6 +1,7 @@
 #pragma once
 #include "D3D11Utils.h"
-#include "GeometryGenerator.h"
+#include "Mesh.h"
+#include "ShaderConstants.h"
 
 namespace My
 {
@@ -13,11 +14,11 @@ namespace My
 		void BeginFrame(const std::array<float, 4>& m_backgroundColor);
 		bool EndFrame();
 
-		bool DrawCube(const Matrix&);
+		bool DrawMesh(const Mesh&, const Matrix&);
 
 		bool SetSceneViewport(float topLeftX, float topLeftY, float width, float height);
 
-		ComPtr<ID3D11Device> GetDevice() const { return m_device; }
+		ID3D11Device* GetDevice() const { return m_device.Get(); }
 		ComPtr<ID3D11DeviceContext> GetContext() const { return m_context; }
 
 
@@ -42,11 +43,6 @@ namespace My
 		ComPtr<ID3D11VertexShader> m_vertexShader;
 		ComPtr<ID3D11PixelShader> m_pixelShader;
 		ComPtr<ID3D11InputLayout> m_inputLayout;
-
-		// meshes
-		ComPtr<ID3D11Buffer> m_vertexBuffer;
-		ComPtr<ID3D11Buffer> m_indexBuffer;
-		UINT m_indexCount = 0;
 
 		BasicVertexConstantData m_constantBufferData;
 		ComPtr<ID3D11Buffer> m_constantBuffer;

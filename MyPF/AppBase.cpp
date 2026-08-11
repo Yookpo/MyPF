@@ -1,4 +1,5 @@
 ﻿#include "AppBase.h"
+#include "GeometryGenerator.h"
 
 namespace My
 {
@@ -84,7 +85,7 @@ namespace My
 			const Transform& tr = obj->GetTransform();
 			const Matrix world = tr.GetWorldMatrix();
 
-			if (!m_renderer.DrawCube(world))
+			if (!m_renderer.DrawMesh(m_cubeMesh, world))
 			{
 				OutputDebugStringW(L"Draw Cube failed, Program shutting down");
 				PostQuitMessage(-1);
@@ -202,6 +203,12 @@ namespace My
 		m_selectedObject = &m_scene.CreateGameObject("cube");
 		m_selectedObject->GetTransform().SetScale(Vector3(0.5f, 0.5f, 0.5f));
 
+		MeshData meshData = GeometryGenerator::MakeCube();
+		if (!m_cubeMesh.Initialize(m_renderer.GetDevice(), meshData))
+		{
+			return false;
+		}
+
 		return true;
 	}
 
@@ -260,7 +267,7 @@ namespace My
 		ImGuiIO& io = ImGui::GetIO();
 
 		// Setup Platform/Renderer backends
-		if (!ImGui_ImplDX11_Init(m_renderer.GetDevice().Get(), m_renderer.GetContext().Get())) {
+		if (!ImGui_ImplDX11_Init(m_renderer.GetDevice(), m_renderer.GetContext().Get())) {
 			return false;
 		}
 

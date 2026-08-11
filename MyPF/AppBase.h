@@ -2,6 +2,7 @@
 #include "Renderer.h"
 #include "GameTimer.h"
 #include "Scene.h"
+#include "Mesh.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -47,6 +48,7 @@ namespace My
 		GameTimer m_gameTimer;
 		Scene m_scene;
 		GameObject* m_selectedObject;
+		Mesh m_cubeMesh;
 
 
 		std::array<float, 4> m_backgroundColor;

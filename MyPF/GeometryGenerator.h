@@ -1,31 +1,8 @@
 #pragma once
-#include <directxtk/SimpleMath.h>
-#include <vector>
+#include "MeshData.h"
 
 namespace My
 {
-	using DirectX::SimpleMath::Vector2;
-	using DirectX::SimpleMath::Vector3;
-	using DirectX::SimpleMath::Matrix;
-
-	struct BasicVertexConstantData
-	{
-		Matrix model;
-		Matrix view;
-		Matrix projection;
-	};
-
-	struct Vertex {
-		Vector3 position;
-		Vector3 color;
-	};
-
-	struct MeshData {
-		std::vector<Vertex> vertices;
-		std::vector<uint32_t> indices;
-	};
-
-
 	class GeometryGenerator
 	{
 	public:

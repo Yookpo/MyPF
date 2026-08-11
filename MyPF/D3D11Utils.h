@@ -34,11 +34,11 @@ namespace My
 		static bool CreatePixelShader(ComPtr<ID3D11Device>& device,
 			const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader);
 
-		static bool CreateIndexBuffer(ComPtr<ID3D11Device>& device,
+		static bool CreateIndexBuffer(ID3D11Device* device,
 			const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer);
 
 		template <typename T_VERTEX>
-		static bool CreateVertexBuffer(ComPtr<ID3D11Device>& device,
+		static bool CreateVertexBuffer(ID3D11Device* device,
 			const vector<T_VERTEX>& vertices,
 			ComPtr<ID3D11Buffer>& vertexBuffer)
 		{
