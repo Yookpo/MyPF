@@ -156,15 +156,12 @@ namespace My
 		return true;
 	}
 
-	bool Renderer::DrawCube()
+	bool Renderer::DrawCube(const Matrix& worldMatrix)
 	{
 		using namespace DirectX;
 
 		// 모델 변환
-		m_constantBufferData.model =
-			Matrix::CreateScale(m_modelScaling) * Matrix::CreateRotationY(m_modelRotation.y) *
-			Matrix::CreateRotationX(m_modelRotation.x) * Matrix::CreateRotationZ(m_modelRotation.z) *
-			Matrix::CreateTranslation(m_modelTranslation);
+		m_constantBufferData.model = worldMatrix;
 		m_constantBufferData.model = m_constantBufferData.model.Transpose();
 
 		// 시점 변환

@@ -49,7 +49,6 @@ namespace My
 		GameObject* m_selectedObject;
 
 
-
 		std::array<float, 4> m_backgroundColor;
 	};
 

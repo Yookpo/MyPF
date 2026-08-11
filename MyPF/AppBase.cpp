@@ -77,11 +77,18 @@ namespace My
 	{
 		m_renderer.BeginFrame(m_backgroundColor);
 
-		if (!m_renderer.DrawCube())
+		auto& sceneObjects = m_scene.GetGameObjects();
+		for (const auto& obj : sceneObjects)
 		{
-			OutputDebugStringW(L"Draw Cube failed, Program shutting down");
-			PostQuitMessage(-1);
-			return;
+			Transform tr = obj->GetTransform();
+			Matrix world = tr.GetWorldMatrix();
+
+			if (!m_renderer.DrawCube(world))
+			{
+				OutputDebugStringW(L"Draw Cube failed, Program shutting down");
+				PostQuitMessage(-1);
+				return;
+			}
 		}
 
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -169,16 +176,14 @@ namespace My
 		if (!InitMainWindow())
 			return false;
 
-		auto obj = m_scene.CreateGameObject("cube");
-		m_selectedObject = &obj;
-		m_selectedObject->GetTransform().SetScale(Vector3(0.5f, 0.5f, 0.5f));
-
-
 		if (!m_renderer.Initialize(m_mainWindow, m_screenWidth, m_screenHeight))
 			return false;
 
 		if (!InitGUI())
 			return false;
+
+		m_selectedObject = &m_scene.CreateGameObject("cube");
+		m_selectedObject->GetTransform().SetScale(Vector3(0.5f, 0.5f, 0.5f));
 
 		return true;
 	}

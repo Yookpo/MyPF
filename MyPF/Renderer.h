@@ -14,17 +14,13 @@ namespace My
 		bool EndFrame();
 
 		bool DrawTriangle();
-		bool DrawCube();
+		bool DrawCube(const Matrix&);
 
 		bool SetSceneViewport(float topLeftX, float topLeftY, float width, float height);
 
 		ComPtr<ID3D11Device> GetDevice() const { return m_device; }
 		ComPtr<ID3D11DeviceContext> GetContext() const { return m_context; }
 
-		Vector3& GetModelTranslate() { return m_modelTranslation; }
-		//void SetModelTranslate(Vector3& newTranslate) { m_modelTranslation = std::move(newTranslate); }
-		Vector3& GetModelRotation() { return m_modelRotation; }
-		Vector3& GetModelScaling() { return m_modelScaling; }
 
 	private:
 		bool InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight);
@@ -58,9 +54,6 @@ namespace My
 
 		// Data
 		bool m_usePerspectiveProjection = true;
-		Vector3 m_modelTranslation = Vector3(0.0f);
-		Vector3 m_modelRotation = Vector3(0.0f);
-		Vector3 m_modelScaling = Vector3(0.5f);
 		Vector3 m_viewEyePos = { 0.0f, 0.0f, -2.0f };
 		Vector3 m_viewEyeDir = { 0.0f, 0.0f, 1.0f };
 		Vector3 m_viewUp = { 0.0f, 1.0f, 0.0f };
