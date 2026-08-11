@@ -35,7 +35,6 @@ namespace My
 		case WM_SIZE:
 			m_screenWidth = int(LOWORD(lParam));
 			m_screenHeight = int(HIWORD(lParam));
-			m_guiWidth = 0;
 
 			m_renderer.Resize(m_screenWidth, m_screenHeight);
 			break;
@@ -148,9 +147,6 @@ namespace My
 		MSG msg = { 0 };
 		m_gameTimer.Reset();
 
-		// 기존에 guiWidth 변화없다면 뷰포트 변화안함
-		static float previousGuiWidth = m_guiWidth;
-
 		while (WM_QUIT != msg.message)
 		{
 			if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -172,13 +168,14 @@ namespace My
 
 				ImGui::Render();
 
-				if (previousGuiWidth != m_guiWidth)
+				if (m_screenWidth - m_guiWidth > 0 && m_screenHeight > 0)
 				{
-					previousGuiWidth = m_guiWidth;
-					m_renderer.SetSceneViewport(m_guiWidth, 0, m_screenWidth - m_guiWidth, m_screenHeight);
+					m_renderer.SetSceneViewport(
+						m_guiWidth, 0, 
+						static_cast<float>(m_screenWidth - m_guiWidth), static_cast<float>(m_screenHeight)
+					);
 				}
-
-
+				
 				Update(m_gameTimer.GetDeltaTime());
 
 				Render();
