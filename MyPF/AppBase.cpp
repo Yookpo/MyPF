@@ -113,8 +113,31 @@ namespace My
 		{
 		}
 
+		ImGui::Separator();
+		ImGui::Text("Scene Objects");
+
+		const auto& sceneObjects = m_scene.GetGameObjects();
+
+		for (const auto& obj : sceneObjects)
+		{
+			GameObject* gameObject = obj.get();
+			const bool isSelected = (m_selectedObject == gameObject);
+
+			ImGui::PushID(gameObject);
+
+			if (ImGui::Selectable(gameObject->GetName().c_str(), isSelected))
+			{
+				m_selectedObject = gameObject;
+			}
+
+			ImGui::PopID();
+		}
+
+		ImGui::Separator();
+
 		if (m_selectedObject)
 		{
+			ImGui::Text("Selected: %s", m_selectedObject->GetName().c_str());
 			Transform& tr = m_selectedObject->GetTransform();
 			// 위치 수정
 			Vector3 pos = tr.GetPosition();
@@ -171,11 +194,11 @@ namespace My
 				if (m_screenWidth - m_guiWidth > 0 && m_screenHeight > 0)
 				{
 					m_renderer.SetSceneViewport(
-						m_guiWidth, 0, 
+						m_guiWidth, 0,
 						static_cast<float>(m_screenWidth - m_guiWidth), static_cast<float>(m_screenHeight)
 					);
 				}
-				
+
 				Update(m_gameTimer.GetDeltaTime());
 
 				Render();
@@ -197,8 +220,16 @@ namespace My
 		if (!InitGUI())
 			return false;
 
-		m_selectedObject = &m_scene.CreateGameObject("cube");
-		m_selectedObject->GetTransform().SetScale(Vector3(0.5f, 0.5f, 0.5f));
+		GameObject* cube1 = &m_scene.CreateGameObject("cube1");
+		GameObject* cube2 = &m_scene.CreateGameObject("cube2");
+
+		cube1->GetTransform().SetPosition(Vector3(-0.6f, 0.0f, 0.0f));
+		cube1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
+
+		cube2->GetTransform().SetPosition(Vector3(0.6f, 0.0f, 0.0f));
+		cube2->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
+
+		m_selectedObject = cube1;
 
 		MeshData meshData = GeometryGenerator::MakeCube();
 		if (!m_cubeMesh.Initialize(m_renderer.GetDevice(), meshData))
