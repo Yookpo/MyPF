@@ -77,6 +77,7 @@ namespace My
 	{
 		m_renderer.BeginFrame(m_backgroundColor);
 
+		// 해당 Scene의 오브젝트들을 순회
 		const auto& sceneObjects = m_scene.GetGameObjects();
 		for (const auto& obj : sceneObjects)
 		{

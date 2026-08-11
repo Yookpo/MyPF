@@ -13,7 +13,4 @@ namespace My
 			Matrix::CreateRotationX(m_rotation.x) * Matrix::CreateRotationZ(m_rotation.z) *
 			Matrix::CreateTranslation(m_position));
 	}
-
-
-
 }
