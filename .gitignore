@@ -89,6 +89,7 @@ MyPF/.vs/MyPF/FileContentIndex/2524b2b5-90d6-4ce7-9df2-640ab66ff80d.vsidx
 MyPF/.vs/MyPF/FileContentIndex/4f84d1c8-09cc-4dbc-a553-7f2c07668958.vsidx
 MyPF/.vs/MyPF/FileContentIndex/5523643f-52a4-49df-92a8-00663eb53e5a.vsidx
 MyPF/.vs/MyPF/FileContentIndex/f5fca98d-5692-4c1c-9b8d-9998d9d7f7d1.vsidx
+<<<<<<< Updated upstream
 MyPF/.vs/MyPF/FileContentIndex/4a5dca7d-f78c-4d76-b467-09cc1f7d07c7.vsidx
 MyPF/.vs/MyPF/FileContentIndex/77739ee4-4835-489d-b18b-505b5fba917a.vsidx
 MyPF/.vs/MyPF/FileContentIndex/a62a2ec6-ac1f-4cfd-a55c-08c3cd94c96b.vsidx
@@ -184,3 +185,7 @@ MyPF/CodexBuildScene/Debug/vcpkg.applocal.log
 MyPF/MyPF/x64/Debug/GameObject.obj
 MyPF/MyPF/x64/Debug/Transform.obj
 MyPF/.vs/MyPF/FileContentIndex/33754576-2a84-4fe6-9774-345f3619db04.vsidx
+=======
+MyPF/.vs/MyPF/v17/Solution.VC.db
+>>>>>>> Stashed changes
+MyPF/.vs/MyPF/FileContentIndex/c98f5164-e7ce-4d23-a6df-3b89b9b4b2d7.vsidx

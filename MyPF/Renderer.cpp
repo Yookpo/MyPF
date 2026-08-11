@@ -129,33 +129,6 @@ namespace My
 
 	}
 
-	bool Renderer::DrawTriangle()
-	{
-		m_constantBufferData.model = Matrix::CreateTranslation(m_modelTranslation);
-		m_constantBufferData.model = m_constantBufferData.model.Transpose();
-
-		if (!D3D11Utils::UpdateBuffer(m_context, m_constantBufferData, m_constantBuffer))
-		{
-			return false;
-		}
-
-		UINT stride = sizeof(Vertex);
-		UINT offset = 0;
-
-		m_context->IASetInputLayout(m_inputLayout.Get());
-		m_context->IASetVertexBuffers(0, 1, m_vertexBuffer.GetAddressOf(), &stride, &offset);
-		m_context->IASetIndexBuffer(m_indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
-		m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		m_context->VSSetShader(m_vertexShader.Get(), 0, 0);
-		m_context->VSSetConstantBuffers(0, 1, m_constantBuffer.GetAddressOf());
-		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
-
-		m_context->DrawIndexed(m_indexCount, 0, 0);
-
-		return true;
-	}
-
 	bool Renderer::DrawCube(const Matrix& worldMatrix)
 	{
 		using namespace DirectX;

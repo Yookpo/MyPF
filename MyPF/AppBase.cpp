@@ -77,11 +77,11 @@ namespace My
 	{
 		m_renderer.BeginFrame(m_backgroundColor);
 
-		auto& sceneObjects = m_scene.GetGameObjects();
+		const auto& sceneObjects = m_scene.GetGameObjects();
 		for (const auto& obj : sceneObjects)
 		{
-			Transform tr = obj->GetTransform();
-			Matrix world = tr.GetWorldMatrix();
+			const Transform& tr = obj->GetTransform();
+			const Matrix world = tr.GetWorldMatrix();
 
 			if (!m_renderer.DrawCube(world))
 			{
@@ -112,12 +112,28 @@ namespace My
 		{
 		}
 
-		Vector3& cur = m_renderer.GetModelTranslate();
-		Vector3& rot = m_renderer.GetModelRotation();
-		Vector3& scale = m_renderer.GetModelScaling();
-		ImGui::DragFloat3("Move", &cur.x, 0.01f, -1.0f, 1.0f);
-		ImGui::SliderFloat3("Rotate(Rad)", &rot.x, -3.14f, 3.14f);
-		ImGui::SliderFloat3("Scaling", &scale.x, 0.1f, 2.0f);
+		if (m_selectedObject)
+		{
+			Transform& tr = m_selectedObject->GetTransform();
+			// 위치 수정
+			Vector3 pos = tr.GetPosition();
+			if (ImGui::DragFloat3("Move", &pos.x, 0.01f, -1.0f, 1.0f))
+			{
+				tr.SetPosition(pos);
+			}
+			// 회전 수정
+			Vector3 rot = tr.GetRotation();
+			if (ImGui::SliderFloat3("Rotate(Rad)", &rot.x, -3.14f, 3.14f))
+			{
+				tr.SetRotation(rot);
+			}
+			// 스케일 수정
+			Vector3 scale = tr.GetScale();
+			if (ImGui::SliderFloat3("Scaling", &scale.x, 0.1f, 2.0f))
+			{
+				tr.SetScale(scale);
+			}
+		}
 
 		m_guiWidth = ImGui::GetWindowSize().x;
 
