@@ -6,7 +6,6 @@ namespace My
 	using DirectX::SimpleMath::Vector3;
 	using DirectX::SimpleMath::Matrix;
 
-
 	class Camera
 	{
 	public:

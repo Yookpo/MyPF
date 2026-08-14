@@ -1,6 +1,5 @@
 ﻿#include "Renderer.h"
 #include "Mesh.h"
-#include "Camera.h"
 
 namespace My
 {
@@ -99,7 +98,7 @@ namespace My
 		return true;
 	}
 
-	void Renderer::BeginFrame(const Camera& m_camera, const std::array<float, 4>& m_backgroundColor)
+	void Renderer::BeginFrame(const FrameRenderData& frameRenderData, const std::array<float, 4>& m_backgroundColor)
 	{
 		m_context->ClearRenderTargetView(m_renderTargetView.Get(), m_backgroundColor.data());
 		m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -109,11 +108,11 @@ namespace My
 		m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
 		// 시점 변환
-		m_constantBufferData.view = m_camera.GetViewMatrix();
+		m_constantBufferData.view = frameRenderData.view;
 		m_constantBufferData.view = m_constantBufferData.view.Transpose();
 
 		// 프로젝션
-		m_constantBufferData.projection = m_camera.GetProjectionMatrix();
+		m_constantBufferData.projection = frameRenderData.projection;
 		m_constantBufferData.projection = m_constantBufferData.projection.Transpose();
 	}
 

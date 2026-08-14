@@ -2,18 +2,17 @@
 #include "D3D11Utils.h"
 #include "RenderItem.h"
 #include "ShaderConstants.h"
+#include "FrameRenderData.h"
 
 namespace My
 {
-	class Camera;
-
 	class Renderer
 	{
 	public:
 		bool Initialize(HWND mainWindow, int screenWidth, int screenHeight);
 		bool Resize(int screenWidth, int screenHeight);
 
-		void BeginFrame(const Camera&, const std::array<float, 4>&);
+		void BeginFrame(const FrameRenderData&, const std::array<float, 4>&);
 		bool EndFrame();
 
 		bool DrawRenderItem(const RenderItem&);

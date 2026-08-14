@@ -1,6 +1,7 @@
 ﻿#include "AppBase.h"
 #include "GeometryGenerator.h"
 #include "RenderItem.h"
+#include "FrameRenderData.h"
 
 namespace My
 {
@@ -81,7 +82,12 @@ namespace My
 	void AppBase::Update(float dt) {}
 	void AppBase::Render()
 	{
-		m_renderer.BeginFrame(m_camera, m_backgroundColor);
+		FrameRenderData frameRenderData;
+
+		frameRenderData.view = m_camera.GetViewMatrix();
+		frameRenderData.projection = m_camera.GetProjectionMatrix();
+
+		m_renderer.BeginFrame(frameRenderData, m_backgroundColor);
 
 		// 해당 Scene의 오브젝트들을 순회
 		const auto& sceneObjects = m_scene.GetGameObjects();
