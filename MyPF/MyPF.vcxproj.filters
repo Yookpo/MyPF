@@ -75,6 +75,9 @@
     <ClCompile Include="Mesh.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppBase.h">
@@ -138,6 +141,9 @@
       <Filter>Scene</Filter>
     </ClInclude>
     <ClInclude Include="RenderItem.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

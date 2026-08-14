@@ -3,6 +3,7 @@
 #include "GameTimer.h"
 #include "Scene.h"
 #include "Mesh.h"
+#include "Camera.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -36,6 +37,7 @@ namespace My
 	protected:
 		bool InitMainWindow();
 		bool InitGUI();
+		float GetAspectRatio(float sceneViewWidth, float sceneViewHeight) const;
 
 	public:
 		HWND m_mainWindow;
@@ -50,6 +52,7 @@ namespace My
 		Mesh m_cubeMesh;
 		Mesh m_triangleMesh;
 
+		Camera m_camera;
 
 		std::array<float, 4> m_backgroundColor;
 	};

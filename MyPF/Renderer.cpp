@@ -1,17 +1,12 @@
 #include "Renderer.h"
 #include "Mesh.h"
+#include "Camera.h"
 
 namespace My
 {
-	float Renderer::GetAspectRatio(float screenWidth, float screenHeight) const
-	{
-		return (screenWidth / screenHeight);
-	}
 
 	bool Renderer::Initialize(HWND mainWindow, int screenWidth, int screenHeight)
 	{
-		m_aspect = GetAspectRatio(screenWidth, screenHeight);
-
 		if (!InitDirect3D(mainWindow, screenWidth, screenHeight))
 		{
 			return false;
@@ -104,7 +99,7 @@ namespace My
 		return true;
 	}
 
-	void Renderer::BeginFrame(const std::array<float, 4>& m_backgroundColor)
+	void Renderer::BeginFrame(const Camera& m_camera, const std::array<float, 4>& m_backgroundColor)
 	{
 		m_context->ClearRenderTargetView(m_renderTargetView.Get(), m_backgroundColor.data());
 		m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -113,12 +108,17 @@ namespace My
 		m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), m_depthStencilView.Get());
 		m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
+		// 시점 변환
+		m_constantBufferData.view = m_camera.GetViewMatrix();
+		m_constantBufferData.view = m_constantBufferData.view.Transpose();
+
+		// 프로젝션
+		m_constantBufferData.projection = m_camera.GetProjectionMatrix();
+		m_constantBufferData.projection = m_constantBufferData.projection.Transpose();
 	}
 
 	bool Renderer::DrawRenderItem(const RenderItem& renderItem)
 	{
-		using namespace DirectX;
-
 		if (!renderItem.mesh)
 		{
 			OutputDebugStringW(L"No Mesh in renderItem");
@@ -130,22 +130,6 @@ namespace My
 		// 모델 변환
 		m_constantBufferData.model = renderItem.world;
 		m_constantBufferData.model = m_constantBufferData.model.Transpose();
-
-		// 시점 변환
-		// m_constantBufferData.view = XMMatrixLookAtLH(m_viewEye, m_viewFocus, m_viewUp);
-		m_constantBufferData.view = XMMatrixLookToLH(m_viewEyePos, m_viewEyeDir, m_viewUp);
-		m_constantBufferData.view = m_constantBufferData.view.Transpose();
-
-		// 프로젝션
-		if (m_usePerspectiveProjection) {
-			m_constantBufferData.projection = XMMatrixPerspectiveFovLH(
-				XMConvertToRadians(m_projFovAngleY), m_aspect, m_nearZ, m_farZ);
-		}
-		else {
-			m_constantBufferData.projection =
-				XMMatrixOrthographicOffCenterLH(-m_aspect, m_aspect, -1.0f, 1.0f, m_nearZ, m_farZ);
-		}
-		m_constantBufferData.projection = m_constantBufferData.projection.Transpose();
 
 		if (!D3D11Utils::UpdateBuffer(m_context, m_constantBufferData, m_constantBuffer))
 		{
@@ -184,7 +168,6 @@ namespace My
 		}
 
 		this->SetViewPort(topLeftX, topLeftY, width, height);
-		m_aspect = GetAspectRatio(width, height);
 
 		return true;
 	}

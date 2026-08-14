@@ -5,7 +5,7 @@
 
 namespace My
 {
-	using DirectX::SimpleMath::Vector3;
+	class Camera;
 
 	class Renderer
 	{
@@ -13,7 +13,7 @@ namespace My
 		bool Initialize(HWND mainWindow, int screenWidth, int screenHeight);
 		bool Resize(int screenWidth, int screenHeight);
 
-		void BeginFrame(const std::array<float, 4>& m_backgroundColor);
+		void BeginFrame(const Camera&, const std::array<float, 4>&);
 		bool EndFrame();
 
 		bool DrawRenderItem(const RenderItem&);
@@ -28,7 +28,6 @@ namespace My
 		bool InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight);
 		bool CreateRenderTargetView();
 		void SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight);
-		float GetAspectRatio(float screenWidth, float screenHeight) const;
 
 	private:
 		ComPtr<ID3D11Device> m_device;
@@ -48,16 +47,6 @@ namespace My
 
 		BasicVertexConstantData m_constantBufferData;
 		ComPtr<ID3D11Buffer> m_constantBuffer;
-
-		// Data
-		bool m_usePerspectiveProjection = true;
-		Vector3 m_viewEyePos = { 0.0f, 0.0f, -2.0f };
-		Vector3 m_viewEyeDir = { 0.0f, 0.0f, 1.0f };
-		Vector3 m_viewUp = { 0.0f, 1.0f, 0.0f };
-		float m_projFovAngleY = 70.0f;
-		float m_nearZ = 0.01f;
-		float m_farZ = 100.0f;
-		float m_aspect;
 
 		D3D11_VIEWPORT m_screenViewport;
 	};

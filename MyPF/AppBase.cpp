@@ -6,6 +6,11 @@ namespace My
 {
 	using namespace std;
 
+	float AppBase::GetAspectRatio(float sceneViewWidth, float sceneViewHeight) const
+	{
+		return (sceneViewWidth / sceneViewHeight);
+	}
+
 	// RegisterClassEx()에서 멤버 함수를 직접 등록할 수가 없기 때문에
 	// 클래스의 멤버 함수에서 간접적으로 메시지를 처리할 수 있도록 도와줍니다.
 	AppBase* g_appBase = nullptr;
@@ -76,7 +81,7 @@ namespace My
 	void AppBase::Update(float dt) {}
 	void AppBase::Render()
 	{
-		m_renderer.BeginFrame(m_backgroundColor);
+		m_renderer.BeginFrame(m_camera, m_backgroundColor);
 
 		// 해당 Scene의 오브젝트들을 순회
 		const auto& sceneObjects = m_scene.GetGameObjects();
@@ -204,10 +209,13 @@ namespace My
 
 				if (m_screenWidth - m_guiWidth > 0 && m_screenHeight > 0)
 				{
-					m_renderer.SetSceneViewport(
-						m_guiWidth, 0,
-						static_cast<float>(m_screenWidth - m_guiWidth), static_cast<float>(m_screenHeight)
-					);
+					float sceneViewWidth = static_cast<float>(m_screenWidth - m_guiWidth);
+					float sceneViewHeight = static_cast<float>(m_screenHeight);
+					float sceneViewRatio = this->GetAspectRatio(sceneViewWidth, sceneViewHeight);
+
+					m_camera.SetAspectRatio(sceneViewRatio);
+					m_renderer.SetSceneViewport(m_guiWidth, 0, sceneViewWidth, sceneViewHeight);
+
 				}
 
 				Update(m_gameTimer.GetDeltaTime());
