@@ -130,6 +130,16 @@ namespace My
 		}
 
 		ImGui::Separator();
+		ImGui::Text("Camera");
+		Vector3 cameraPos = m_camera.GetPosition();
+		if (ImGui::DragFloat3("Camera Move", &cameraPos.x, 0.01f, -10.0f, 10.0f))
+		{
+			m_camera.SetPosition(cameraPos);
+		}
+
+
+
+		ImGui::Separator();
 		ImGui::Text("Scene Objects");
 
 		const auto& sceneObjects = m_scene.GetGameObjects();
