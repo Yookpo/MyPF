@@ -137,6 +137,9 @@
     <ClInclude Include="MeshRenderer.h">
       <Filter>Scene</Filter>
     </ClInclude>
+    <ClInclude Include="RenderItem.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\simplePixelShader.hlsl">

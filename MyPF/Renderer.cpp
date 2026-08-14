@@ -1,4 +1,5 @@
 #include "Renderer.h"
+#include "Mesh.h"
 
 namespace My
 {
@@ -114,12 +115,20 @@ namespace My
 
 	}
 
-	bool Renderer::DrawMesh(const Mesh& mesh, const Matrix& worldMatrix)
+	bool Renderer::DrawRenderItem(const RenderItem& renderItem)
 	{
 		using namespace DirectX;
 
+		if (!renderItem.mesh)
+		{
+			OutputDebugStringW(L"No Mesh in renderItem");
+			return false;
+		}
+
+		const Mesh& drawMesh = *renderItem.mesh;
+
 		// 모델 변환
-		m_constantBufferData.model = worldMatrix;
+		m_constantBufferData.model = renderItem.world;
 		m_constantBufferData.model = m_constantBufferData.model.Transpose();
 
 		// 시점 변환
@@ -146,18 +155,18 @@ namespace My
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
 
-		ID3D11Buffer* meshVertexBuffer = mesh.GetVertexBuffer();
+		ID3D11Buffer* meshVertexBuffer = drawMesh.GetVertexBuffer();
 
 		m_context->IASetInputLayout(m_inputLayout.Get());
 		m_context->IASetVertexBuffers(0, 1, &meshVertexBuffer, &stride, &offset);
-		m_context->IASetIndexBuffer(mesh.GetIndexBuffer(), DXGI_FORMAT_R32_UINT, 0);
+		m_context->IASetIndexBuffer(drawMesh.GetIndexBuffer(), DXGI_FORMAT_R32_UINT, 0);
 		m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		m_context->VSSetShader(m_vertexShader.Get(), 0, 0);
 		m_context->VSSetConstantBuffers(0, 1, m_constantBuffer.GetAddressOf());
 		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
-		m_context->DrawIndexed(mesh.GetIndexCount(), 0, 0);
+		m_context->DrawIndexed(drawMesh.GetIndexCount(), 0, 0);
 
 		return true;
 	}

@@ -167,6 +167,7 @@
     <ClInclude Include="MeshData.h" />
     <ClInclude Include="MeshRenderer.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="RenderItem.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="ShaderConstants.h" />
     <ClInclude Include="Transform.h" />

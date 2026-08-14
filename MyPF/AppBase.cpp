@@ -1,5 +1,6 @@
 ﻿#include "AppBase.h"
 #include "GeometryGenerator.h"
+#include "RenderItem.h"
 
 namespace My
 {
@@ -90,11 +91,12 @@ namespace My
 			{
 				continue;
 			}
-			const Mesh* mesh = meshRenderer.GetMesh();
 
-			if (!m_renderer.DrawMesh(*mesh, world))
+			RenderItem renderItem{ meshRenderer.GetMesh(), world };
+
+			if (!m_renderer.DrawRenderItem(renderItem))
 			{
-				OutputDebugStringW(L"Draw Cube failed, Program shutting down");
+				OutputDebugStringW(L"Draw RenderItem failed, Program shutting down");
 				PostQuitMessage(-1);
 				return;
 			}

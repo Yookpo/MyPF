@@ -1,10 +1,12 @@
 #pragma once
 #include "D3D11Utils.h"
-#include "Mesh.h"
+#include "RenderItem.h"
 #include "ShaderConstants.h"
 
 namespace My
 {
+	using DirectX::SimpleMath::Vector3;
+
 	class Renderer
 	{
 	public:
@@ -14,7 +16,7 @@ namespace My
 		void BeginFrame(const std::array<float, 4>& m_backgroundColor);
 		bool EndFrame();
 
-		bool DrawMesh(const Mesh&, const Matrix&);
+		bool DrawRenderItem(const RenderItem&);
 
 		bool SetSceneViewport(float topLeftX, float topLeftY, float width, float height);
 
