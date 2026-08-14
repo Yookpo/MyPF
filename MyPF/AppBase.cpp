@@ -143,7 +143,16 @@ namespace My
 			m_camera.SetPosition(cameraPos);
 		}
 
+		float cameraYaw = m_camera.GetYaw();
+		float cameraPitch = m_camera.GetPitch();
 
+		bool yawChanged = ImGui::DragFloat("Yaw Slider", &cameraYaw, 0.1f, -180.0f, 180.0f);
+		bool pitchChanged = ImGui::DragFloat("Pitch Slider", &cameraPitch, 0.1f, -89.0f, 89.0f);
+
+		if (yawChanged || pitchChanged)
+		{
+			m_camera.SetYawPitch(cameraYaw, cameraPitch);
+		}
 
 		ImGui::Separator();
 		ImGui::Text("Scene Objects");

@@ -10,24 +10,28 @@ namespace My
 	{
 	public:
 		Camera();
+
+		bool IsPerspective() const { return m_usePerspectiveProjection; }
 		const Vector3& GetPosition() const { return m_position; }
 		const Vector3& GetForward() const { return m_forward; }
 		const Vector3& GetUp() const { return m_up; }
 
 		void SetPosition(const Vector3& newPos) { m_position = newPos; }
-		void SetForward(const Vector3& newFwd) { m_forward = newFwd; }
-		void SetUp(const Vector3& newUp) { m_up = newUp; }
+		void SetYawPitch(const float yaw, const float pitch);
+		void SetAspectRatio(float newAspectRatio);
 
-		bool IsPerspective() const { return m_usePerspectiveProjection; }
 		float GetFovAngleY() const { return m_fovAngleY; }
 		float GetAspectRatio() const { return m_aspectRatio; }
 		float GetNearZ() const { return m_nearZ; }
 		float GetFarZ() const { return m_farZ; }
-
-		void SetAspectRatio(float newAspectRatio);
+		float GetYaw() const { return m_yaw; }
+		float GetPitch() const { return m_pitch; }
 
 		Matrix GetViewMatrix() const;
 		Matrix GetProjectionMatrix() const;
+
+	private:
+		void UpdateForward();
 
 	private:
 		bool m_usePerspectiveProjection = true;
@@ -38,6 +42,9 @@ namespace My
 		float m_nearZ = 0.01f;
 		float m_farZ = 100.0f;
 		float m_aspectRatio = 1.0f;
+
+		float m_yaw = 0.0f;
+		float m_pitch = 0.0f;
 	};
 
 }
