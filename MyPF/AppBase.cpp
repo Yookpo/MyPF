@@ -84,15 +84,15 @@ namespace My
 		{
 			const Transform& tr = obj->GetTransform();
 			const Matrix world = tr.GetWorldMatrix();
-			const MeshRenderer& meshRenderer = obj->GetMeshRenderer();
+			const MeshComponent& meshComponent = obj->GetMeshComponent();
 
 			// mesh가 없으면 그리기 생략
-			if (!meshRenderer.HasMesh())
+			if (!meshComponent.HasMesh())
 			{
 				continue;
 			}
 
-			RenderItem renderItem{ meshRenderer.GetMesh(), world };
+			RenderItem renderItem{ meshComponent.GetMesh(), world };
 
 			if (!m_renderer.DrawRenderItem(renderItem))
 			{
@@ -255,8 +255,8 @@ namespace My
 			return false;
 		}
 
-		cube1->GetMeshRenderer().SetMesh(&m_cubeMesh);
-		triangle1->GetMeshRenderer().SetMesh(&m_triangleMesh);
+		cube1->GetMeshComponent().SetMesh(&m_cubeMesh);
+		triangle1->GetMeshComponent().SetMesh(&m_triangleMesh);
 
 		return true;
 	}

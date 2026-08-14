@@ -1,6 +1,6 @@
 #pragma once
 #include "Transform.h"
-#include "MeshRenderer.h"
+#include "MeshComponent.h"
 #include <string>
 
 namespace My
@@ -13,13 +13,13 @@ namespace My
 		void SetName(const std::string& name) { m_name = name; }
 		Transform& GetTransform() { return m_transform; }	// 수정 가능
 		const Transform& GetTransform() const { return m_transform; }	// 읽기전용
-		MeshRenderer& GetMeshRenderer() { return m_meshRenderer; }	// 수정 가능
-		const MeshRenderer& GetMeshRenderer() const { return m_meshRenderer; }	// 읽기전용
+		MeshComponent& GetMeshComponent() { return m_meshComponent; }	// 수정 가능
+		const MeshComponent& GetMeshComponent() const { return m_meshComponent; }	// 읽기전용
 
 	private:
 		std::string m_name;
 		Transform m_transform;
-		MeshRenderer m_meshRenderer;
+		MeshComponent m_meshComponent;
 	};
 
 

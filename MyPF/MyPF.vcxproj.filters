@@ -134,7 +134,7 @@
     <ClInclude Include="Mesh.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="MeshRenderer.h">
+    <ClInclude Include="MeshComponent.h">
       <Filter>Scene</Filter>
     </ClInclude>
     <ClInclude Include="RenderItem.h">

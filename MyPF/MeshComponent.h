@@ -4,10 +4,10 @@ namespace My
 {
 	class Mesh;
 
-	class MeshRenderer
+	class MeshComponent
 	{
 	public:
-		MeshRenderer() : m_mesh(nullptr) {}
+		MeshComponent() : m_mesh(nullptr) {}
 		void SetMesh(const Mesh* newMesh) { m_mesh = newMesh; }
 		const Mesh* GetMesh() const { return m_mesh; }
 		bool HasMesh() const { return m_mesh; }
