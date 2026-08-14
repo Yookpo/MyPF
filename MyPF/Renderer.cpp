@@ -1,4 +1,4 @@
-#include "Renderer.h"
+ï»¿#include "Renderer.h"
 #include "Mesh.h"
 #include "Camera.h"
 
@@ -59,7 +59,7 @@ namespace My
 
 	bool Renderer::Resize(int screenWidth, int screenHeight)
 	{
-		// Ã¢ ÃÖ¼ÒÈ­ »óÅÂÀÌ¹Ç·Î ÀÛ¾÷ ¾øÀÌ ³Ñ¾î°¡±â
+		// ì°½ ìµœì†Œí™” ìƒíƒœì´ë¯€ë¡œ ì‘ì—… ì—†ì´ ë„˜ì–´ê°€ê¸°
 		if (screenWidth <= 0 || screenHeight <= 0)
 		{
 			return true;
@@ -71,15 +71,15 @@ namespace My
 			return false;
 		}
 
-		// ÇöÀç RTV/DSV ¿¬°á ÇØÁ¦
+		// í˜„ì¬ RTV/DSV ì—°ê²° í•´ì œ
 		m_context->OMSetRenderTargets(0, nullptr, nullptr);
 		m_renderTargetView.Reset();
 		m_depthStencilView.Reset();
 		m_depthStencilState.Reset();
 
-		HRESULT hr = m_swapChain->ResizeBuffers(0,	// ÇöÀç °³¼ö À¯Áö
-			screenWidth, screenHeight,	// ÇØ»óµµ º¯°æ
-			DXGI_FORMAT_UNKNOWN,	// ÇöÀç Æ÷¸Ë À¯Áö
+		HRESULT hr = m_swapChain->ResizeBuffers(0,	// í˜„ì¬ ê°œìˆ˜ ìœ ì§€
+			screenWidth, screenHeight,	// í•´ìƒë„ ë³€ê²½
+			DXGI_FORMAT_UNKNOWN,	// í˜„ì¬ í¬ë§· ìœ ì§€
 			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
 		);
 		if (FAILED(hr))
@@ -103,16 +103,16 @@ namespace My
 	{
 		m_context->ClearRenderTargetView(m_renderTargetView.Get(), m_backgroundColor.data());
 		m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
-		// ºñ±³: Depth Buffer¸¦ »ç¿ëÇÏÁö ¾Ê´Â °æ¿ì
+		// ë¹„êµ: Depth Bufferë¥¼ ì‚¬ìš©í•˜ì§€ ì•ŠëŠ” ê²½ìš°
 		// m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
 		m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), m_depthStencilView.Get());
 		m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
-		// ½ÃÁ¡ º¯È¯
+		// ì‹œì  ë³€í™˜
 		m_constantBufferData.view = m_camera.GetViewMatrix();
 		m_constantBufferData.view = m_constantBufferData.view.Transpose();
 
-		// ÇÁ·ÎÁ§¼Ç
+		// í”„ë¡œì ì…˜
 		m_constantBufferData.projection = m_camera.GetProjectionMatrix();
 		m_constantBufferData.projection = m_constantBufferData.projection.Transpose();
 	}
@@ -127,7 +127,7 @@ namespace My
 
 		const Mesh& drawMesh = *renderItem.mesh;
 
-		// ¸ğµ¨ º¯È¯
+		// ëª¨ë¸ ë³€í™˜
 		m_constantBufferData.model = renderItem.world;
 		m_constantBufferData.model = m_constantBufferData.model.Transpose();
 
@@ -186,7 +186,7 @@ namespace My
 
 	bool Renderer::InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight)
 	{
-		// m_device, m_context »ı¼º
+		// m_device, m_context ìƒì„±
 		UINT createDeviceFlags = 0;
 #if defined(DEBUG) || defined(_DEBUG)
 		createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -194,7 +194,7 @@ namespace My
 		const D3D_FEATURE_LEVEL featureLevels[2] = { D3D_FEATURE_LEVEL_11_0 };
 		D3D_FEATURE_LEVEL featureLevel;
 
-		// swapchain »ı¼º
+		// swapchain ìƒì„±
 		DXGI_SWAP_CHAIN_DESC sd;
 		ZeroMemory(&sd, sizeof(sd));
 
@@ -239,7 +239,7 @@ namespace My
 		// rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
 		rastDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_NONE;
 		rastDesc.FrontCounterClockwise = false;
-		rastDesc.DepthClipEnable = true; // <- zNear, zFar È®ÀÎ¿¡ ÇÊ¿ä
+		rastDesc.DepthClipEnable = true; // <- zNear, zFar í™•ì¸ì— í•„ìš”
 
 		if (FAILED(m_device->CreateRasterizerState(&rastDesc,
 			m_rasterizerState.GetAddressOf())))
@@ -248,7 +248,7 @@ namespace My
 			return false;
 		}
 
-		// ÃÊ±âÈ­ ÈÄ ÇØ´ç ·¡½ºÅÍ ÃÊ±âÈ­ ÇÒ ¶§ ¹Ù·Î Àû¿ë
+		// ì´ˆê¸°í™” í›„ í•´ë‹¹ ë˜ìŠ¤í„° ì´ˆê¸°í™” í•  ë•Œ ë°”ë¡œ ì ìš©
 		m_context->RSSetState(m_rasterizerState.Get());
 
 		return true;
@@ -297,3 +297,4 @@ namespace My
 		return true;
 	}
 }
+

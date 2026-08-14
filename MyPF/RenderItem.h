@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <directxtk/SimpleMath.h>
 
 namespace My
@@ -13,3 +13,4 @@ namespace My
 		Matrix world{ Matrix() };
 	};
 }
+

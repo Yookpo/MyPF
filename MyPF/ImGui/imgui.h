@@ -1,4 +1,4 @@
-// dear imgui, v1.92.9 WIP
+﻿// dear imgui, v1.92.9 WIP
 // (headers)
 
 // Help:
@@ -4268,3 +4268,5 @@ typedef ImFontAtlasRect ImFontAtlasCustomRect;
 #endif
 
 #endif // #ifndef IMGUI_DISABLE
+
+

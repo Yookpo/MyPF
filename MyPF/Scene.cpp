@@ -1,4 +1,4 @@
-#include "Scene.h"
+﻿#include "Scene.h"
 
 namespace My
 {
@@ -9,5 +9,7 @@ namespace My
 		return *m_gameObjects.back();
 	}
 }
+
+
 
 

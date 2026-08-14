@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "MeshData.h"
 
 namespace My
@@ -9,6 +9,8 @@ namespace My
 		static MeshData MakeTriangle();
 		static MeshData MakeCube();
 
-		// ÇÊ¿äÇÑ ÁöÇüµ¥ÀÌÅÍ ÀÔ·ÂÇÔ¼ö ÀÛ¼º
+		// í•„ìš”í•œ ì§€í˜•ë°ì´í„° ì…ë ¥í•¨ìˆ˜ ì‘ì„±
 	};
 }
+
+

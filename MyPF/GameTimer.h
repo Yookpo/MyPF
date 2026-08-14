@@ -1,5 +1,5 @@
-#pragma once
-// ½Ã°£ ÃøÁ¤¿ë
+ï»¿#pragma once
+// ì‹œê°„ ì¸¡ì •ìš©
 #include <chrono>
 
 namespace My
@@ -16,13 +16,15 @@ namespace My
 		float GetTotalTime() const;
 
 	private:
-		time_point<steady_clock> m_startTime;	// ½ÃÀÛ ½Ã°£
-		time_point<steady_clock> m_prevTime;	// Á÷Àü ÇÁ·¹ÀÓ ½Ã°£
-		float m_deltaTime;	// ¸¶Áö¸·À¸·Î °è»êÇÑ ½Ã°£
-		float m_totalTime;	// ½ÃÀÛ ÀÌÈÄ ´©ÀûµÈ ½Ã°£
+		time_point<steady_clock> m_startTime;	// ì‹œì‘ ì‹œê°„
+		time_point<steady_clock> m_prevTime;	// ì§ì „ í”„ë ˆì„ ì‹œê°„
+		float m_deltaTime;	// ë§ˆì§€ë§‰ìœ¼ë¡œ ê³„ì‚°í•œ ì‹œê°„
+		float m_totalTime;	// ì‹œì‘ ì´í›„ ëˆ„ì ëœ ì‹œê°„
 
 	};
 }
+
+
 
 
 

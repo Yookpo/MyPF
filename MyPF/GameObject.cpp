@@ -1,4 +1,4 @@
-#include "GameObject.h"
+﻿#include "GameObject.h"
 
 namespace My
 {
@@ -7,5 +7,7 @@ namespace My
 	{
 	}
 }
+
+
 
 

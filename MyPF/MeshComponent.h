@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 namespace My
 {
@@ -14,6 +14,8 @@ namespace My
 
 
 	private:
-		const Mesh* m_mesh;	// ¿ÀºêÁ§Æ®°¡ »ç¿ëÇÒ ¸Ş½¬ ÀúÀå
+		const Mesh* m_mesh;	// ì˜¤ë¸Œì íŠ¸ê°€ ì‚¬ìš©í•  ë©”ì‰¬ ì €ì¥
 	};
 }
+
+

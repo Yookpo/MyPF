@@ -1,4 +1,4 @@
-#include "Transform.h"
+﻿#include "Transform.h"
 
 namespace My
 {
@@ -14,3 +14,4 @@ namespace My
 			Matrix::CreateTranslation(m_position));
 	}
 }
+

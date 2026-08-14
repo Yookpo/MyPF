@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "Transform.h"
 #include "MeshComponent.h"
 #include <string>
@@ -11,10 +11,10 @@ namespace My
 		GameObject(const std::string& name);
 		const std::string& GetName() const { return m_name; }
 		void SetName(const std::string& name) { m_name = name; }
-		Transform& GetTransform() { return m_transform; }	// ¼öÁ¤ °¡´É
-		const Transform& GetTransform() const { return m_transform; }	// ÀĞ±âÀü¿ë
-		MeshComponent& GetMeshComponent() { return m_meshComponent; }	// ¼öÁ¤ °¡´É
-		const MeshComponent& GetMeshComponent() const { return m_meshComponent; }	// ÀĞ±âÀü¿ë
+		Transform& GetTransform() { return m_transform; }	// ìˆ˜ì • ê°€ëŠ¥
+		const Transform& GetTransform() const { return m_transform; }	// ì½ê¸°ì „ìš©
+		MeshComponent& GetMeshComponent() { return m_meshComponent; }	// ìˆ˜ì • ê°€ëŠ¥
+		const MeshComponent& GetMeshComponent() const { return m_meshComponent; }	// ì½ê¸°ì „ìš©
 
 	private:
 		std::string m_name;
@@ -24,4 +24,6 @@ namespace My
 
 
 }
+
+
 

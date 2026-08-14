@@ -1,4 +1,4 @@
-cbuffer constantBuffer : register(b0)
+﻿cbuffer constantBuffer : register(b0)
 {
     matrix model;
     matrix view;
@@ -34,3 +34,4 @@ PS_INPUT main(VS_INPUT input)
     
     return output;
 }
+

@@ -1,17 +1,17 @@
-#pragma once
+ï»¿#pragma once
 #include "Renderer.h"
 #include "GameTimer.h"
 #include "Scene.h"
 #include "Mesh.h"
 #include "Camera.h"
 
-// ImGui »ç¿ë¿¡ ÇÊ¿äÇÑ Çì´õÆÄÀÏ
+// ImGui ì‚¬ìš©ì— í•„ìš”í•œ í—¤ë”íŒŒì¼
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_internal.h"
 #include "ImGui/imgui_impl_dx11.h"
 #include "ImGui/imgui_impl_win32.h"
 
-// ImGui ¿ë WndProcHandler
+// ImGui ìš© WndProcHandler
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace My
@@ -41,7 +41,7 @@ namespace My
 
 	public:
 		HWND m_mainWindow;
-		int m_screenWidth;	// ·»´õ¸µÇÒ ÃÖÁ¾ È­¸éÀÇ ÇØ»óµµ
+		int m_screenWidth;	// ë Œë”ë§í•  ìµœì¢… í™”ë©´ì˜ í•´ìƒë„
 		int m_screenHeight;
 		float m_guiWidth = 0;
 
@@ -58,4 +58,6 @@ namespace My
 	};
 
 }
+
+
 

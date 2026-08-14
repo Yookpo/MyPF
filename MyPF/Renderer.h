@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "D3D11Utils.h"
 #include "RenderItem.h"
 #include "ShaderConstants.h"
@@ -32,8 +32,8 @@ namespace My
 	private:
 		ComPtr<ID3D11Device> m_device;
 		ComPtr<ID3D11DeviceContext> m_context;
-		ComPtr<IDXGISwapChain> m_swapChain;	// ¿Ï¼ºµÈ È­¸éÀ» Ã¢¿¡ Ç¥½Ã
-		ComPtr<ID3D11RenderTargetView> m_renderTargetView;	// ¹é ¹öÆÛ¸¦ ·»´õ¸µ ´ë»óÀ¸·Î ¿¬°á
+		ComPtr<IDXGISwapChain> m_swapChain;	// ì™„ì„±ëœ í™”ë©´ì„ ì°½ì— í‘œì‹œ
+		ComPtr<ID3D11RenderTargetView> m_renderTargetView;	// ë°± ë²„í¼ë¥¼ ë Œë”ë§ ëŒ€ìƒìœ¼ë¡œ ì—°ê²°
 		ComPtr<ID3D11RasterizerState> m_rasterizerState;
 
 		// Depth buffer
@@ -53,3 +53,5 @@ namespace My
 
 
 }
+
+

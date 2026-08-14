@@ -1,4 +1,4 @@
-#include "GameTimer.h"
+ï»¿#include "GameTimer.h"
 
 namespace My
 {
@@ -19,10 +19,10 @@ namespace My
 	{
 		auto curTime = steady_clock::now();
 
-		// ÇöÀç - Á÷ÀüÀ» ÃÊ ´ÜÀ§·Î º¯È¯
+		// í˜„ì¬ - ì§ì „ì„ ì´ˆ ë‹¨ìœ„ë¡œ ë³€í™˜
 		m_deltaTime = duration<float>(curTime - m_prevTime).count();
 
-		// ÇöÀç - ½ÃÀÛ ½Ã°£À» ÃÊ ´ÜÀ§·Î º¯È¯
+		// í˜„ì¬ - ì‹œì‘ ì‹œê°„ì„ ì´ˆ ë‹¨ìœ„ë¡œ ë³€í™˜
 		m_totalTime = duration<float>(curTime - m_startTime).count();
 
 		m_prevTime = curTime;
@@ -36,3 +36,4 @@ namespace My
 		return m_totalTime;
 	}
 }
+

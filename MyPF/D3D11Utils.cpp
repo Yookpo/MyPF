@@ -1,15 +1,15 @@
-#include "D3D11Utils.h"
+ï»¿#include "D3D11Utils.h"
 
 namespace My
 {
 	void CheckResult(HRESULT hr, ID3DBlob* errorBlob) {
 		if (FAILED(hr)) {
-			// ÆÄÀÏÀÌ ¾øÀ» °æ¿ì
+			// íŒŒì¼ì´ ì—†ì„ ê²½ìš°
 			if ((hr & D3D11_ERROR_FILE_NOT_FOUND) != 0) {
 				std::cout << "File not found.\n";
 			}
 
-			// ¿¡·¯ ¸Ş½ÃÁö°¡ ÀÖÀ¸¸é Ãâ·Â
+			// ì—ëŸ¬ ë©”ì‹œì§€ê°€ ìˆìœ¼ë©´ ì¶œë ¥
 			if (errorBlob)
 			{
 				OutputDebugStringA("Shader compile error:\n");
@@ -163,7 +163,7 @@ namespace My
 		}
 
 		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE; // ÃÊ±âÈ­ ÈÄ º¯°æX
+		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE; // ì´ˆê¸°í™” í›„ ë³€ê²½X
 		bufferDesc.ByteWidth = UINT(sizeof(uint32_t) * indices.size());
 		bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 		bufferDesc.CPUAccessFlags = 0; // 0 if no CPU access is necessary.
@@ -184,5 +184,7 @@ namespace My
 		return true;
 	}
 }
+
+
 
 

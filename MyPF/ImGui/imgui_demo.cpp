@@ -1,4 +1,4 @@
-// dear imgui, v1.92.9 WIP
+﻿// dear imgui, v1.92.9 WIP
 // (demo code)
 
 // Help:
@@ -11217,3 +11217,5 @@ bool ImGui::ShowStyleSelector(const char*) { return false; }
 #endif // #ifndef IMGUI_DISABLE_DEMO_WINDOWS
 
 #endif // #ifndef IMGUI_DISABLE
+
+
