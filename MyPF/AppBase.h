@@ -29,7 +29,7 @@ namespace My
 		virtual void Update(float dt);
 		virtual void Render();
 
-		void UpdateUI();
+		void UpdateGui();
 
 		virtual LRESULT MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 

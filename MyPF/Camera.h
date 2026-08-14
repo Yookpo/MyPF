@@ -19,6 +19,7 @@ namespace My
 		void SetPosition(const Vector3& newPos) { m_position = newPos; }
 		void SetYawPitch(const float yaw, const float pitch);
 		void SetAspectRatio(float newAspectRatio);
+		void SetFovAngleY(const float newFovAngleY);
 
 		float GetFovAngleY() const { return m_fovAngleY; }
 		float GetAspectRatio() const { return m_aspectRatio; }

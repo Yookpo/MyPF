@@ -39,6 +39,11 @@ namespace My
 		m_aspectRatio = newAspectRatio;
 	}
 
+	void Camera::SetFovAngleY(const float newFovAngleY)
+	{
+		m_fovAngleY = std::clamp(newFovAngleY, 1.0f, 179.0f);
+	}
+
 	Matrix Camera::GetViewMatrix() const
 	{
 		return XMMatrixLookToLH(m_position, m_forward, m_up);

@@ -123,7 +123,7 @@ namespace My
 		}
 	}
 
-	void AppBase::UpdateUI()
+	void AppBase::UpdateGui()
 	{
 		// ImGui 로직
 		// 이후 ImGui UI 컨트롤 추가는 ImGui::NewFrame()과 ImGui::Render() 사이인 여기에 위치
@@ -145,13 +145,20 @@ namespace My
 
 		float cameraYaw = m_camera.GetYaw();
 		float cameraPitch = m_camera.GetPitch();
+		float cameraFov = m_camera.GetFovAngleY();
 
 		bool yawChanged = ImGui::DragFloat("Yaw Slider", &cameraYaw, 0.1f, -180.0f, 180.0f);
 		bool pitchChanged = ImGui::DragFloat("Pitch Slider", &cameraPitch, 0.1f, -89.0f, 89.0f);
+		bool fovChanged = ImGui::SliderFloat("Fov Slider", &cameraFov, 30.0f, 120.0f);
 
 		if (yawChanged || pitchChanged)
 		{
 			m_camera.SetYawPitch(cameraYaw, cameraPitch);
+		}
+
+		if (fovChanged)
+		{
+			m_camera.SetFovAngleY(cameraFov);
 		}
 
 		ImGui::Separator();
@@ -228,7 +235,7 @@ namespace My
 				ImGui_ImplDX11_NewFrame();
 				ImGui::NewFrame();
 
-				UpdateUI();
+				UpdateGui();
 
 				ImGui::Render();
 
