@@ -83,13 +83,22 @@ namespace My
 		{
 			const Transform& tr = obj->GetTransform();
 			const Matrix world = tr.GetWorldMatrix();
+			const MeshRenderer& meshRenderer = obj->GetMeshRenderer();
 
-			if (!m_renderer.DrawMesh(m_cubeMesh, world))
+			// mesh가 없으면 그리기 생략
+			if (!meshRenderer.HasMesh())
+			{
+				continue;
+			}
+			const Mesh* mesh = meshRenderer.GetMesh();
+
+			if (!m_renderer.DrawMesh(*mesh, world))
 			{
 				OutputDebugStringW(L"Draw Cube failed, Program shutting down");
 				PostQuitMessage(-1);
 				return;
 			}
+
 		}
 
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -221,21 +230,31 @@ namespace My
 			return false;
 
 		GameObject* cube1 = &m_scene.CreateGameObject("cube1");
-		GameObject* cube2 = &m_scene.CreateGameObject("cube2");
+		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");
 
 		cube1->GetTransform().SetPosition(Vector3(-0.6f, 0.0f, 0.0f));
 		cube1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
 
-		cube2->GetTransform().SetPosition(Vector3(0.6f, 0.0f, 0.0f));
-		cube2->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
+		triangle1->GetTransform().SetPosition(Vector3(0.6f, 0.0f, 0.0f));
+		triangle1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
 
 		m_selectedObject = cube1;
 
 		MeshData meshData = GeometryGenerator::MakeCube();
+		MeshData triangleData = GeometryGenerator::MakeTriangle();
+
 		if (!m_cubeMesh.Initialize(m_renderer.GetDevice(), meshData))
 		{
 			return false;
 		}
+
+		if (!m_triangleMesh.Initialize(m_renderer.GetDevice(), triangleData))
+		{
+			return false;
+		}
+
+		cube1->GetMeshRenderer().SetMesh(&m_cubeMesh);
+		triangle1->GetMeshRenderer().SetMesh(&m_triangleMesh);
 
 		return true;
 	}

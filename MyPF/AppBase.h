@@ -10,7 +10,6 @@
 #include "ImGui/imgui_impl_dx11.h"
 #include "ImGui/imgui_impl_win32.h"
 
-
 // ImGui ¿ë WndProcHandler
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -49,6 +48,7 @@ namespace My
 		Scene m_scene;
 		GameObject* m_selectedObject;
 		Mesh m_cubeMesh;
+		Mesh m_triangleMesh;
 
 
 		std::array<float, 4> m_backgroundColor;
