@@ -90,6 +90,8 @@ namespace My
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{
 			OutputDebugStringW(L"Draw camera failed, Program shutting down");
+			PostQuitMessage(-1);
+			return;
 		}
 
 		// 해당 Scene의 오브젝트들을 순회

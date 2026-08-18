@@ -11,6 +11,7 @@ namespace My
 	{
 		vector<Vector3> positions;
 		vector<Vector3> colors;
+		vector<Vector3> normals;
 
 		positions.push_back(Vector3(-1.0f, 0.0f, 0.0f));
 		positions.push_back(Vector3(0.0f, 1.0f, 0.0f));
@@ -20,6 +21,11 @@ namespace My
 		colors.push_back(Vector3(1.0f, 0.0f, 0.0f));
 		colors.push_back(Vector3(1.0f, 0.0f, 0.0f));
 
+		normals.push_back(Vector3(0.0f, 0.0f, -1.0f));
+		normals.push_back(Vector3(0.0f, 0.0f, -1.0f));
+		normals.push_back(Vector3(0.0f, 0.0f, -1.0f));
+
+
 		MeshData meshData;
 
 		for (int i = 0; i < 3; i++)
@@ -27,6 +33,7 @@ namespace My
 			Vertex v;
 			v.position = positions[i];
 			v.color = colors[i];
+			v.normal = normals[i];
 
 			meshData.vertices.push_back(v);
 		}
@@ -135,6 +142,7 @@ namespace My
 			Vertex v;
 			v.position = positions[i];
 			v.color = colors[i];
+			v.normal = normals[i];
 			meshData.vertices.push_back(v);
 		}
 

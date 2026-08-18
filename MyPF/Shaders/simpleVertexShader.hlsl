@@ -16,12 +16,14 @@ struct VS_INPUT
 {
     float3 pos : POSITION0;
     float3 color : COLOR0;
+    float3 normal : NORMAL0;
 };
 
 struct PS_INPUT
 {
     float4 pos : SV_POSITION;
     float3 color : COLOR0;
+    float3 normal : NORMAL0;
 };
 
 
@@ -37,6 +39,7 @@ PS_INPUT main(VS_INPUT input)
     
     output.pos = pos;
     output.color = input.color;
+    output.normal = input.normal;
     
     return output;
 }
