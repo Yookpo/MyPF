@@ -25,5 +25,11 @@ namespace My
 		Vector3 color;		// 12
 		float pad;			// 4
 	};
+
+	struct MaterialConstantData
+	{
+		Vector3 baseColor;	// 12
+		float pad;			// 4
+	};
 }
 

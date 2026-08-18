@@ -41,6 +41,13 @@ namespace My
 			return false;
 		}
 
+		m_materialConstantData.baseColor = Vector3(1.0f);
+		m_materialConstantData.pad = 0.0f;
+		if (!D3D11Utils::CreateConstantBuffer(m_device, m_materialConstantData, m_materialConstantBuffer))
+		{
+			return false;
+		}
+
 		if (!D3D11Utils::CreateDepthBuffer(m_device, screenWidth, screenHeight, m_depthStencilView, m_depthStencilState))
 		{
 			return false;
@@ -201,12 +208,24 @@ namespace My
 			return false;
 		}
 
+		// 머터리얼 변환
+		m_materialConstantData.baseColor = drawMat.GetBaseColor();
+		if (!D3D11Utils::UpdateBuffer(m_context, m_materialConstantData, m_materialConstantBuffer))
+		{
+			return false;
+		}
+
 		UINT stride = sizeof(Vertex);
 		UINT offset = 0;
 
 		ID3D11Buffer* meshVertexBuffer = drawMesh.GetVertexBuffer();
 		ID3D11Buffer* constantBuffers[2] = {
-			m_objectConstantBuffer.Get(),m_cameraConstantBuffer.Get()
+			m_objectConstantBuffer.Get(),m_cameraConstantBuffer.Get(),
+		};
+
+		ID3D11Buffer* pixelConstantBuffers =
+		{
+			m_materialConstantBuffer.Get()
 		};
 
 		ID3D11ShaderResourceView* albedoSRV = albedoTexture->GetShaderResourceView();
@@ -227,6 +246,7 @@ namespace My
 		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
 		m_context->PSSetShaderResources(0, 1, &albedoSRV);
+		m_context->PSSetConstantBuffers(1, 1, &pixelConstantBuffers);
 		m_context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
 		m_context->DrawIndexed(drawMesh.GetIndexCount(), 0, 0);

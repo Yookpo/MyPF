@@ -356,6 +356,15 @@ namespace My
 			}
 		}
 
+		ImGui::Separator();
+		ImGui::Text("Material");
+		Vector3 matBaseColor = m_material.GetBaseColor();
+		if (ImGui::SliderFloat3("Base Color", &matBaseColor.x, 0.0f, 1.0f))
+		{
+			m_material.SetBaseColor(matBaseColor);
+		}
+
+
 		m_guiWidth = ImGui::GetWindowSize().x;
 
 		ImGui::End();

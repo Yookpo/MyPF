@@ -8,5 +8,10 @@ namespace My
 		m_albedoTexture = newTexture;
 	}
 
+	void Material::SetBaseColor(const Vector3& newColor)
+	{
+		m_baseColor = newColor;
+	}
+
 }
 

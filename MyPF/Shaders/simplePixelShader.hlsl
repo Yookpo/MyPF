@@ -9,6 +9,12 @@ cbuffer LightConstantData : register(b0)
     float pad;
 }
 
+cbuffer MaterialConstantData : register(b1)
+{
+    float3 baseColor;
+    float pad2;
+}
+
 struct VS_INPUT
 {
     float3 position : POSITION0;
@@ -32,6 +38,7 @@ float4 main(PS_INPUT input) : SV_TARGET
     float diffuse = saturate(dot(-direction, normal));
     
     float3 albedo = albedoTexture.Sample(linearSampler, input.uv).rgb;
+    albedo *= baseColor;
     
     float3 finalColor = albedo * color * intensity * diffuse;
     
