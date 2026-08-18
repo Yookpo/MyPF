@@ -86,6 +86,7 @@ namespace My
 
 		frameRenderData.view = m_camera.GetViewMatrix();
 		frameRenderData.projection = m_camera.GetProjectionMatrix();
+		frameRenderData.directionalLight = m_directionalLight;
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{

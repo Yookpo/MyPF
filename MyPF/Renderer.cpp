@@ -30,6 +30,14 @@ namespace My
 			return false;
 		}
 
+		m_lightConstantData.direction = Vector3(0.0f, -0.5f, 1.0f);
+		m_lightConstantData.color = Vector3(0.0f);
+		m_lightConstantData.intensity = 1.0f;
+		m_lightConstantData.pad = 0.0f;
+		if (!D3D11Utils::CreateConstantBuffer(m_device, m_lightConstantData, m_lightConstantBuffer))
+		{
+			return false;
+		}
 
 		if (!D3D11Utils::CreateDepthBuffer(m_device, screenWidth, screenHeight, m_depthStencilView, m_depthStencilState))
 		{
@@ -114,12 +122,10 @@ namespace My
 		m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), m_depthStencilView.Get());
 		m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
-		// 시점 변환
+		// 카메라
 		m_cameraConstantData.view = frameRenderData.view;
 		m_cameraConstantData.view = m_cameraConstantData.view.Transpose();
 
-
-		// 프로젝션
 		m_cameraConstantData.projection = frameRenderData.projection;
 		m_cameraConstantData.projection = m_cameraConstantData.projection.Transpose();
 
@@ -127,6 +133,18 @@ namespace My
 		{
 			return false;
 		}
+
+		// 조명
+		m_lightConstantData.direction = frameRenderData.directionalLight.direction;
+		m_lightConstantData.direction.Normalize();
+		m_lightConstantData.color = frameRenderData.directionalLight.color;
+		m_lightConstantData.intensity = frameRenderData.directionalLight.intensity;
+
+		if (!D3D11Utils::UpdateBuffer(m_context, m_lightConstantData, m_lightConstantBuffer))
+		{
+			return false;
+		}
+
 
 		return true;
 	}

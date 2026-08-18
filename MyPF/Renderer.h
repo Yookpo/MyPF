@@ -49,6 +49,8 @@ namespace My
 		ComPtr<ID3D11Buffer> m_objectConstantBuffer;
 		CameraConstantData m_cameraConstantData;
 		ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
+		LightConstantData m_lightConstantData;
+		ComPtr<ID3D11Buffer> m_lightConstantBuffer;
 
 		D3D11_VIEWPORT m_screenViewport;
 	};

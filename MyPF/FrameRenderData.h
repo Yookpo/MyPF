@@ -1,5 +1,6 @@
 #pragma once
 #include <directxtk/SimpleMath.h>
+#include "DirectionalLight.h"
 
 namespace My
 {
@@ -9,5 +10,6 @@ namespace My
 	{
 		Matrix view;
 		Matrix projection;
+		DirectionalLight directionalLight;
 	};
 }
