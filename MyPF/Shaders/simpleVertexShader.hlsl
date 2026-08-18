@@ -10,14 +10,12 @@ cbuffer cameraConstantBuffer : register(b1)
     matrix projection;
 }
 
-
-
-
 struct VS_INPUT
 {
     float3 pos : POSITION0;
     float3 color : COLOR0;
     float3 normal : NORMAL0;
+    float2 uv : TEXCOORD0;
 };
 
 struct PS_INPUT
@@ -25,6 +23,7 @@ struct PS_INPUT
     float4 pos : SV_POSITION;
     float3 color : COLOR0;
     float3 normal : NORMAL0;
+    float2 uv : TEXCOORD0;
 };
 
 
@@ -43,6 +42,8 @@ PS_INPUT main(VS_INPUT input)
     float4 normal = float4(input.normal, 0.0f);
     output.normal = mul(normal, invTranspose).xyz;
     output.normal = normalize(output.normal);
+    
+    output.uv = input.uv;
     
     return output;
 }

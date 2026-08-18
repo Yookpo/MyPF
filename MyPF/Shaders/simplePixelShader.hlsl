@@ -1,8 +1,17 @@
+cbuffer LightConstantData : register(b0)
+{
+    float3 direction;
+    float intensity;
+    float3 color;
+    float pad;
+}
+
 struct VS_INPUT
 {
     float3 position : POSITION0;
     float3 color : COLOR0;
     float3 normal : NORMAL0;
+    float2 uv : TEXCOORD0;
 };
 
 struct PS_INPUT
@@ -10,15 +19,18 @@ struct PS_INPUT
     float4 position : SV_POSITION;
     float3 color : COLOR0;
     float3 normal : NORMAL0;
+    float2 uv : TEXCOORD0;
 };
 
 
 float4 main(PS_INPUT input) : SV_TARGET
 {
-    input.normal = normalize(input.normal);
-    input.normal *= 0.5;
-    input.normal += 0.5;
+    float3 normal = normalize(input.normal);
     
-    return float4(input.normal, 1.0f);
+    float diffuse = saturate(dot(-direction, normal));
+    
+    float3 finalColor = input.color * color * intensity * diffuse;
+    
+    return float4(finalColor, 1.0f);
 }
 

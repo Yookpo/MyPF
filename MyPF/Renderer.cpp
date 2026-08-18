@@ -51,6 +51,8 @@ namespace My
 			D3D11_INPUT_PER_VERTEX_DATA,0},
 			{"NORMAL",0,DXGI_FORMAT_R32G32B32_FLOAT,0,4 * 3 * 2,
 			D3D11_INPUT_PER_VERTEX_DATA,0},
+			{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,4 * 3 * 3,
+			D3D11_INPUT_PER_VERTEX_DATA,0}
 		};
 
 		if (!D3D11Utils::CreateVertexShaderAndInputLayout(
@@ -145,6 +147,7 @@ namespace My
 			return false;
 		}
 
+		m_context->PSSetConstantBuffers(0, 1, m_lightConstantBuffer.GetAddressOf());
 
 		return true;
 	}

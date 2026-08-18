@@ -12,6 +12,7 @@ namespace My
 		vector<Vector3> positions;
 		vector<Vector3> colors;
 		vector<Vector3> normals;
+		vector<Vector2> coords;
 
 		positions.push_back(Vector3(-1.0f, 0.0f, 0.0f));
 		positions.push_back(Vector3(0.0f, 1.0f, 0.0f));
@@ -25,6 +26,10 @@ namespace My
 		normals.push_back(Vector3(0.0f, 0.0f, -1.0f));
 		normals.push_back(Vector3(0.0f, 0.0f, -1.0f));
 
+		coords.push_back(Vector2(0.0f, 1.0f));
+		coords.push_back(Vector2(0.5f, 0.0f));
+		coords.push_back(Vector2(1.0f, 1.0f));
+
 
 		MeshData meshData;
 
@@ -34,6 +39,7 @@ namespace My
 			v.position = positions[i];
 			v.color = colors[i];
 			v.normal = normals[i];
+			v.uv = coords[i];
 
 			meshData.vertices.push_back(v);
 		}
@@ -49,6 +55,7 @@ namespace My
 		vector<Vector3> positions;
 		vector<Vector3> colors;
 		vector<Vector3> normals;
+		vector<Vector2> coords;
 
 		const float scale = 1.0f;
 
@@ -65,6 +72,10 @@ namespace My
 		normals.push_back(Vector3(0.0f, 1.0f, 0.0f));
 		normals.push_back(Vector3(0.0f, 1.0f, 0.0f));
 		normals.push_back(Vector3(0.0f, 1.0f, 0.0f));
+		coords.push_back(Vector2(0.0f, 1.0f));
+		coords.push_back(Vector2(0.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 1.0f));
 
 		// 아랫면
 		positions.push_back(Vector3(-1.0f, -1.0f, -1.0f) * scale);
@@ -79,6 +90,10 @@ namespace My
 		normals.push_back(Vector3(0.0f, -1.0f, 0.0f));
 		normals.push_back(Vector3(0.0f, -1.0f, 0.0f));
 		normals.push_back(Vector3(0.0f, -1.0f, 0.0f));
+		coords.push_back(Vector2(0.0f, 1.0f));
+		coords.push_back(Vector2(0.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 1.0f));
 
 		// 앞면
 		positions.push_back(Vector3(-1.0f, -1.0f, -1.0f) * scale);
@@ -93,6 +108,10 @@ namespace My
 		normals.push_back(Vector3(0.0f, 0.0f, -1.0f));
 		normals.push_back(Vector3(0.0f, 0.0f, -1.0f));
 		normals.push_back(Vector3(0.0f, 0.0f, -1.0f));
+		coords.push_back(Vector2(0.0f, 1.0f));
+		coords.push_back(Vector2(0.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 1.0f));
 
 		// 뒷면
 		positions.push_back(Vector3(-1.0f, -1.0f, 1.0f) * scale);
@@ -107,6 +126,10 @@ namespace My
 		normals.push_back(Vector3(0.0f, 0.0f, 1.0f));
 		normals.push_back(Vector3(0.0f, 0.0f, 1.0f));
 		normals.push_back(Vector3(0.0f, 0.0f, 1.0f));
+		coords.push_back(Vector2(0.0f, 1.0f));
+		coords.push_back(Vector2(0.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 1.0f));
 
 		// 왼쪽
 		positions.push_back(Vector3(-1.0f, -1.0f, 1.0f) * scale);
@@ -121,6 +144,10 @@ namespace My
 		normals.push_back(Vector3(-1.0f, 0.0f, 0.0f));
 		normals.push_back(Vector3(-1.0f, 0.0f, 0.0f));
 		normals.push_back(Vector3(-1.0f, 0.0f, 0.0f));
+		coords.push_back(Vector2(0.0f, 1.0f));
+		coords.push_back(Vector2(0.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 1.0f));
 
 		// 오른쪽
 		positions.push_back(Vector3(1.0f, -1.0f, 1.0f) * scale);
@@ -135,6 +162,10 @@ namespace My
 		normals.push_back(Vector3(1.0f, 0.0f, 0.0f));
 		normals.push_back(Vector3(1.0f, 0.0f, 0.0f));
 		normals.push_back(Vector3(1.0f, 0.0f, 0.0f));
+		coords.push_back(Vector2(0.0f, 1.0f));
+		coords.push_back(Vector2(0.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 1.0f));
 
 		MeshData meshData;
 
@@ -143,6 +174,7 @@ namespace My
 			v.position = positions[i];
 			v.color = colors[i];
 			v.normal = normals[i];
+			v.uv = coords[i];
 			meshData.vertices.push_back(v);
 		}
 

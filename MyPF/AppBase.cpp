@@ -142,6 +142,30 @@ namespace My
 		}
 
 		ImGui::Separator();
+		ImGui::Text("Light");
+		Vector3 lightDir = m_directionalLight.direction;
+		if (ImGui::DragFloat3("Light Direction", &lightDir.x, 0.01f, -1.0f, 1.0f))
+		{
+			if (lightDir.LengthSquared() > 0.00001f)
+			{
+				lightDir.Normalize();
+				m_directionalLight.direction = lightDir;
+			}
+		}
+
+		Vector3 lightColor = m_directionalLight.color;
+		if (ImGui::ColorEdit3("Light Color", &lightColor.x))
+		{
+			m_directionalLight.color = lightColor;
+		}
+		float lightIntensity = m_directionalLight.intensity;
+		if (ImGui::SliderFloat("Light Intensity", &lightIntensity, 0.0f, 5.0f))
+		{
+			m_directionalLight.intensity = lightIntensity;
+		}
+
+
+		ImGui::Separator();
 		ImGui::Text("Camera");
 		Vector3 cameraPos = m_camera.GetPosition();
 		if (ImGui::DragFloat3("Camera Move", &cameraPos.x, 0.01f, -10.0f, 10.0f))
