@@ -50,17 +50,18 @@ namespace My
 
 		Renderer m_renderer;
 		GameTimer m_gameTimer;
-		Scene m_scene;
-		GameObject* m_selectedObject;
+
 		Mesh m_cubeMesh;
 		Mesh m_triangleMesh;
+		Texture m_texture;
 		Material m_material;
+
+		Scene m_scene;
+		GameObject* m_selectedObject;
 
 		Camera m_camera;
 
 		DirectionalLight m_directionalLight;
-
-		Texture m_texture;
 
 		std::array<float, 4> m_backgroundColor;
 	};

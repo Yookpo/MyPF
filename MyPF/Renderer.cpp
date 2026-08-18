@@ -1,5 +1,7 @@
 ﻿#include "Renderer.h"
 #include "Mesh.h"
+#include "Material.h"
+#include "Texture.h"
 
 namespace My
 {
@@ -66,6 +68,21 @@ namespace My
 		if (!D3D11Utils::CreatePixelShader(
 			m_device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader
 		))
+		{
+			return false;
+		}
+
+		// Sampler 만들기
+		D3D11_SAMPLER_DESC sampDesc;
+		ZeroMemory(&sampDesc, sizeof(sampDesc));
+		sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+		sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+		sampDesc.MinLOD = 0;
+		sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+		if (FAILED(m_device->CreateSamplerState(&sampDesc, m_samplerState.GetAddressOf())))
 		{
 			return false;
 		}
@@ -154,13 +171,21 @@ namespace My
 
 	bool Renderer::DrawRenderItem(const RenderItem& renderItem)
 	{
-		if (!renderItem.mesh)
+		if (!renderItem.mesh || !renderItem.material)
 		{
-			OutputDebugStringW(L"No Mesh in renderItem");
+			OutputDebugStringW(L"No Data in renderItem");
 			return false;
 		}
 
 		const Mesh& drawMesh = *renderItem.mesh;
+		const Material& drawMat = *renderItem.material;
+		const Texture* albedoTexture = drawMat.GetAlbedoTexture();
+
+		if (!albedoTexture)
+		{
+			OutputDebugStringW(L"No Texture");
+			return false;
+		}
 
 		// 모델 변환
 		m_objectConstantData.model = renderItem.world;
@@ -169,7 +194,6 @@ namespace My
 		m_objectConstantData.invTranspose = m_objectConstantData.model;
 		m_objectConstantData.invTranspose.Translation(Vector3(0.0f));
 		m_objectConstantData.invTranspose = m_objectConstantData.invTranspose.Transpose().Invert();
-
 
 
 		if (!D3D11Utils::UpdateBuffer(m_context, m_objectConstantData, m_objectConstantBuffer))
@@ -185,6 +209,14 @@ namespace My
 			m_objectConstantBuffer.Get(),m_cameraConstantBuffer.Get()
 		};
 
+		ID3D11ShaderResourceView* albedoSRV = albedoTexture->GetShaderResourceView();
+
+		if (!albedoSRV)
+		{
+			OutputDebugStringW(L"No SRV");
+			return false;
+		}
+
 		m_context->IASetInputLayout(m_inputLayout.Get());
 		m_context->IASetVertexBuffers(0, 1, &meshVertexBuffer, &stride, &offset);
 		m_context->IASetIndexBuffer(drawMesh.GetIndexBuffer(), DXGI_FORMAT_R32_UINT, 0);
@@ -193,6 +225,9 @@ namespace My
 		m_context->VSSetShader(m_vertexShader.Get(), 0, 0);
 		m_context->VSSetConstantBuffers(0, 2, constantBuffers);
 		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
+
+		m_context->PSSetShaderResources(0, 1, &albedoSRV);
+		m_context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
 		m_context->DrawIndexed(drawMesh.GetIndexCount(), 0, 0);
 

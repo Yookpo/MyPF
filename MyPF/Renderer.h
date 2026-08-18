@@ -44,6 +44,9 @@ namespace My
 		ComPtr<ID3D11PixelShader> m_pixelShader;
 		ComPtr<ID3D11InputLayout> m_inputLayout;
 
+		// sampler
+		ComPtr<ID3D11SamplerState> m_samplerState;
+
 		// constantData
 		ObjectConstantData m_objectConstantData;
 		ComPtr<ID3D11Buffer> m_objectConstantBuffer;
