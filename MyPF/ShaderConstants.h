@@ -8,6 +8,7 @@ namespace My
 	struct ObjectConstantData
 	{
 		Matrix model;
+		Matrix invTranspose;
 	};
 
 	struct CameraConstantData

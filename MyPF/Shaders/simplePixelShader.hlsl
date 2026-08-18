@@ -15,6 +15,10 @@ struct PS_INPUT
 
 float4 main(PS_INPUT input) : SV_TARGET
 {
-    return float4(input.color, 1.0f);
+    input.normal = normalize(input.normal);
+    input.normal *= 0.5;
+    input.normal += 0.5;
+    
+    return float4(input.normal, 1.0f);
 }
 

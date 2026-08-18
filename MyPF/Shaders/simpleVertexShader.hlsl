@@ -1,6 +1,7 @@
 cbuffer objectConstantBuffer : register(b0)
 {
     matrix model;
+    matrix invTranspose;
 }
 
 cbuffer cameraConstantBuffer : register(b1)
@@ -27,7 +28,6 @@ struct PS_INPUT
 };
 
 
-
 PS_INPUT main(VS_INPUT input)
 {
     PS_INPUT output;
@@ -39,7 +39,10 @@ PS_INPUT main(VS_INPUT input)
     
     output.pos = pos;
     output.color = input.color;
-    output.normal = input.normal;
+    
+    float4 normal = float4(input.normal, 0.0f);
+    output.normal = mul(normal, invTranspose).xyz;
+    output.normal = normalize(output.normal);
     
     return output;
 }

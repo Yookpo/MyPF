@@ -15,6 +15,7 @@ namespace My
 		Vector3 normal;
 	};
 
+
 	struct MeshData 
 	{
 		std::vector<Vertex> vertices;

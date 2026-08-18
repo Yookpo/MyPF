@@ -24,6 +24,7 @@ namespace My
 		}
 
 		m_objectConstantData.model = Matrix();
+		m_objectConstantData.invTranspose = Matrix();
 		if (!D3D11Utils::CreateConstantBuffer(m_device, m_objectConstantData, m_objectConstantBuffer))
 		{
 			return false;
@@ -143,6 +144,12 @@ namespace My
 		// 모델 변환
 		m_objectConstantData.model = renderItem.world;
 		m_objectConstantData.model = m_objectConstantData.model.Transpose();
+
+		m_objectConstantData.invTranspose = m_objectConstantData.model;
+		m_objectConstantData.invTranspose.Translation(Vector3(0.0f));
+		m_objectConstantData.invTranspose = m_objectConstantData.invTranspose.Transpose().Invert();
+
+
 
 		if (!D3D11Utils::UpdateBuffer(m_context, m_objectConstantData, m_objectConstantBuffer))
 		{
