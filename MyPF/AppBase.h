@@ -6,6 +6,7 @@
 #include "Camera.h"
 #include "DirectionalLight.h"
 #include "Texture.h"
+#include "Material.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -53,6 +54,7 @@ namespace My
 		GameObject* m_selectedObject;
 		Mesh m_cubeMesh;
 		Mesh m_triangleMesh;
+		Material m_material;
 
 		Camera m_camera;
 

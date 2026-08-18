@@ -16,6 +16,7 @@ namespace My
 		
 		bool Initialize(ID3D11Device*, const std::string&);
 
+		ID3D11Texture2D* GetTexture() const { return m_texture.Get(); }
 		ID3D11ShaderResourceView* GetShaderResourceView() const { return m_textureResourceView.Get(); }
 
 	private:

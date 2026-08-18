@@ -85,13 +85,18 @@ namespace My
 			return false;
 		}
 
-		cube1->GetMeshComponent().SetMesh(&m_cubeMesh);
-		triangle1->GetMeshComponent().SetMesh(&m_triangleMesh);
-
 		if (!m_texture.Initialize(m_renderer.GetDevice(), "wall.jpg"))
 		{
 			return false;
 		}
+
+		m_material.SetAlbedoTexture(&m_texture);
+
+		cube1->GetMeshComponent().SetMesh(&m_cubeMesh);
+		triangle1->GetMeshComponent().SetMesh(&m_triangleMesh);
+
+		cube1->GetMeshComponent().SetMaterial(&m_material);
+		triangle1->GetMeshComponent().SetMaterial(&m_material);
 
 		return true;
 	}
@@ -167,7 +172,7 @@ namespace My
 		return (sceneViewWidth / sceneViewHeight);
 	}
 
-	
+
 
 	AppBase::AppBase()
 		: m_screenWidth(1280), m_screenHeight(720),
@@ -223,7 +228,7 @@ namespace My
 				continue;
 			}
 
-			RenderItem renderItem{ meshComponent.GetMesh(), world };
+			RenderItem renderItem{ meshComponent.GetMesh(), meshComponent.GetMaterial(),world };
 
 			if (!m_renderer.DrawRenderItem(renderItem))
 			{
@@ -404,6 +409,6 @@ namespace My
 	}
 
 
-	
+
 }
 
