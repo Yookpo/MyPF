@@ -12,7 +12,7 @@ namespace My
 		bool Initialize(HWND mainWindow, int screenWidth, int screenHeight);
 		bool Resize(int screenWidth, int screenHeight);
 
-		void BeginFrame(const FrameRenderData&, const std::array<float, 4>&);
+		bool BeginFrame(const FrameRenderData&, const std::array<float, 4>&);
 		bool EndFrame();
 
 		bool DrawRenderItem(const RenderItem&);
@@ -44,8 +44,11 @@ namespace My
 		ComPtr<ID3D11PixelShader> m_pixelShader;
 		ComPtr<ID3D11InputLayout> m_inputLayout;
 
-		BasicVertexConstantData m_constantBufferData;
-		ComPtr<ID3D11Buffer> m_constantBuffer;
+		// constantData
+		ObjectConstantData m_objectConstantData;
+		ComPtr<ID3D11Buffer> m_objectConstantBuffer;
+		CameraConstantData m_cameraConstantData;
+		ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
 
 		D3D11_VIEWPORT m_screenViewport;
 	};

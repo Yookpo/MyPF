@@ -16,15 +16,19 @@ namespace My
 
 		SetViewPort(0, 0, static_cast<float>(screenWidth), static_cast<float>(screenHeight));
 
-
-		m_constantBufferData.model = Matrix();
-		m_constantBufferData.view = Matrix();
-		m_constantBufferData.projection = Matrix();
-
-		if (!D3D11Utils::CreateConstantBuffer(m_device, m_constantBufferData, m_constantBuffer))
+		m_cameraConstantData.view = Matrix();
+		m_cameraConstantData.projection = Matrix();
+		if (!D3D11Utils::CreateConstantBuffer(m_device, m_cameraConstantData, m_cameraConstantBuffer))
 		{
 			return false;
 		}
+
+		m_objectConstantData.model = Matrix();
+		if (!D3D11Utils::CreateConstantBuffer(m_device, m_objectConstantData, m_objectConstantBuffer))
+		{
+			return false;
+		}
+
 
 		if (!D3D11Utils::CreateDepthBuffer(m_device, screenWidth, screenHeight, m_depthStencilView, m_depthStencilState))
 		{
@@ -98,7 +102,7 @@ namespace My
 		return true;
 	}
 
-	void Renderer::BeginFrame(const FrameRenderData& frameRenderData, const std::array<float, 4>& m_backgroundColor)
+	bool Renderer::BeginFrame(const FrameRenderData& frameRenderData, const std::array<float, 4>& m_backgroundColor)
 	{
 		m_context->ClearRenderTargetView(m_renderTargetView.Get(), m_backgroundColor.data());
 		m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -108,12 +112,20 @@ namespace My
 		m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
 		// 시점 변환
-		m_constantBufferData.view = frameRenderData.view;
-		m_constantBufferData.view = m_constantBufferData.view.Transpose();
+		m_cameraConstantData.view = frameRenderData.view;
+		m_cameraConstantData.view = m_cameraConstantData.view.Transpose();
+
 
 		// 프로젝션
-		m_constantBufferData.projection = frameRenderData.projection;
-		m_constantBufferData.projection = m_constantBufferData.projection.Transpose();
+		m_cameraConstantData.projection = frameRenderData.projection;
+		m_cameraConstantData.projection = m_cameraConstantData.projection.Transpose();
+
+		if (!D3D11Utils::UpdateBuffer(m_context, m_cameraConstantData, m_cameraConstantBuffer))
+		{
+			return false;
+		}
+
+		return true;
 	}
 
 	bool Renderer::DrawRenderItem(const RenderItem& renderItem)
@@ -127,10 +139,10 @@ namespace My
 		const Mesh& drawMesh = *renderItem.mesh;
 
 		// 모델 변환
-		m_constantBufferData.model = renderItem.world;
-		m_constantBufferData.model = m_constantBufferData.model.Transpose();
+		m_objectConstantData.model = renderItem.world;
+		m_objectConstantData.model = m_objectConstantData.model.Transpose();
 
-		if (!D3D11Utils::UpdateBuffer(m_context, m_constantBufferData, m_constantBuffer))
+		if (!D3D11Utils::UpdateBuffer(m_context, m_objectConstantData, m_objectConstantBuffer))
 		{
 			return false;
 		}
@@ -139,6 +151,9 @@ namespace My
 		UINT offset = 0;
 
 		ID3D11Buffer* meshVertexBuffer = drawMesh.GetVertexBuffer();
+		ID3D11Buffer* constantBuffers[2] = {
+			m_objectConstantBuffer.Get(),m_cameraConstantBuffer.Get()
+		};
 
 		m_context->IASetInputLayout(m_inputLayout.Get());
 		m_context->IASetVertexBuffers(0, 1, &meshVertexBuffer, &stride, &offset);
@@ -146,7 +161,7 @@ namespace My
 		m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		m_context->VSSetShader(m_vertexShader.Get(), 0, 0);
-		m_context->VSSetConstantBuffers(0, 1, m_constantBuffer.GetAddressOf());
+		m_context->VSSetConstantBuffers(0, 2, constantBuffers);
 		m_context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
 		m_context->DrawIndexed(drawMesh.GetIndexCount(), 0, 0);

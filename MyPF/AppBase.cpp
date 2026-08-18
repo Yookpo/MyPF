@@ -87,7 +87,10 @@ namespace My
 		frameRenderData.view = m_camera.GetViewMatrix();
 		frameRenderData.projection = m_camera.GetProjectionMatrix();
 
-		m_renderer.BeginFrame(frameRenderData, m_backgroundColor);
+		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
+		{
+			OutputDebugStringW(L"Draw camera failed, Program shutting down");
+		}
 
 		// 해당 Scene의 오브젝트들을 순회
 		const auto& sceneObjects = m_scene.GetGameObjects();

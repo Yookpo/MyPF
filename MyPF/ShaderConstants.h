@@ -5,9 +5,13 @@ namespace My
 {
 	using DirectX::SimpleMath::Matrix;
 
-	struct BasicVertexConstantData
+	struct ObjectConstantData
 	{
 		Matrix model;
+	};
+
+	struct CameraConstantData
+	{
 		Matrix view;
 		Matrix projection;
 	};
