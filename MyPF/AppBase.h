@@ -5,6 +5,7 @@
 #include "Mesh.h"
 #include "Camera.h"
 #include "DirectionalLight.h"
+#include "Texture.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -56,6 +57,8 @@ namespace My
 		Camera m_camera;
 
 		DirectionalLight m_directionalLight;
+
+		Texture m_texture;
 
 		std::array<float, 4> m_backgroundColor;
 	};

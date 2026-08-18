@@ -5,8 +5,7 @@ namespace My
 {
 	bool Mesh::Initialize(ID3D11Device* device, const MeshData& meshData)
 	{
-		if (!D3D11Utils::CreateVertexBuffer(device, meshData.vertices,
-			m_vertexBuffer))
+		if (!D3D11Utils::CreateVertexBuffer(device, meshData.vertices, m_vertexBuffer))
 		{
 			return false;
 		}

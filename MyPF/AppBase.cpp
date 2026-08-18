@@ -7,11 +7,6 @@ namespace My
 {
 	using namespace std;
 
-	float AppBase::GetAspectRatio(float sceneViewWidth, float sceneViewHeight) const
-	{
-		return (sceneViewWidth / sceneViewHeight);
-	}
-
 	// RegisterClassEx()에서 멤버 함수를 직접 등록할 수가 없기 때문에
 	// 클래스의 멤버 함수에서 간접적으로 메시지를 처리할 수 있도록 도와줍니다.
 	AppBase* g_appBase = nullptr;
@@ -54,6 +49,125 @@ namespace My
 
 		return ::DefWindowProcW(hWnd, msg, wParam, lParam);
 	}
+
+	bool AppBase::Initialize()
+	{
+		if (!InitMainWindow())
+			return false;
+
+		if (!m_renderer.Initialize(m_mainWindow, m_screenWidth, m_screenHeight))
+			return false;
+
+		if (!InitGUI())
+			return false;
+
+		GameObject* cube1 = &m_scene.CreateGameObject("cube1");
+		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");
+
+		cube1->GetTransform().SetPosition(Vector3(-0.6f, 0.0f, 0.0f));
+		cube1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
+
+		triangle1->GetTransform().SetPosition(Vector3(0.6f, 0.0f, 0.0f));
+		triangle1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
+
+		m_selectedObject = cube1;
+
+		MeshData meshData = GeometryGenerator::MakeCube();
+		MeshData triangleData = GeometryGenerator::MakeTriangle();
+
+		if (!m_cubeMesh.Initialize(m_renderer.GetDevice(), meshData))
+		{
+			return false;
+		}
+
+		if (!m_triangleMesh.Initialize(m_renderer.GetDevice(), triangleData))
+		{
+			return false;
+		}
+
+		cube1->GetMeshComponent().SetMesh(&m_cubeMesh);
+		triangle1->GetMeshComponent().SetMesh(&m_triangleMesh);
+
+		if (!m_texture.Initialize(m_renderer.GetDevice(), "wall.jpg"))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	bool AppBase::InitMainWindow()
+	{
+		// 창 클래스 등록
+		WNDCLASSEX wc =
+		{
+			sizeof(WNDCLASSEX),CS_CLASSDC,
+			WndProc,
+			0L,0L,
+			GetModuleHandle(NULL),
+			NULL,
+			LoadCursor(nullptr, IDC_ARROW),
+			NULL,
+			NULL,
+			L"CyberPunk",
+			NULL
+		};
+
+		if (!RegisterClassEx(&wc))
+		{
+			std::cerr << "RegisterClassEx() failed." << endl;
+			return false;
+		}
+
+		RECT wr = { 0,0, m_screenWidth,m_screenHeight };
+
+		AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, false);
+
+		m_mainWindow = CreateWindow(
+			wc.lpszClassName, L"CyberPunk",
+			WS_OVERLAPPEDWINDOW,
+			100,	// 윈도우 좌측 상단의 x 좌표
+			100,	// 윈도우 좌측 상단의 y 좌표
+			wr.right - wr.left,	 // 윈도우 가로 방향 해상도
+			wr.bottom - wr.top,	 // 윈도우 세로 방향 해상도
+			NULL, NULL, wc.hInstance, NULL);
+
+		if (!m_mainWindow)
+		{
+			std::cerr << "CreateWindow() failed.\n";
+			return false;
+		}
+
+		ShowWindow(m_mainWindow, SW_SHOWDEFAULT);
+		UpdateWindow(m_mainWindow);
+
+		return true;
+	}
+	bool AppBase::InitGUI()
+	{
+		// ImGui 생성 및 초기화
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
+
+		// Setup Platform/Renderer backends
+		if (!ImGui_ImplDX11_Init(m_renderer.GetDevice(), m_renderer.GetContext().Get())) {
+			return false;
+		}
+
+		if (!ImGui_ImplWin32_Init((void*)m_mainWindow)) {
+			return false;
+		}
+
+		return true;
+	}
+
+	float AppBase::GetAspectRatio(float sceneViewWidth, float sceneViewHeight) const
+	{
+		return (sceneViewWidth / sceneViewHeight);
+	}
+
+	
 
 	AppBase::AppBase()
 		: m_screenWidth(1280), m_screenHeight(720),
@@ -290,111 +404,6 @@ namespace My
 	}
 
 
-	bool AppBase::Initialize()
-	{
-		if (!InitMainWindow())
-			return false;
-
-		if (!m_renderer.Initialize(m_mainWindow, m_screenWidth, m_screenHeight))
-			return false;
-
-		if (!InitGUI())
-			return false;
-
-		GameObject* cube1 = &m_scene.CreateGameObject("cube1");
-		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");
-
-		cube1->GetTransform().SetPosition(Vector3(-0.6f, 0.0f, 0.0f));
-		cube1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
-
-		triangle1->GetTransform().SetPosition(Vector3(0.6f, 0.0f, 0.0f));
-		triangle1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
-
-		m_selectedObject = cube1;
-
-		MeshData meshData = GeometryGenerator::MakeCube();
-		MeshData triangleData = GeometryGenerator::MakeTriangle();
-
-		if (!m_cubeMesh.Initialize(m_renderer.GetDevice(), meshData))
-		{
-			return false;
-		}
-
-		if (!m_triangleMesh.Initialize(m_renderer.GetDevice(), triangleData))
-		{
-			return false;
-		}
-
-		cube1->GetMeshComponent().SetMesh(&m_cubeMesh);
-		triangle1->GetMeshComponent().SetMesh(&m_triangleMesh);
-
-		return true;
-	}
-
-	bool AppBase::InitMainWindow()
-	{
-		// 창 클래스 등록
-		WNDCLASSEX wc =
-		{
-			sizeof(WNDCLASSEX),CS_CLASSDC,
-			WndProc,
-			0L,0L,
-			GetModuleHandle(NULL),
-			NULL,
-			LoadCursor(nullptr, IDC_ARROW),
-			NULL,
-			NULL,
-			L"CyberPunk",
-			NULL
-		};
-
-		if (!RegisterClassEx(&wc))
-		{
-			std::cerr << "RegisterClassEx() failed." << endl;
-			return false;
-		}
-
-		RECT wr = { 0,0, m_screenWidth,m_screenHeight };
-
-		AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, false);
-
-		m_mainWindow = CreateWindow(
-			wc.lpszClassName, L"CyberPunk",
-			WS_OVERLAPPEDWINDOW,
-			100,	// 윈도우 좌측 상단의 x 좌표
-			100,	// 윈도우 좌측 상단의 y 좌표
-			wr.right - wr.left,	 // 윈도우 가로 방향 해상도
-			wr.bottom - wr.top,	 // 윈도우 세로 방향 해상도
-			NULL, NULL, wc.hInstance, NULL);
-
-		if (!m_mainWindow)
-		{
-			std::cerr << "CreateWindow() failed.\n";
-			return false;
-		}
-
-		ShowWindow(m_mainWindow, SW_SHOWDEFAULT);
-		UpdateWindow(m_mainWindow);
-
-		return true;
-	}
-	bool AppBase::InitGUI()
-	{
-		// ImGui 생성 및 초기화
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO();
-
-		// Setup Platform/Renderer backends
-		if (!ImGui_ImplDX11_Init(m_renderer.GetDevice(), m_renderer.GetContext().Get())) {
-			return false;
-		}
-
-		if (!ImGui_ImplWin32_Init((void*)m_mainWindow)) {
-			return false;
-		}
-
-		return true;
-	}
+	
 }
 

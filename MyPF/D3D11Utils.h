@@ -129,6 +129,10 @@ namespace My
 
 			return true;
 		}
+
+		static bool CreateTexture(ID3D11Device* device, const std::string& filename,
+				ComPtr<ID3D11Texture2D>& texture,
+				ComPtr<ID3D11ShaderResourceView>& textureResourceView);
 	};
 }
 

@@ -1,5 +1,8 @@
 ﻿#include "D3D11Utils.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 namespace My
 {
 	void CheckResult(HRESULT hr, ID3DBlob* errorBlob) {
@@ -178,6 +181,63 @@ namespace My
 			indexBuffer.GetAddressOf())))
 		{
 			OutputDebugStringW(L"CreateIndexBuffer failed");
+			return false;
+		}
+
+		return true;
+	}
+	bool D3D11Utils::CreateTexture(ID3D11Device* device, const std::string& filename,
+		ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11ShaderResourceView>& textureResourceView)
+	{
+		int width, height, channels;
+
+		unsigned char* img = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+
+		if (img == nullptr)
+		{
+			OutputDebugStringW(L"Image Load Failed");
+			return false;
+		}
+
+		//// 4채널로 만들어서 복사
+		//std::vector<uint8_t> image;
+		//image.resize(width * height * 4);
+		//for (size_t i = 0; i < width * height; i++)
+		//{
+		//	for (size_t c = 0; c < 3; c++)
+		//	{
+		//		image[4 * i + c] = img[i * channels + c];
+		//	}
+		//	image[4 * i + 3] = 255;
+		//}
+
+		// Create Texture
+		D3D11_TEXTURE2D_DESC txtDesc = {};
+		txtDesc.Width = width;
+		txtDesc.Height = height;
+		txtDesc.MipLevels = txtDesc.ArraySize = 1;
+		txtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		txtDesc.SampleDesc.Count = 1;
+		txtDesc.Usage = D3D11_USAGE_IMMUTABLE;
+		txtDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+		D3D11_SUBRESOURCE_DATA initData;
+		ZeroMemory(&initData, sizeof(initData));
+		initData.pSysMem = img;
+		initData.SysMemPitch = txtDesc.Width * sizeof(uint8_t) * 4;
+
+		HRESULT hr = device->CreateTexture2D(&txtDesc, &initData, texture.GetAddressOf());
+		stbi_image_free(img);
+
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(L"CreateTexture Failed");
+			return false;
+		}
+
+		if (FAILED(device->CreateShaderResourceView(texture.Get(), nullptr, textureResourceView.GetAddressOf())))
+		{
+			OutputDebugStringW(L"CreateSRV Failed");
 			return false;
 		}
 
