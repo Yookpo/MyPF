@@ -1,18 +1,18 @@
 # MyPF 작업 인계
 
-마지막 갱신: 2026-08-14
+마지막 갱신: 2026-08-19
 
 ## 이 문서의 목적
 
-노트북과 데스크톱의 Codex 작업 맥락을 Git으로 공유하기 위한 현재 상태 문서다. 새 환경에서 작업을 시작할 때 저장소 루트의 `AGENTS.md`를 먼저 읽고, 그다음 이 문서와 실제 소스를 대조한다.
+노트북과 데스크톱의 Codex 작업 맥락을 Git으로 공유하기 위한 현재 상태 문서다. 새 환경에서는 저장소 루트의 `AGENTS.md`를 먼저 읽고, 이 문서와 실제 소스 및 `git status`를 대조한다.
 
-문서보다 현재 코드와 `git status`를 우선한다.
+문서와 코드가 다르면 코드를 우선한다.
 
 ## 최종 목표
 
 DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 데모를 제작한다.
 
-플레이어가 비 내리는 골목을 걸으며 전원 장치를 작동시키면, 꺼져 있던 네온 간판과 조명이 순차적으로 켜지는 연출을 핵심 장면으로 삼는다.
+플레이어가 비 내리는 골목을 1인칭으로 탐색하고 전원 장치를 작동시키면, 꺼져 있던 네온 간판과 조명이 순차적으로 켜지는 연출을 핵심 장면으로 삼는다.
 
 주요 목표 기능:
 
@@ -28,243 +28,235 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 - 색조 보정
 - ImGui 기반 씬 편집 및 디버그 UI
 
-## 작업 방식과 사용자 의도
+최종 결과물은 범용 엔진 자체가 아니라 `DX11 렌더링 기술 + 확장 가능한 구조 + 짧지만 완성된 플레이 경험`을 보여주는 포트폴리오다.
+
+## 사용자와 Codex의 작업 방식
 
 - 사용자가 모든 C++와 HLSL 코드를 직접 작성한다.
-- Codex는 구조와 구현 순서를 안내하고, 사용자가 작성한 코드를 리뷰하며, 빌드와 실행으로 검증한다.
-- 사용자의 명시적인 요청이 없으면 Codex가 C++/HLSL을 대신 작성하거나 자동 수정하지 않는다.
-- 큰 기능을 한 번에 넣지 않고, 작게 동작하는 기능 하나씩 확장한다.
-- ImGui 기반 씬 편집 환경을 먼저 만들고, 그다음 플레이 모드의 키보드/마우스 입력을 넣는다.
-- Editor와 Play가 완전히 별개의 Scene 구조를 가지기보다 같은 Scene 데이터를 활용하는 방향이다.
-- 핵심 설계 원칙은 “하위 시스템은 상위 시스템을 전혀 모른다”이다.
+- Codex는 사용자의 명시적 요청 없이 프로젝트 소스를 생성하거나 자동 수정하지 않는다.
+- Codex는 기능의 목적과 책임을 먼저 설명하고, 사용자가 직접 판단해 구현할 수 있도록 작은 기능 단위와 완료 조건을 제시한다.
+- 사용자가 수동적으로 코드를 받아 적지 않도록 가능한 경우 설계 질문과 판단 기준을 먼저 준다.
+- 사용자가 막힌 문법이나 API를 구체적으로 질문하면 더 직접적으로 설명한다.
+- 사용자가 `수정 완료`라고 하면 실제 파일을 다시 읽어 리뷰한다.
+- 빌드, 컴파일, 실행은 사용자가 명시적으로 요청할 때만 한다. 요청 시 우선 `Debug | x64` 컴파일 단계로 확인한다.
+- ImGui 기반 편집 환경을 먼저 확장하고, 플레이 입력과 상호작용은 이후 추가한다.
+- 핵심 원칙은 “하위 시스템은 상위 시스템을 전혀 모른다”이다.
 
-## 저장소 정보
+## 저장소 상태
 
 - 로컬 저장소: `C:/Users/Diguedman/source/repos/MyPF`
 - 원격 저장소: `https://github.com/Yookpo/MyPF.git`
-- 현재 기준 브랜치: `main`
+- 현재 브랜치: `main`
+- 2026-08-19 확인 HEAD: `3393d06` (`버퍼 핸들`)
+- 2026-08-19 문서 갱신 직전 작업 트리: clean
 - 솔루션: `MyPF/MyPF.sln`
-- 기본 빌드 구성: `Debug | x64`
+- 기본 구성: `Debug | x64`
 - 프로젝트 작업 디렉터리: `MyPF/`
 - Shader 경로: `MyPF/Shaders/`
 - HLSL은 Shader Model 5.0으로 런타임 컴파일한다.
 
-## 현재 완료된 기반 기능
+`GraphicsDevice.h/.cpp`는 `.vcxproj`와 `.filters`에 등록돼 있다. `GraphicsResourceHandle.h`는 Git에는 추적되지만 2026-08-19 확인 시 프로젝트 파일에는 아직 등록되지 않았다. `GraphicsResourceManager.h/.cpp`는 아직 작성하지 않았다.
 
-### 플랫폼과 DirectX 11
+이번 GraphicsDevice/BufferHandle 변경 이후에는 사용자의 요청에 따라 컴파일이나 실행을 하지 않았다. 데스크톱에서 이어갈 때도 사용자가 검증을 요청하기 전에는 빌드하지 않는다.
 
-- Win32 윈도우 생성과 메시지 루프
+## 현재 완료된 기능
+
+### 플랫폼과 기본 렌더링
+
+- Win32 Window와 메시지 루프
 - DX11 Device, DeviceContext, SwapChain
-- Render Target View와 Depth Stencil View/State
-- Rasterizer State
-- `WM_SIZE`에 따른 SwapChain Buffer, RTV, Depth Buffer 재생성
-- Scene 영역에 맞춘 Viewport 설정
-- Vertex/Pixel Shader 런타임 컴파일과 Input Layout 생성
-- Model/View/Projection을 사용하는 기본 HLSL
-- Indexed Drawing
+- BackBuffer RTV, Depth Texture/DSV, DepthStencil State
+- Rasterizer State와 Sampler State
+- `WM_SIZE`에 따른 SwapChain/RTV/Depth 재생성
+- ImGui 패널 폭을 제외한 Scene Viewport
+- Vertex/Pixel Shader 런타임 컴파일
+- Input Layout과 Indexed Drawing
 - `GameTimer`
 
-### Scene과 오브젝트
+### Scene과 제출 경계
 
-- `Scene`이 `std::vector<std::unique_ptr<GameObject>>`로 GameObject를 소유
-- `GameObject`가 이름, `Transform`, `MeshComponent`를 보유
-- `Transform`이 Position/Rotation/Scale과 World Matrix 계산을 담당
-- Scene에 Cube와 Triangle 두 GameObject 생성
-- 두 오브젝트에 서로 다른 Mesh를 연결하여 렌더링
+- `Scene`이 `vector<unique_ptr<GameObject>>`로 GameObject 소유
+- `GameObject`가 이름, Transform, MeshComponent 보유
+- `MeshComponent`가 `const Mesh*`와 `Material*`를 비소유 참조
+- `RenderItem`이 Mesh, Material, World Matrix를 Renderer로 전달
+- `FrameRenderData`가 View/Projection/DirectionalLight를 Renderer로 전달
+- AppBase가 Scene을 순회하고 RenderItem을 구성
+- Renderer는 Scene, GameObject, Transform, Camera, ImGui를 모름
 
-### Mesh와 렌더 제출 구조
+### Camera와 ImGui
 
-- `MeshData.h`로 CPU 측 `Vertex`, `MeshData` 분리
-- `ShaderConstants.h`로 셰이더 상수 구조 분리
-- `Mesh`가 Vertex/Index Buffer와 Index Count를 소유
-- `GeometryGenerator`가 Cube와 Triangle의 `MeshData` 생성
-- `MeshComponent`가 사용할 `Mesh`를 비소유 `const Mesh*`로 참조
-- `RenderItem`이 오브젝트 렌더 제출 경계 역할 수행
-- `FrameRenderData`가 프레임의 View/Projection 전달 경계 역할 수행
-- `Renderer::DrawRenderItem`이 특정 Cube가 아닌 전달된 Mesh를 범용 렌더링
+- Camera Position, View, Perspective Projection
+- Yaw/Pitch 기반 회전과 ImGui 편집
+- FOV 설정
+- Scene View 크기에 따른 Aspect Ratio 갱신
+- Scene GameObject 선택 및 Transform 편집
+- 선택된 오브젝트의 Material 편집
+- 배경색과 Directional Light 값 편집
 
-### Camera와 ImGui 편집
+### Mesh, 조명, Texture, Material
 
-- `Camera` 클래스 분리
-- Camera가 Position/Forward/Up과 Perspective Projection 값을 보유
-- Camera가 View/Projection 행렬을 계산
-- Scene View의 폭과 높이에 맞춰 Camera Aspect Ratio를 매 프레임 갱신
-- Renderer는 Camera를 직접 알지 않고 `FrameRenderData`만 받음
-- ImGui 배경색 편집
-- Scene GameObject 목록과 선택 상태 표시
-- 선택된 GameObject의 Position/Rotation/Scale 편집
-- ImGui에서 Camera Position 편집
+- Cube와 Triangle Mesh
+- Vertex Position/Color/Normal/UV
+- Object/Camera Constant Buffer 분리
+- Directional Light와 Light Constant Buffer
+- 기본 Normal 기반 조명
+- Texture2D/SRV와 Sampler
+- Material과 Material Constant Buffer
+- 같은 Texture를 공유하면서 오브젝트별로 다른 BaseColor 적용
+- 오브젝트별 Material 선택 및 수정
 
-## 현재 소유 관계
+### GraphicsDevice 분리
+
+- `GraphicsDevice`가 Device, Context, SwapChain, 기본 RTV, 기본 Depth Texture/DSV 소유
+- `GraphicsDevice::Initialize`, `Resize`, `Present`
+- AppBase가 GraphicsDevice를 Renderer보다 먼저 소유하고 초기화
+- Renderer가 GraphicsDevice를 비소유 포인터로 참조
+- Renderer의 Device/Context/SwapChain/RTV/DSV 직접 소유 제거
+- BeginFrame이 GraphicsDevice의 Context/RTV/DSV 사용
+- EndFrame이 `GraphicsDevice::Present()`에 위임
+- Mesh, Texture, ImGui가 AppBase의 GraphicsDevice에서 Device/Context를 직접 받음
+- WM_SIZE는 Device 존재 및 양수 크기를 확인한 뒤 GraphicsDevice Resize 호출
+
+## 현재 소유 및 의존 구조
 
 ```text
 AppBase
-├─ Renderer
+├─ GraphicsDevice
+│  ├─ ID3D11Device
+│  ├─ ID3D11DeviceContext
+│  ├─ IDXGISwapChain
+│  ├─ 기본 BackBuffer RTV
+│  ├─ 기본 Depth Texture / DSV
+│  ├─ Resize
+│  └─ Present
+├─ Renderer --비소유--> GraphicsDevice
+│  ├─ Shader / InputLayout
+│  ├─ Rasterizer / DepthStencil / Sampler State
+│  └─ Object / Camera / Light / Material Constant Buffer
 ├─ Scene
-│  └─ vector<unique_ptr<GameObject>>
-│     └─ GameObject
-│        ├─ Transform
-│        └─ MeshComponent --비소유 const Mesh*--> Mesh
+│  └─ GameObject[]
+│     ├─ Transform
+│     └─ MeshComponent
+│        ├─ 비소유 const Mesh*
+│        └─ 비소유 Material*
 ├─ Camera
-├─ Mesh m_cubeMesh
-├─ Mesh m_triangleMesh
-└─ GameObject* m_selectedObject  (비소유 선택 포인터)
+├─ Mesh m_cubeMesh / m_triangleMesh
+├─ Texture m_texture
+└─ Material m_cubeMaterial / m_triangleMaterial
 ```
 
-현재 Mesh 수명은 `AppBase` 수명과 같으므로 `MeshComponent`의 비소유 포인터가 유효하다. 여러 모델과 텍스처를 로딩하는 단계 전까지 ResourceManager와 `shared_ptr` 도입은 보류했다.
+AppBase에서 멤버 선언 순서는 GraphicsDevice가 Renderer보다 앞이다. C++ 멤버는 역순으로 파괴되므로 Renderer가 먼저 소멸하고 GraphicsDevice가 나중에 소멸한다.
 
-GameObject 삭제 기능을 추가할 때는 `m_selectedObject`가 댕글링 포인터가 되지 않도록 선택 해제 또는 안정적인 ID 체계가 필요하다.
+## 현재 프레임 흐름
 
-## 현재 의존성 경계
+1. Win32 메시지와 `WM_SIZE`를 처리한다.
+2. ImGui 프레임을 시작하고 Scene/Camera/Light/Material 값을 편집한다.
+3. Scene View 크기로 Camera Aspect Ratio와 Renderer Viewport를 갱신한다.
+4. AppBase가 Camera와 DirectionalLight로 `FrameRenderData`를 만든다.
+5. `Renderer::BeginFrame()`이 GraphicsDevice에서 Context/RTV/DSV를 빌려 Clear 및 바인딩한다.
+6. Camera/Light Constant Buffer를 프레임 단위로 갱신한다.
+7. AppBase가 Scene의 GameObject를 순회하고 `RenderItem`을 만든다.
+8. `Renderer::DrawRenderItem()`이 Object/Material Constant Buffer를 갱신한다.
+9. Mesh Buffer, Texture SRV, Shader, Constant Buffer를 바인딩하고 `DrawIndexed()`를 호출한다.
+10. ImGui DrawData를 렌더링한다.
+11. `Renderer::EndFrame()`이 GraphicsDevice에 Present를 요청한다.
 
-```text
-Main → AppBase
+## 그래픽 계층에 대한 최신 결정
 
-AppBase → Scene → GameObject → Transform
-                           └→ MeshComponent
+### GraphicsDevice
 
-AppBase → Camera
-AppBase → FrameRenderData → Renderer
-AppBase → RenderItem       → Renderer → Mesh/D3D11Utils
-```
+현재는 DX11 기반 환경과 기본 Window Surface를 함께 가진 과도기 클래스다.
 
-지켜진 핵심 규칙:
+- Device/Context는 최종적으로도 GraphicsDevice 책임이다.
+- SwapChain, 기본 RTV, 기본 Depth Texture/DSV는 향후 `SwapChainSurface` 또는 `WindowRenderSurface`로 분리한다.
+- 지금 즉시 다시 분리하지 않는다. 방금 끝낸 GraphicsDevice 연결을 안정화하고 ResourceManager를 먼저 진행한다.
 
-- Renderer는 Scene, GameObject, Transform, Camera, ImGui를 모른다.
-- Scene/GameObject/Transform은 Renderer와 DX11 렌더링 절차를 모른다.
-- AppBase가 상위 조정 계층에서 Scene 데이터를 `RenderItem`으로 변환한다.
-- Camera 데이터는 Camera 객체가 아닌 `FrameRenderData`로 Renderer에 전달된다.
-- 행렬 전치는 Renderer가 상수 버퍼에 기록하기 직전에 수행한다.
+### GraphicsResourceManager
 
-## 현재 프레임 및 렌더링 흐름
+일반 GPU 리소스의 실제 소유자다.
 
-1. Win32 메시지를 처리하고 `GameTimer`를 갱신한다.
-2. ImGui 새 프레임을 시작하고 `UpdateUI()`에서 편집 값을 Scene/Camera에 반영한다.
-3. ImGui가 차지한 폭을 제외해 Scene View의 폭, 높이, Aspect Ratio를 계산한다.
-4. Camera Aspect Ratio와 Renderer Viewport를 갱신한다.
-5. `AppBase::Render()`가 Camera의 View/Projection으로 `FrameRenderData`를 만든다.
-6. `Renderer::BeginFrame()`이 Render Target/Depth를 지우고 View/Projection을 보관한다.
-7. AppBase가 Scene의 GameObject를 순회한다.
-8. Mesh가 없는 GameObject는 건너뛴다.
-9. 각 GameObject의 Mesh 포인터와 World Matrix로 `RenderItem`을 만든다.
-10. `Renderer::DrawRenderItem()`이 Model 행렬을 넣고 Constant Buffer를 갱신한다.
-11. 해당 Mesh의 Vertex/Index Buffer, Shader, Constant Buffer를 바인딩하고 `DrawIndexed()`를 호출한다.
-12. ImGui DrawData를 렌더링한다.
-13. `Renderer::EndFrame()`에서 Present한다.
+- Constant/Vertex/Index Buffer
+- 일반 Texture2D와 SRV
+- 향후 Shadow Map, HDR Scene Texture, Bloom용 RTV/SRV/DSV
+- 생성, 조회, 업데이트, 수명 종료
 
-## 현재 상수 버퍼 상태
+ResourceManager는 Camera, Light, Material의 의미나 셰이더 슬롯을 모른다. Renderer가 업데이트 시점과 바인딩 정책을 담당한다.
 
-`BasicVertexConstantData` 하나에 Model/View/Projection이 함께 들어 있다.
+### AssetManager
 
-- View/Projection 값은 `BeginFrame()`에서 프레임당 한 번 설정한다.
-- 실제 GPU Constant Buffer 업로드는 `DrawRenderItem()`에서 오브젝트마다 수행한다.
-- 따라서 오브젝트별 Model 데이터와 프레임 공통 Camera 데이터를 논리적으로 전달하는 경계는 나뉘었지만, GPU Constant Buffer 자체는 아직 분리되지 않았다.
+향후 Mesh, Texture, Material 같은 논리 에셋을 관리하고 GPU Handle을 보관한다. Constant Buffer, Shadow Map, Bloom Render Target은 논리 에셋이 아니라 그래픽 런타임 리소스다.
 
-향후 Object Constant Buffer와 Camera/Frame Constant Buffer를 서로 다른 슬롯으로 분리하면 프레임 공통 데이터를 오브젝트마다 다시 업로드하지 않아도 되고, 이후 Material/Light Buffer 확장도 명확해진다.
+## BufferHandle 현재 상태
 
-## 현재 확인된 화면 동작
+`MyPF/GraphicsResourceHandle.h`에 `BufferHandle`을 작성했다.
 
-- 왼쪽 Cube와 오른쪽 Triangle이 서로 다른 Mesh로 표시된다.
-- Depth Buffer를 사용한다.
-- ImGui에서 배경색을 바꿀 수 있다.
-- Scene 목록에서 오브젝트를 선택하고 Transform을 수정할 수 있다.
-- ImGui에서 Camera Position을 바꿔 시점을 이동할 수 있다.
-- 창 크기와 ImGui 패널 폭에 따라 Scene Viewport와 Camera Aspect Ratio가 맞춰진다.
+현재 의도:
 
-## 최근 검증 결과
+- 실제 `ID3D11Buffer*`나 `ComPtr`를 보관하지 않음
+- `uint32_t m_index` 하나만 객체 상태로 보관
+- `static constexpr` 무효 인덱스는 `uint32_t` 최댓값
+- 기본 생성은 무효 Handle
+- `explicit BufferHandle(uint32_t index)`로 정상 Handle 생성
+- `GetIndex() const`
+- `IsValid() const`는 인덱스가 무효 값과 다를 때 true
 
-2026-08-14 기준 최근 검증:
+Handle의 책임은 ResourceManager 내부 리소스를 식별하고 무효 상태를 표현하는 것뿐이다. 생성, 업데이트, 해제, 바인딩, 소유권 관리는 하지 않는다.
 
-- `Debug | x64` 빌드 성공
-- 경고 0개
-- 오류 0개
-- 실행 후 3초 동안 프로세스 정상 유지
-- 검증 후 작업 트리 clean 확인
-
-새 환경에서는 Git pull 이후 다시 빌드하고, Shader 상대 경로를 위해 실행 작업 디렉터리가 `MyPF/`인지 확인한다.
-
-## 남아 있는 기술 부채와 주의점
-
-- Camera 회전 모델이 아직 없다. 현재 Forward/Up을 직접 설정할 수 있어 잘못된 벡터 조합을 막지 못한다.
-- Model/View/Projection이 하나의 GPU Constant Buffer에 들어 있다.
-- Vertex는 Position/Color만 가지고 Normal/UV/Tangent가 없다.
-- `GeometryGenerator::MakeCube()`가 Normal 배열을 만들지만 현재 Vertex에 저장하지 않는다.
-- Material, Texture, Sampler, Light 구조가 없다.
-- AppBase가 Scene 생성, Mesh 생성, UI, 제출을 모두 조정하므로 기능 증가에 따라 역할 분리가 필요하다.
-- `m_selectedObject`는 비소유 raw pointer이므로 GameObject 삭제 기능 도입 시 수명 처리가 필요하다.
-- MeshComponent의 raw pointer는 현재 AppBase 소유 Mesh의 수명이 더 길다는 전제에 의존한다.
-- Shader 파일 경로가 상대 경로라 실행 작업 디렉터리에 의존한다.
-- 현재 Scene View는 SwapChain Back Buffer의 일부 Viewport이며, 별도의 Texture를 ImGui 창에 표시하는 완전한 에디터 Viewport는 아니다.
-
-## 현재 진행 단계
-
-기존의 “Renderer 내부 단일 Cube 렌더링” 구조를 벗어나 다음 단계까지 완료했다.
-
-- Mesh GPU 리소스 분리
-- GameObject의 MeshComponent 도입
-- 여러 Mesh/여러 GameObject 렌더링
-- RenderItem을 통한 Scene→Renderer 제출 경계
-- Camera 분리
-- FrameRenderData를 통한 Camera→Renderer 데이터 경계
-- ImGui Camera Position 편집
-
-초기 구조 개선 작업 10개 중 Object/Camera GPU Constant Buffer 분리를 제외한 주요 구조와 여러 Mesh 검증이 완료된 상태다.
+초기 구현에서는 리소스를 배열에서 삭제하지 않으므로 index만 사용한다. 개별 삭제 및 슬롯 재사용이 필요해지면 generation을 추가한다.
 
 ## 바로 다음 작업
 
-`Camera`의 안전한 Yaw/Pitch 회전을 추가하고 ImGui에서 편집한다.
+`GraphicsResourceManager`의 Buffer 저장소와 조회 기반을 만든다.
 
-이 작업이 먼저 필요한 이유:
+작성할 파일:
 
-- 현재는 Camera Position만 조절할 수 있어 씬을 원하는 방향에서 볼 수 없다.
-- Forward 벡터를 ImGui에서 직접 수정하면 영벡터, 정규화되지 않은 벡터, Up과 평행한 벡터가 만들어질 수 있다.
-- 이후 마우스 시점 회전도 동일한 Yaw/Pitch 로직을 재사용할 수 있다.
+- `MyPF/GraphicsResourceManager.h`
+- `MyPF/GraphicsResourceManager.cpp`
 
-권장 설계 방향:
+첫 구현 범위:
 
-- Camera 내부에 Yaw와 Pitch를 둔다.
-- `yaw = 0`, `pitch = 0`일 때 현재 기본 Forward `(0, 0, 1)`과 일치시킨다.
-- Pitch는 약 `-89도 ~ +89도` 범위로 제한한다.
-- Yaw/Pitch가 바뀔 때 Forward를 계산하고 정규화한다.
-- 회전 규칙과 벡터 유효성은 Camera가 책임지고, ImGui는 값만 편집한다.
-- 기존 `SetForward()`를 계속 둘 경우 Yaw/Pitch와 Forward가 서로 어긋나지 않도록 하나를 기준 데이터로 정해야 한다.
+1. `GraphicsDevice`를 비소유 포인터로 보관한다.
+2. 복사 생성자와 복사 대입을 삭제한다.
+3. private `BufferResource`가 `ComPtr<ID3D11Buffer>`와 `uint32_t byteWidth`를 가진다.
+4. `vector<BufferResource>`가 실제 Buffer를 소유한다.
+5. `Initialize(GraphicsDevice&)`가 Device와 Context 유효성을 확인하고 주소를 저장한다.
+6. `GetBuffer(BufferHandle) const`가 Handle 유효성, 배열 범위, ComPtr 유효성을 검사한 뒤 raw pointer를 반환한다.
 
-완료 조건:
+이 첫 범위에서는 아직 Buffer 생성/업데이트, Renderer 변경, 프로젝트 등록, 컴파일을 하지 않는다.
 
-- ImGui에서 Yaw/Pitch를 변경하면 Camera 시점이 안정적으로 회전한다.
-- 기본 각도에서 기존 화면 방향이 유지된다.
-- 위아래 끝까지 조절해도 View Matrix가 깨지지 않는다.
-- Renderer와 Scene의 의존성 경계가 변하지 않는다.
-- `Debug | x64` 빌드 및 짧은 실행이 성공한다.
+그 다음 순서:
 
-이번 단계에서는 하지 않을 것:
+1. 타입 템플릿 공개 API와 비템플릿 내부 API로 Constant Buffer 생성/업데이트 구현
+2. AppBase가 GraphicsResourceManager를 GraphicsDevice 다음, Renderer 이전에 소유
+3. Renderer가 GraphicsDevice와 GraphicsResourceManager를 비소유 참조
+4. Renderer의 네 Constant Buffer `ComPtr`를 `BufferHandle`로 교체
+5. Vertex/Index Buffer를 ResourceManager로 이관
+6. 일반 Texture/SRV를 ResourceManager로 이관
+7. 이후 AssetManager 도입
 
-- WASD 이동
-- 마우스 입력
-- Camera를 GameObject 컴포넌트로 변경
-- Constant Buffer 분리
-- Material/Light 추가
+## 다음 작업에서 지킬 점
 
-## 이후 작업 순서
+- `BufferHandle`에 DirectX 포인터나 ComPtr를 넣지 않는다.
+- ResourceManager가 실제 ComPtr의 유일한 소유자다.
+- `GetBuffer()`의 raw pointer는 즉시 바인딩할 때만 빌려 쓴다. 외부에서 Release하거나 장기간 보관하지 않는다.
+- Handle이 `IsValid()`여도 임의로 큰 인덱스일 수 있으므로 배열 범위를 반드시 검사한다.
+- 처음부터 `shared_ptr`, `weak_ptr`, 리소스 삭제, free list, generation을 넣지 않는다.
+- 하위 GraphicsDevice/ResourceManager는 Renderer, Scene, AppBase를 알지 않는다.
+- Renderer는 ResourceManager를 사용해도 Scene/GameObject/Camera를 직접 알지 않는다.
 
-1. Camera Yaw/Pitch와 ImGui 회전 편집
-2. Camera FOV/Near/Far 편집 및 값 검증
-3. Object Constant Buffer와 Camera/Frame Constant Buffer 분리
-4. Vertex에 Normal/UV 추가
-5. Directional Light 또는 단일 Point Light로 기본 조명 구현
-6. Material, Texture, Sampler 도입
-7. 모델 로딩 및 필요 시 ResourceManager 도입
-8. 에디터 Scene View, 오브젝트 배치/선택 기능 확장
-9. WASD/마우스 플레이 카메라와 Editor/Play 상태 전환
-10. 전원 스위치 상호작용과 조명 상태 변화
-11. 그림자, 젖은 바닥 반사, Bloom, 안개, 색조 보정
-12. 사이버펑크 골목 콘텐츠 제작과 1~2분 연출 완성
+## 남은 주요 로드맵
 
-## 진행률 추정
+1. GraphicsResourceManager와 Handle 기반 GPU 리소스 소유
+2. AssetManager와 외부 Mesh/Texture 로딩
+3. ImGui Scene Hierarchy/Inspector와 배치 기능 확장
+4. 1인칭 WASD/마우스 입력과 Editor/Play 상태
+5. 다수 Point Light와 네온 조명
+6. 사이버펑크 골목 기본 콘텐츠 구성
+7. Shadow Mapping
+8. 젖은 바닥 재질과 반사
+9. HDR Scene Target과 Bloom
+10. 안개와 색조 보정
+11. 문/전원 스위치 상호작용 및 순차 점등
+12. 디버그 UI, 최적화, 1~2분 최종 연출
 
-- 최종 데모 전체 기준: 약 25~30%
-- 렌더링/Scene 구조 기반 기준: 약 85%
-- 카메라 기반: 위치와 투영까지 완료, 회전과 입력은 미완료
-- 고급 렌더링, 콘텐츠, 상호작용: 대부분 미착수
-
-이 수치는 기능 개수보다 최종 데모 제작에 필요한 작업량을 기준으로 한 대략적인 추정이다.
+최종 데모 전체 작업량 기준 진행률은 대략 30~35%로 본다. 기본 렌더링 및 Scene 구조는 상당 부분 마련됐지만, 고급 렌더링, 외부 콘텐츠, 상호작용과 최종 연출은 대부분 남아 있다.
