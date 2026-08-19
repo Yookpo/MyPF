@@ -99,6 +99,9 @@
     <ClCompile Include="GraphicsDevice.cpp">
       <Filter>Rendering</Filter>
     </ClCompile>
+    <ClCompile Include="GraphicsResourceManager.cpp">
+      <Filter>Resources</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -180,6 +183,12 @@
       <Filter>Resources</Filter>
     </ClInclude>
     <ClInclude Include="GraphicsDevice.h">
+      <Filter>Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsResourceManager.h">
+      <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferHandle.h">
       <Filter>Rendering</Filter>
     </ClInclude>
   </ItemGroup>
