@@ -54,7 +54,8 @@ namespace My
 		Mesh m_cubeMesh;
 		Mesh m_triangleMesh;
 		Texture m_texture;
-		Material m_material;
+		Material m_cubeMaterial;
+		Material m_triangleMaterial;
 
 		Scene m_scene;
 		GameObject* m_selectedObject;

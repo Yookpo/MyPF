@@ -90,13 +90,17 @@ namespace My
 			return false;
 		}
 
-		m_material.SetAlbedoTexture(&m_texture);
+		m_cubeMaterial.SetAlbedoTexture(&m_texture);
+		m_triangleMaterial.SetAlbedoTexture(&m_texture);
+
+		m_cubeMaterial.SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
+		m_triangleMaterial.SetBaseColor(Vector3(0.2f, 0.64f, 0.18f));
 
 		cube1->GetMeshComponent().SetMesh(&m_cubeMesh);
 		triangle1->GetMeshComponent().SetMesh(&m_triangleMesh);
 
-		cube1->GetMeshComponent().SetMaterial(&m_material);
-		triangle1->GetMeshComponent().SetMaterial(&m_material);
+		cube1->GetMeshComponent().SetMaterial(&m_cubeMaterial);
+		triangle1->GetMeshComponent().SetMaterial(&m_triangleMaterial);
 
 		return true;
 	}
@@ -335,7 +339,10 @@ namespace My
 		if (m_selectedObject)
 		{
 			ImGui::Text("Selected: %s", m_selectedObject->GetName().c_str());
+			MeshComponent& comp = m_selectedObject->GetMeshComponent();
 			Transform& tr = m_selectedObject->GetTransform();
+			Material* mat = comp.GetMaterial();
+
 			// 위치 수정
 			Vector3 pos = tr.GetPosition();
 			if (ImGui::DragFloat3("Move", &pos.x, 0.01f, -1.0f, 1.0f))
@@ -354,16 +361,16 @@ namespace My
 			{
 				tr.SetScale(scale);
 			}
-		}
 
-		ImGui::Separator();
-		ImGui::Text("Material");
-		Vector3 matBaseColor = m_material.GetBaseColor();
-		if (ImGui::SliderFloat3("Base Color", &matBaseColor.x, 0.0f, 1.0f))
-		{
-			m_material.SetBaseColor(matBaseColor);
+			if (mat)
+			{
+				Vector3 matBaseColor = mat->GetBaseColor();
+				if (ImGui::SliderFloat3("Base Color", &matBaseColor.x, 0.0f, 1.0f))
+				{
+					mat->SetBaseColor(matBaseColor);
+				}
+			}
 		}
-
 
 		m_guiWidth = ImGui::GetWindowSize().x;
 

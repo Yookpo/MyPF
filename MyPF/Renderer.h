@@ -26,6 +26,7 @@ namespace My
 	private:
 		bool InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight);
 		bool CreateRenderTargetView();
+		bool CreateRasterizerState();
 		void SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight);
 
 	private:

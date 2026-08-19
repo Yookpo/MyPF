@@ -24,7 +24,7 @@ namespace My
 			}
 		}
 	}
-	bool D3D11Utils::CreateDepthBuffer(ComPtr<ID3D11Device>& device, int screenWidth, int screenHeight,
+	bool D3D11Utils::CreateDepthBuffer(ID3D11Device* device, int screenWidth, int screenHeight,
 		ComPtr<ID3D11DepthStencilView>& depthStencilView, ComPtr<ID3D11DepthStencilState>& depthStencilState)
 	{
 		if (!device)
@@ -76,6 +76,21 @@ namespace My
 			return false;
 		}
 
+		if (!CreateDepthStencilState(device, depthStencilState))
+		{
+			return false;
+		}
+
+		return true;
+	}
+	bool D3D11Utils::CreateDepthStencilState(ID3D11Device* device, ComPtr<ID3D11DepthStencilState>& depthStencilState)
+	{
+		if (!device)
+		{
+			OutputDebugStringW(L"Device is empty. must be initialized");
+			return false;
+		}
+
 		// Create depth stencil state
 		D3D11_DEPTH_STENCIL_DESC depthStencilDesc;
 		ZeroMemory(&depthStencilDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
@@ -88,10 +103,9 @@ namespace My
 			return false;
 		}
 
-
 		return true;
 	}
-	bool D3D11Utils::CreateVertexShaderAndInputLayout(ComPtr<ID3D11Device>& device, const wstring& fileName, const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader, ComPtr<ID3D11InputLayout>& m_inputLayout)
+	bool D3D11Utils::CreateVertexShaderAndInputLayout(ID3D11Device* device, const wstring& fileName, const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader, ComPtr<ID3D11InputLayout>& m_inputLayout)
 	{
 		ComPtr<ID3DBlob> shaderBlob;
 		ComPtr<ID3DBlob> errorBlob;
@@ -128,7 +142,7 @@ namespace My
 
 		return true;
 	}
-	bool D3D11Utils::CreatePixelShader(ComPtr<ID3D11Device>& device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader)
+	bool D3D11Utils::CreatePixelShader(ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader)
 	{
 		ComPtr<ID3DBlob> shaderBlob;
 		ComPtr<ID3DBlob> errorBlob;

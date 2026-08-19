@@ -20,14 +20,14 @@ namespace My
 
 		m_cameraConstantData.view = Matrix();
 		m_cameraConstantData.projection = Matrix();
-		if (!D3D11Utils::CreateConstantBuffer(m_device, m_cameraConstantData, m_cameraConstantBuffer))
+		if (!D3D11Utils::CreateConstantBuffer(m_device.Get(), m_cameraConstantData, m_cameraConstantBuffer))
 		{
 			return false;
 		}
 
 		m_objectConstantData.model = Matrix();
 		m_objectConstantData.invTranspose = Matrix();
-		if (!D3D11Utils::CreateConstantBuffer(m_device, m_objectConstantData, m_objectConstantBuffer))
+		if (!D3D11Utils::CreateConstantBuffer(m_device.Get(), m_objectConstantData, m_objectConstantBuffer))
 		{
 			return false;
 		}
@@ -36,19 +36,19 @@ namespace My
 		m_lightConstantData.color = Vector3(0.0f);
 		m_lightConstantData.intensity = 1.0f;
 		m_lightConstantData.pad = 0.0f;
-		if (!D3D11Utils::CreateConstantBuffer(m_device, m_lightConstantData, m_lightConstantBuffer))
+		if (!D3D11Utils::CreateConstantBuffer(m_device.Get(), m_lightConstantData, m_lightConstantBuffer))
 		{
 			return false;
 		}
 
 		m_materialConstantData.baseColor = Vector3(1.0f);
 		m_materialConstantData.pad = 0.0f;
-		if (!D3D11Utils::CreateConstantBuffer(m_device, m_materialConstantData, m_materialConstantBuffer))
+		if (!D3D11Utils::CreateConstantBuffer(m_device.Get(), m_materialConstantData, m_materialConstantBuffer))
 		{
 			return false;
 		}
 
-		if (!D3D11Utils::CreateDepthBuffer(m_device, screenWidth, screenHeight, m_depthStencilView, m_depthStencilState))
+		if (!D3D11Utils::CreateDepthBuffer(m_device.Get(), screenWidth, screenHeight, m_depthStencilView, m_depthStencilState))
 		{
 			return false;
 		}
@@ -65,7 +65,7 @@ namespace My
 		};
 
 		if (!D3D11Utils::CreateVertexShaderAndInputLayout(
-			m_device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader,
+			m_device.Get(), L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader,
 			m_inputLayout
 		))
 		{
@@ -73,7 +73,7 @@ namespace My
 		}
 
 		if (!D3D11Utils::CreatePixelShader(
-			m_device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader
+			m_device.Get(), L"Shaders\\simplePixelShader.hlsl", m_pixelShader
 		))
 		{
 			return false;
@@ -93,6 +93,12 @@ namespace My
 		{
 			return false;
 		}
+
+		if (!CreateRasterizerState())
+		{
+			return false;
+		}
+
 
 		return true;
 	}
@@ -130,7 +136,7 @@ namespace My
 		{
 			return false;
 		}
-		if (!D3D11Utils::CreateDepthBuffer(m_device, screenWidth, screenHeight,
+		if (!D3D11Utils::CreateDepthBuffer(m_device.Get(), screenWidth, screenHeight,
 			m_depthStencilView, m_depthStencilState))
 		{
 			return false;
@@ -155,7 +161,7 @@ namespace My
 		m_cameraConstantData.projection = frameRenderData.projection;
 		m_cameraConstantData.projection = m_cameraConstantData.projection.Transpose();
 
-		if (!D3D11Utils::UpdateBuffer(m_context, m_cameraConstantData, m_cameraConstantBuffer))
+		if (!D3D11Utils::UpdateBuffer(m_context.Get(), m_cameraConstantData, m_cameraConstantBuffer.Get()))
 		{
 			return false;
 		}
@@ -166,7 +172,7 @@ namespace My
 		m_lightConstantData.color = frameRenderData.directionalLight.color;
 		m_lightConstantData.intensity = frameRenderData.directionalLight.intensity;
 
-		if (!D3D11Utils::UpdateBuffer(m_context, m_lightConstantData, m_lightConstantBuffer))
+		if (!D3D11Utils::UpdateBuffer(m_context.Get(), m_lightConstantData, m_lightConstantBuffer.Get()))
 		{
 			return false;
 		}
@@ -203,14 +209,14 @@ namespace My
 		m_objectConstantData.invTranspose = m_objectConstantData.invTranspose.Transpose().Invert();
 
 
-		if (!D3D11Utils::UpdateBuffer(m_context, m_objectConstantData, m_objectConstantBuffer))
+		if (!D3D11Utils::UpdateBuffer(m_context.Get(), m_objectConstantData, m_objectConstantBuffer.Get()))
 		{
 			return false;
 		}
 
 		// 머터리얼 변환
 		m_materialConstantData.baseColor = drawMat.GetBaseColor();
-		if (!D3D11Utils::UpdateBuffer(m_context, m_materialConstantData, m_materialConstantBuffer))
+		if (!D3D11Utils::UpdateBuffer(m_context.Get(), m_materialConstantData, m_materialConstantBuffer.Get()))
 		{
 			return false;
 		}
@@ -331,24 +337,7 @@ namespace My
 			return false;
 		}
 
-		// Create a rasterizer state
-		D3D11_RASTERIZER_DESC rastDesc;
-		ZeroMemory(&rastDesc, sizeof(D3D11_RASTERIZER_DESC)); // Need this
-		rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID;
-		// rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
-		rastDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_NONE;
-		rastDesc.FrontCounterClockwise = false;
-		rastDesc.DepthClipEnable = true; // <- zNear, zFar 확인에 필요
-
-		if (FAILED(m_device->CreateRasterizerState(&rastDesc,
-			m_rasterizerState.GetAddressOf())))
-		{
-			OutputDebugStringW(L"CreateRasterizerState() failed");
-			return false;
-		}
-
-		// 초기화 후 해당 래스터 초기화 할 때 바로 적용
-		m_context->RSSetState(m_rasterizerState.Get());
+		
 
 		return true;
 	}
@@ -392,6 +381,30 @@ namespace My
 			OutputDebugStringW(L"BackBuffer is Empty");
 			return false;
 		}
+
+		return true;
+	}
+
+	bool Renderer::CreateRasterizerState()
+	{
+		// Create a rasterizer state
+		D3D11_RASTERIZER_DESC rastDesc;
+		ZeroMemory(&rastDesc, sizeof(D3D11_RASTERIZER_DESC)); // Need this
+		rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_SOLID;
+		// rastDesc.FillMode = D3D11_FILL_MODE::D3D11_FILL_WIREFRAME;
+		rastDesc.CullMode = D3D11_CULL_MODE::D3D11_CULL_NONE;
+		rastDesc.FrontCounterClockwise = false;
+		rastDesc.DepthClipEnable = true; // <- zNear, zFar 확인에 필요
+
+		if (FAILED(m_device->CreateRasterizerState(&rastDesc,
+			m_rasterizerState.GetAddressOf())))
+		{
+			OutputDebugStringW(L"CreateRasterizerState() failed");
+			return false;
+		}
+
+		// 초기화 후 해당 래스터 초기화 할 때 바로 적용
+		m_context->RSSetState(m_rasterizerState.Get());
 
 		return true;
 	}

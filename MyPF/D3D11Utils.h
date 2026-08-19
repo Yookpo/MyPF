@@ -21,17 +21,19 @@ namespace My
 	{
 	public:
 		static bool CreateDepthBuffer(
-			ComPtr<ID3D11Device>& device, int screenWidth,
+			ID3D11Device* device, int screenWidth,
 			int screenHeight, ComPtr<ID3D11DepthStencilView>& depthStencilView, ComPtr<ID3D11DepthStencilState>& depthStencilState);
 
+		static bool CreateDepthStencilState(ID3D11Device* device, ComPtr<ID3D11DepthStencilState>& depthStencilState);
+
 		static bool CreateVertexShaderAndInputLayout(
-			ComPtr<ID3D11Device>& device, const wstring& fileName,
+			ID3D11Device* device, const wstring& fileName,
 			const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements,
 			ComPtr<ID3D11VertexShader>& m_vertexShader,
 			ComPtr<ID3D11InputLayout>& m_inputLayout
 		);
 
-		static bool CreatePixelShader(ComPtr<ID3D11Device>& device,
+		static bool CreatePixelShader(ID3D11Device* device,
 			const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader);
 
 		static bool CreateIndexBuffer(ID3D11Device* device,
@@ -73,7 +75,7 @@ namespace My
 		}
 
 		template <typename T_CONSTANT>
-		static bool CreateConstantBuffer(ComPtr<ID3D11Device>& device,
+		static bool CreateConstantBuffer(ID3D11Device* device,
 			const T_CONSTANT& constantBufferData,
 			ComPtr<ID3D11Buffer>& constantBuffer)
 		{
@@ -108,9 +110,9 @@ namespace My
 			return true;
 		}
 		template <typename T_DATA>
-		static bool UpdateBuffer(ComPtr<ID3D11DeviceContext>& context,
+		static bool UpdateBuffer(ID3D11DeviceContext* context,
 			const T_DATA& bufferData,
-			ComPtr<ID3D11Buffer>& buffer) {
+			ID3D11Buffer* buffer) {
 
 			if (!buffer || !context) {
 				OutputDebugStringW(L"UpdateBuffer() buffer was not initialized.");
@@ -118,21 +120,21 @@ namespace My
 			}
 
 			D3D11_MAPPED_SUBRESOURCE ms = {};
-			auto hr = context->Map(buffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
+			auto hr = context->Map(buffer, NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
 			if (FAILED(hr))
 			{
 				OutputDebugStringW(L"Map() failed.");
 				return false;
 			}
 			memcpy(ms.pData, &bufferData, sizeof(bufferData));
-			context->Unmap(buffer.Get(), NULL);
+			context->Unmap(buffer, NULL);
 
 			return true;
 		}
 
 		static bool CreateTexture(ID3D11Device* device, const std::string& filename,
-				ComPtr<ID3D11Texture2D>& texture,
-				ComPtr<ID3D11ShaderResourceView>& textureResourceView);
+			ComPtr<ID3D11Texture2D>& texture,
+			ComPtr<ID3D11ShaderResourceView>& textureResourceView);
 	};
 }
 
