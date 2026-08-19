@@ -96,6 +96,9 @@
     <ClCompile Include="Material.cpp">
       <Filter>Resources</Filter>
     </ClCompile>
+    <ClCompile Include="GraphicsDevice.cpp">
+      <Filter>Rendering</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -175,6 +178,9 @@
     </ClInclude>
     <ClInclude Include="Material.h">
       <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="GraphicsDevice.h">
+      <Filter>Rendering</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
