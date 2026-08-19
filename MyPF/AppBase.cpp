@@ -38,7 +38,11 @@ namespace My
 			m_screenWidth = int(LOWORD(lParam));
 			m_screenHeight = int(HIWORD(lParam));
 
-			m_renderer.Resize(m_screenWidth, m_screenHeight);
+			if (m_graphicsDevice.GetDevice() && (m_screenWidth > 0 && m_screenHeight > 0))
+			{
+				m_graphicsDevice.Resize(m_screenWidth, m_screenHeight);
+			}
+
 			break;
 
 		case WM_DESTROY:
@@ -53,13 +57,24 @@ namespace My
 	bool AppBase::Initialize()
 	{
 		if (!InitMainWindow())
+		{
 			return false;
+		}
 
-		if (!m_renderer.Initialize(m_mainWindow, m_screenWidth, m_screenHeight))
+		if (!m_graphicsDevice.Initialize(m_mainWindow, m_screenWidth, m_screenHeight))
+		{
 			return false;
+		}
+
+		if (!m_renderer.Initialize(m_graphicsDevice, m_screenWidth, m_screenHeight))
+		{
+			return false;
+		}
 
 		if (!InitGUI())
+		{
 			return false;
+		}
 
 		GameObject* cube1 = &m_scene.CreateGameObject("cube1");
 		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");
@@ -75,17 +90,17 @@ namespace My
 		MeshData meshData = GeometryGenerator::MakeCube();
 		MeshData triangleData = GeometryGenerator::MakeTriangle();
 
-		if (!m_cubeMesh.Initialize(m_renderer.GetDevice(), meshData))
+		if (!m_cubeMesh.Initialize(m_graphicsDevice.GetDevice(), meshData))
 		{
 			return false;
 		}
 
-		if (!m_triangleMesh.Initialize(m_renderer.GetDevice(), triangleData))
+		if (!m_triangleMesh.Initialize(m_graphicsDevice.GetDevice(), triangleData))
 		{
 			return false;
 		}
 
-		if (!m_texture.Initialize(m_renderer.GetDevice(), "wall.jpg"))
+		if (!m_texture.Initialize(m_graphicsDevice.GetDevice(), "wall.jpg"))
 		{
 			return false;
 		}
@@ -160,7 +175,7 @@ namespace My
 		ImGuiIO& io = ImGui::GetIO();
 
 		// Setup Platform/Renderer backends
-		if (!ImGui_ImplDX11_Init(m_renderer.GetDevice(), m_renderer.GetContext().Get())) {
+		if (!ImGui_ImplDX11_Init(m_graphicsDevice.GetDevice(), m_graphicsDevice.GetContext())) {
 			return false;
 		}
 
@@ -180,7 +195,8 @@ namespace My
 
 	AppBase::AppBase()
 		: m_screenWidth(1280), m_screenHeight(720),
-		m_mainWindow(nullptr), m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f },
+		m_mainWindow(nullptr), m_graphicsDevice{}, m_renderer{},
+		m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f },
 		m_selectedObject{ nullptr }
 	{
 		g_appBase = this;

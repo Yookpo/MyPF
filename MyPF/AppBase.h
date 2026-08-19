@@ -7,6 +7,7 @@
 #include "DirectionalLight.h"
 #include "Texture.h"
 #include "Material.h"
+#include "GraphicsDevice.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -48,6 +49,7 @@ namespace My
 		int m_screenHeight;
 		float m_guiWidth = 0;
 
+		GraphicsDevice m_graphicsDevice;
 		Renderer m_renderer;
 		GameTimer m_gameTimer;
 

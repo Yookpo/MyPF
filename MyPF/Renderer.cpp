@@ -119,6 +119,11 @@ namespace My
 		ID3D11RenderTargetView* RTV = m_graphicsDevice->GetRTV();
 		ID3D11DepthStencilView* DSV = m_graphicsDevice->GetDSV();
 
+		if (!Context || !RTV || !DSV)
+		{
+			return false;
+		}
+
 
 		Context->ClearRenderTargetView(RTV, m_backgroundColor.data());
 		Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -164,6 +169,12 @@ namespace My
 		}
 
 		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
+
+		if (!Context)
+		{
+			OutputDebugStringW(L"Context is Empty");
+			return false;
+		}
 
 		if (!renderItem.mesh || !renderItem.material)
 		{
@@ -289,6 +300,7 @@ namespace My
 		if (!m_graphicsDevice)
 		{
 			OutputDebugStringW(L"GraphicsDevice is Empty");
+			return;
 		}
 
 		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
@@ -296,6 +308,7 @@ namespace My
 		if (!Context)
 		{
 			OutputDebugStringW(L"Context is Empty");
+			return;
 		}
 
 		ZeroMemory(&m_screenViewport, sizeof(D3D11_VIEWPORT));
