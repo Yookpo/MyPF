@@ -47,6 +47,59 @@ namespace My
 		return bResource.buffer.Get();
 	}
 
+	BufferHandle GraphicsResourceManager::CreateIndexBuffer(const std::vector<uint32_t>& indices)
+	{
+		auto maxValue = (std::numeric_limits<uint32_t>::max)();
+
+		if (indices.empty() || (indices.size() > (maxValue / sizeof(uint32_t))))
+		{
+			return BufferHandle{};
+		}
+
+		auto byte = sizeof(uint32_t) * indices.size();
+
+		return CreateImmutableBufferInternal(indices.data(), static_cast<uint32_t>(byte), D3D11_BIND_INDEX_BUFFER);
+
+	}
+
+	BufferHandle GraphicsResourceManager::CreateImmutableBufferInternal(const void* data, uint32_t byteWidth, UINT bindFlags)
+	{
+		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice() || !data || (byteWidth == 0) || (bindFlags == 0))
+		{
+			return BufferHandle{};
+		}
+
+		D3D11_BUFFER_DESC bufferDesc;
+		ZeroMemory(&bufferDesc, sizeof(bufferDesc));
+		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+		bufferDesc.ByteWidth = byteWidth;
+		bufferDesc.BindFlags = bindFlags;
+		bufferDesc.CPUAccessFlags = 0;
+		bufferDesc.StructureByteStride = 0;
+
+		D3D11_SUBRESOURCE_DATA bufferData;
+		bufferData.pSysMem = data;
+		bufferData.SysMemPitch = 0;
+		bufferData.SysMemSlicePitch = 0;
+
+		BufferResource newResource;
+
+		auto hr = m_graphicsDevice->GetDevice()->CreateBuffer(&bufferDesc, &bufferData, newResource.buffer.GetAddressOf());
+		newResource.byteWidth = byteWidth;
+		newResource.cpuWritable = false;
+
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(L"CreateBufferInternal() failed()");
+			return BufferHandle{};
+		}
+
+		uint32_t newIndex = static_cast<uint32_t>(m_buffers.size());
+		m_buffers.push_back(std::move(newResource));
+
+		return BufferHandle(newIndex);
+	}
+
 	BufferHandle GraphicsResourceManager::CreateConstantBufferInternal(const void* data, uint32_t byteWidth)
 	{
 		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice() || !data || (byteWidth == 0 || (byteWidth % 16 != 0)))
@@ -71,10 +124,11 @@ namespace My
 
 		auto hr = m_graphicsDevice->GetDevice()->CreateBuffer(&cbDesc, &initData, newResource.buffer.GetAddressOf());
 		newResource.byteWidth = byteWidth;
+		newResource.cpuWritable = true;
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(L"CreateConstantBuffer() failed()");
+			OutputDebugStringW(L"CreateConstantBufferInternal() failed()");
 			return BufferHandle{};
 		}
 
@@ -100,7 +154,7 @@ namespace My
 		BufferResource& updateResource = m_buffers[Index];
 		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
 
-		if (!updateResource.buffer.Get() || (updateResource.byteWidth != byteWidth))
+		if (!updateResource.buffer.Get() || (updateResource.byteWidth != byteWidth) || !updateResource.cpuWritable)
 		{
 			return false;
 		}

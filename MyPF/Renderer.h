@@ -55,6 +55,7 @@ namespace My
 		BufferHandle m_objectBufferHandle;
 		BufferHandle m_materialBufferHandle;
 
+
 		D3D11_VIEWPORT m_screenViewport;
 	};
 

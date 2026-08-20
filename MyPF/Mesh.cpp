@@ -1,21 +1,23 @@
 ﻿#include "Mesh.h"
-#include "D3D11Utils.h"
+#include "GraphicsResourceManager.h"
 
 namespace My
 {
-	bool Mesh::Initialize(ID3D11Device* device, const MeshData& meshData)
+	bool Mesh::Initialize(GraphicsResourceManager& resourceManager, const MeshData& meshData)
 	{
-		if (!D3D11Utils::CreateVertexBuffer(device, meshData.vertices, m_vertexBuffer))
+		m_vertexBufferHandle = resourceManager.CreateVertexBuffer(meshData.vertices);
+		if (!m_vertexBufferHandle.IsValid())
 		{
 			return false;
 		}
 
-		if (!D3D11Utils::CreateIndexBuffer(device, meshData.indices, m_indexBuffer))
+		m_indexBufferHandle = resourceManager.CreateIndexBuffer(meshData.indices);
+		if (!m_indexBufferHandle.IsValid())
 		{
 			return false;
 		}
 
-		m_indexCount = UINT(meshData.indices.size());
+		m_indexCount = uint32_t(meshData.indices.size());
 
 		return true;
 	}

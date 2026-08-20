@@ -231,15 +231,21 @@ namespace My
 			return false;
 		}
 
-		UINT stride = sizeof(Vertex);
+		UINT stride = drawMesh.GetVertexStride();
 		UINT offset = 0;
 
-		ID3D11Buffer* meshVertexBuffer = drawMesh.GetVertexBuffer();
+		BufferHandle vertexBufferHandle = drawMesh.GetVertexBufferHandle();
+		BufferHandle indexBufferHandle = drawMesh.GetIndexBufferHandle();
+
 		ID3D11Buffer* objectConstantBuffer = m_resourceManager->GetBuffer(m_objectBufferHandle);
 		ID3D11Buffer* cameraConstantBuffer = m_resourceManager->GetBuffer(m_cameraBufferHandle);
 		ID3D11Buffer* materialConstantBuffer = m_resourceManager->GetBuffer(m_materialBufferHandle);
 
-		if (!objectConstantBuffer || !cameraConstantBuffer || !materialConstantBuffer)
+		ID3D11Buffer* vertexBuffer = m_resourceManager->GetBuffer(vertexBufferHandle);
+		ID3D11Buffer* indexBuffer = m_resourceManager->GetBuffer(indexBufferHandle);
+
+		if (!objectConstantBuffer || !cameraConstantBuffer || !materialConstantBuffer
+			|| !vertexBuffer || !indexBuffer)
 		{
 			return false;
 		}
@@ -262,8 +268,8 @@ namespace My
 		}
 
 		Context->IASetInputLayout(m_inputLayout.Get());
-		Context->IASetVertexBuffers(0, 1, &meshVertexBuffer, &stride, &offset);
-		Context->IASetIndexBuffer(drawMesh.GetIndexBuffer(), DXGI_FORMAT_R32_UINT, 0);
+		Context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+		Context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 		Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		Context->VSSetShader(m_vertexShader.Get(), 0, 0);

@@ -95,12 +95,12 @@ namespace My
 		MeshData meshData = GeometryGenerator::MakeCube();
 		MeshData triangleData = GeometryGenerator::MakeTriangle();
 
-		if (!m_cubeMesh.Initialize(m_graphicsDevice.GetDevice(), meshData))
+		if (!m_cubeMesh.Initialize(m_resourceManager, meshData))
 		{
 			return false;
 		}
 
-		if (!m_triangleMesh.Initialize(m_graphicsDevice.GetDevice(), triangleData))
+		if (!m_triangleMesh.Initialize(m_resourceManager, triangleData))
 		{
 			return false;
 		}
