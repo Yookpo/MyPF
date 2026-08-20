@@ -44,19 +44,16 @@ namespace My
 		ComPtr<ID3D11SamplerState> m_samplerState;
 
 		// constantData
-		ObjectConstantData m_objectConstantData;
-		ComPtr<ID3D11Buffer> m_objectConstantBuffer;
-		MaterialConstantData m_materialConstantData;
-		ComPtr<ID3D11Buffer> m_materialConstantBuffer;
-
-
 		CameraConstantData m_cameraConstantData;
 		LightConstantData m_lightConstantData;
+		ObjectConstantData m_objectConstantData;
+		MaterialConstantData m_materialConstantData;
 
+		// BufferHandle -> 실제 버퍼 소유자는 리소스매니저
 		BufferHandle m_cameraBufferHandle;
 		BufferHandle m_lightBufferHandle;
-
-
+		BufferHandle m_objectBufferHandle;
+		BufferHandle m_materialBufferHandle;
 
 		D3D11_VIEWPORT m_screenViewport;
 	};

@@ -34,8 +34,7 @@ namespace My
 			return false;
 		}
 
-
-
+		// Create Buffer Handle
 		m_cameraConstantData.view = Matrix();
 		m_cameraConstantData.projection = Matrix();
 		m_cameraBufferHandle = m_resourceManager->CreateConstantBuffer(m_cameraConstantData);
@@ -59,16 +58,19 @@ namespace My
 
 		m_objectConstantData.model = Matrix();
 		m_objectConstantData.invTranspose = Matrix();
-		if (!D3D11Utils::CreateConstantBuffer(Device, m_objectConstantData, m_objectConstantBuffer))
+		m_objectBufferHandle = m_resourceManager->CreateConstantBuffer(m_objectConstantData);
+
+		if (!m_objectBufferHandle.IsValid())
 		{
 			return false;
 		}
 
 
-
 		m_materialConstantData.baseColor = Vector3(1.0f);
 		m_materialConstantData.pad = 0.0f;
-		if (!D3D11Utils::CreateConstantBuffer(Device, m_materialConstantData, m_materialConstantBuffer))
+		m_materialBufferHandle = m_resourceManager->CreateConstantBuffer(m_materialConstantData);
+
+		if (!m_materialBufferHandle.IsValid())
 		{
 			return false;
 		}
@@ -217,15 +219,14 @@ namespace My
 		m_objectConstantData.invTranspose.Translation(Vector3(0.0f));
 		m_objectConstantData.invTranspose = m_objectConstantData.invTranspose.Transpose().Invert();
 
-
-		if (!D3D11Utils::UpdateBuffer(Context, m_objectConstantData, m_objectConstantBuffer.Get()))
+		if (!m_resourceManager->UpdateBuffer(m_objectBufferHandle, m_objectConstantData))
 		{
 			return false;
 		}
 
 		// 머터리얼 변환
 		m_materialConstantData.baseColor = drawMat.GetBaseColor();
-		if (!D3D11Utils::UpdateBuffer(Context, m_materialConstantData, m_materialConstantBuffer.Get()))
+		if (!m_resourceManager->UpdateBuffer(m_materialBufferHandle, m_materialConstantData))
 		{
 			return false;
 		}
@@ -234,19 +235,22 @@ namespace My
 		UINT offset = 0;
 
 		ID3D11Buffer* meshVertexBuffer = drawMesh.GetVertexBuffer();
+		ID3D11Buffer* objectConstantBuffer = m_resourceManager->GetBuffer(m_objectBufferHandle);
 		ID3D11Buffer* cameraConstantBuffer = m_resourceManager->GetBuffer(m_cameraBufferHandle);
-		if (!cameraConstantBuffer)
+		ID3D11Buffer* materialConstantBuffer = m_resourceManager->GetBuffer(m_materialBufferHandle);
+
+		if (!objectConstantBuffer || !cameraConstantBuffer || !materialConstantBuffer)
 		{
 			return false;
 		}
 
 		ID3D11Buffer* constantBuffers[2] = {
-			m_objectConstantBuffer.Get(),cameraConstantBuffer,
+			objectConstantBuffer,cameraConstantBuffer,
 		};
 
 		ID3D11Buffer* pixelConstantBuffers =
 		{
-			m_materialConstantBuffer.Get()
+			materialConstantBuffer
 		};
 
 		ID3D11ShaderResourceView* albedoSRV = albedoTexture->GetShaderResourceView();
