@@ -3,15 +3,18 @@
 #include "RenderItem.h"
 #include "ShaderConstants.h"
 #include "FrameRenderData.h"
+#include "BufferHandle.h"
 
 namespace My
 {
 	class GraphicsDevice;
+	class GraphicsResourceManager;
 
 	class Renderer
 	{
 	public:
-		bool Initialize(GraphicsDevice& graphicsDevice, int screenWidth, int screenHeight);
+		bool Initialize(GraphicsDevice& graphicsDevice, GraphicsResourceManager& resourceManager,
+			int screenWidth, int screenHeight);
 
 		bool BeginFrame(const FrameRenderData&, const std::array<float, 4>&);
 		bool EndFrame();
@@ -25,6 +28,8 @@ namespace My
 
 	private:
 		GraphicsDevice* m_graphicsDevice = nullptr;
+		GraphicsResourceManager* m_resourceManager = nullptr;
+
 		ComPtr<ID3D11RasterizerState> m_rasterizerState;
 
 		// Depth buffer
@@ -41,12 +46,17 @@ namespace My
 		// constantData
 		ObjectConstantData m_objectConstantData;
 		ComPtr<ID3D11Buffer> m_objectConstantBuffer;
-		CameraConstantData m_cameraConstantData;
-		ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
-		LightConstantData m_lightConstantData;
-		ComPtr<ID3D11Buffer> m_lightConstantBuffer;
 		MaterialConstantData m_materialConstantData;
 		ComPtr<ID3D11Buffer> m_materialConstantBuffer;
+
+
+		CameraConstantData m_cameraConstantData;
+		LightConstantData m_lightConstantData;
+
+		BufferHandle m_cameraBufferHandle;
+		BufferHandle m_lightBufferHandle;
+
+
 
 		D3D11_VIEWPORT m_screenViewport;
 	};

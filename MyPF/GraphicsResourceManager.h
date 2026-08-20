@@ -43,7 +43,7 @@ namespace My
 		struct BufferResource
 		{
 			ComPtr<ID3D11Buffer> buffer;
-			uint32_t byteWidth = 0;
+			uint32_t byteWidth = 0;	// 버퍼 생성 시 크기, 갱신할 데이터 크기가 기존 버퍼 크기와 같은 지 검사해야함
 		};
 
 		BufferHandle CreateConstantBufferInternal(const void* data, uint32_t byteWidth);

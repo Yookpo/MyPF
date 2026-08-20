@@ -66,7 +66,12 @@ namespace My
 			return false;
 		}
 
-		if (!m_renderer.Initialize(m_graphicsDevice, m_screenWidth, m_screenHeight))
+		if (!m_resourceManager.Initialize(m_graphicsDevice))
+		{
+			return false;
+		}
+
+		if (!m_renderer.Initialize(m_graphicsDevice, m_resourceManager, m_screenWidth, m_screenHeight))
 		{
 			return false;
 		}

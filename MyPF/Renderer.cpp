@@ -3,13 +3,16 @@
 #include "Material.h"
 #include "Texture.h"
 #include "GraphicsDevice.h"
+#include "GraphicsResourceManager.h"
 
 namespace My
 {
 
-	bool Renderer::Initialize(GraphicsDevice& graphicsDevice, int screenWidth, int screenHeight)
+	bool Renderer::Initialize(GraphicsDevice& graphicsDevice, GraphicsResourceManager& resourceManager,
+		int screenWidth, int screenHeight)
 	{
 		m_graphicsDevice = &graphicsDevice;
+		m_resourceManager = &resourceManager;
 
 		if (!m_graphicsDevice->GetDevice() || !m_graphicsDevice->GetContext()
 			|| screenWidth <= 0 || screenHeight <= 0)
@@ -31,16 +34,13 @@ namespace My
 			return false;
 		}
 
+
+
 		m_cameraConstantData.view = Matrix();
 		m_cameraConstantData.projection = Matrix();
-		if (!D3D11Utils::CreateConstantBuffer(Device, m_cameraConstantData, m_cameraConstantBuffer))
-		{
-			return false;
-		}
+		m_cameraBufferHandle = m_resourceManager->CreateConstantBuffer(m_cameraConstantData);
 
-		m_objectConstantData.model = Matrix();
-		m_objectConstantData.invTranspose = Matrix();
-		if (!D3D11Utils::CreateConstantBuffer(Device, m_objectConstantData, m_objectConstantBuffer))
+		if (!m_cameraBufferHandle.IsValid())
 		{
 			return false;
 		}
@@ -49,10 +49,22 @@ namespace My
 		m_lightConstantData.color = Vector3(0.0f);
 		m_lightConstantData.intensity = 1.0f;
 		m_lightConstantData.pad = 0.0f;
-		if (!D3D11Utils::CreateConstantBuffer(Device, m_lightConstantData, m_lightConstantBuffer))
+		m_lightBufferHandle = m_resourceManager->CreateConstantBuffer(m_lightConstantData);
+
+		if (!m_lightBufferHandle.IsValid())
 		{
 			return false;
 		}
+
+
+		m_objectConstantData.model = Matrix();
+		m_objectConstantData.invTranspose = Matrix();
+		if (!D3D11Utils::CreateConstantBuffer(Device, m_objectConstantData, m_objectConstantBuffer))
+		{
+			return false;
+		}
+
+
 
 		m_materialConstantData.baseColor = Vector3(1.0f);
 		m_materialConstantData.pad = 0.0f;
@@ -135,11 +147,10 @@ namespace My
 		// 카메라
 		m_cameraConstantData.view = frameRenderData.view;
 		m_cameraConstantData.view = m_cameraConstantData.view.Transpose();
-
 		m_cameraConstantData.projection = frameRenderData.projection;
 		m_cameraConstantData.projection = m_cameraConstantData.projection.Transpose();
 
-		if (!D3D11Utils::UpdateBuffer(Context, m_cameraConstantData, m_cameraConstantBuffer.Get()))
+		if (!m_resourceManager->UpdateBuffer(m_cameraBufferHandle, m_cameraConstantData))
 		{
 			return false;
 		}
@@ -150,12 +161,18 @@ namespace My
 		m_lightConstantData.color = frameRenderData.directionalLight.color;
 		m_lightConstantData.intensity = frameRenderData.directionalLight.intensity;
 
-		if (!D3D11Utils::UpdateBuffer(Context, m_lightConstantData, m_lightConstantBuffer.Get()))
+		if (!m_resourceManager->UpdateBuffer(m_lightBufferHandle, m_lightConstantData))
 		{
 			return false;
 		}
 
-		Context->PSSetConstantBuffers(0, 1, m_lightConstantBuffer.GetAddressOf());
+		ID3D11Buffer* lightconstantBuffer = m_resourceManager->GetBuffer(m_lightBufferHandle);
+		if (!lightconstantBuffer)
+		{
+			return false;
+		}
+
+		Context->PSSetConstantBuffers(0, 1, &lightconstantBuffer);
 
 		return true;
 	}
@@ -217,8 +234,14 @@ namespace My
 		UINT offset = 0;
 
 		ID3D11Buffer* meshVertexBuffer = drawMesh.GetVertexBuffer();
+		ID3D11Buffer* cameraConstantBuffer = m_resourceManager->GetBuffer(m_cameraBufferHandle);
+		if (!cameraConstantBuffer)
+		{
+			return false;
+		}
+
 		ID3D11Buffer* constantBuffers[2] = {
-			m_objectConstantBuffer.Get(),m_cameraConstantBuffer.Get(),
+			m_objectConstantBuffer.Get(),cameraConstantBuffer,
 		};
 
 		ID3D11Buffer* pixelConstantBuffers =

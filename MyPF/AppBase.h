@@ -8,6 +8,7 @@
 #include "Texture.h"
 #include "Material.h"
 #include "GraphicsDevice.h"
+#include "GraphicsResourceManager.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -50,6 +51,7 @@ namespace My
 		float m_guiWidth = 0;
 
 		GraphicsDevice m_graphicsDevice;
+		GraphicsResourceManager m_resourceManager;
 		Renderer m_renderer;
 		GameTimer m_gameTimer;
 
