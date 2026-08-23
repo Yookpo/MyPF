@@ -7,6 +7,8 @@ namespace My
 {
 	class GraphicsResourceManager;
 	class Texture;
+	class Mesh;
+	struct MeshData;
 
 	class AssetManager
 	{
@@ -19,11 +21,12 @@ namespace My
 
 		bool Initialize(GraphicsResourceManager&);
 		const Texture* LoadTexture(const std::string&);
-
+		const Mesh* CreateMesh(const std::string&, const MeshData&);
 
 	private:
 		GraphicsResourceManager* m_resourceManager;
 		std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
+		std::unordered_map<std::string, std::unique_ptr<Mesh>> m_meshes;
 	};
 
 }

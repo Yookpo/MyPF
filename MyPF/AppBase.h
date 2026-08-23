@@ -2,7 +2,6 @@
 #include "Renderer.h"
 #include "GameTimer.h"
 #include "Scene.h"
-#include "Mesh.h"
 #include "Camera.h"
 #include "DirectionalLight.h"
 #include "Material.h"
@@ -56,8 +55,6 @@ namespace My
 		Renderer m_renderer;
 		GameTimer m_gameTimer;
 
-		Mesh m_cubeMesh;
-		Mesh m_triangleMesh;
 		Material m_cubeMaterial;
 		Material m_triangleMaterial;
 

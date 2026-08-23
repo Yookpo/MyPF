@@ -1,6 +1,7 @@
 #include "AssetManager.h"
 #include "GraphicsResourceManager.h"
 #include "Texture.h"
+#include "Mesh.h"
 
 namespace My
 {
@@ -46,8 +47,35 @@ namespace My
 
 		const Texture* loadedTex = texture.get();
 		m_textures.emplace(path, std::move(texture));
-		
+
 		return loadedTex;
+	}
+
+	const Mesh* AssetManager::CreateMesh(const std::string& meshName, const MeshData& meshData)
+	{
+		if (!m_resourceManager || meshName.empty())
+		{
+			return nullptr;
+		}
+
+		// 캐시 검색 -> 캐시 히트시 기존 mesh 반환
+		auto iter = m_meshes.find(meshName);
+		if (iter != m_meshes.end())
+		{
+			return (iter->second).get();
+		}
+
+		auto mesh = std::make_unique<Mesh>();
+		if (!mesh->Initialize(*m_resourceManager, meshData))
+		{
+			OutputDebugStringW(L"AssetManager::CreateMesh() failed");
+			return nullptr;
+		}
+
+		const Mesh* loadedMesh = mesh.get();
+		m_meshes.emplace(meshName, std::move(mesh));
+
+		return loadedMesh;
 	}
 
 }

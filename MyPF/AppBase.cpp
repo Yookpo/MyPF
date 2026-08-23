@@ -97,15 +97,13 @@ namespace My
 
 		m_selectedObject = cube1;
 
-		MeshData meshData = GeometryGenerator::MakeCube();
+		MeshData cubeData = GeometryGenerator::MakeCube();
 		MeshData triangleData = GeometryGenerator::MakeTriangle();
 
-		if (!m_cubeMesh.Initialize(m_resourceManager, meshData))
-		{
-			return false;
-		}
+		auto cubeMesh = m_assetManager.CreateMesh("cube", cubeData);
+		auto triangleMesh = m_assetManager.CreateMesh("triangle", triangleData);
 
-		if (!m_triangleMesh.Initialize(m_resourceManager, triangleData))
+		if (!cubeMesh || !triangleMesh)
 		{
 			return false;
 		}
@@ -113,7 +111,7 @@ namespace My
 		const Texture* cubeTex = m_assetManager.LoadTexture("wall.jpg");
 		const Texture* triangleTex = m_assetManager.LoadTexture("wall.jpg");
 
-		if (!cubeTex && !triangleTex && (cubeTex == triangleTex))
+		if (!cubeTex || !triangleTex || (cubeTex != triangleTex))
 		{
 			return false;
 		}
@@ -124,8 +122,8 @@ namespace My
 		m_cubeMaterial.SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 		m_triangleMaterial.SetBaseColor(Vector3(0.2f, 0.64f, 0.18f));
 
-		cube1->GetMeshComponent().SetMesh(&m_cubeMesh);
-		triangle1->GetMeshComponent().SetMesh(&m_triangleMesh);
+		cube1->GetMeshComponent().SetMesh(cubeMesh);
+		triangle1->GetMeshComponent().SetMesh(triangleMesh);
 
 		cube1->GetMeshComponent().SetMaterial(&m_cubeMaterial);
 		triangle1->GetMeshComponent().SetMaterial(&m_triangleMaterial);
