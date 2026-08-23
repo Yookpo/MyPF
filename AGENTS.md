@@ -1,6 +1,6 @@
 # MyPF Codex 작업 지침
 
-마지막 갱신: 2026-08-20
+마지막 갱신: 2026-08-23
 
 ## 프로젝트 목표
 
@@ -63,12 +63,12 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 ### GraphicsResourceManager
 
-- 일반 GPU Buffer의 실제 `ComPtr<ID3D11Buffer>`를 단독 소유한다.
-- Constant/Vertex/Index Buffer 생성, 조회와 Dynamic Buffer 업데이트를 담당한다.
-- 외부에는 `BufferHandle`을 발급하고, 즉시 바인딩용 raw pointer를 비소유 대여한다.
+- 일반 GPU Buffer의 실제 `ComPtr<ID3D11Buffer>`와 일반 Texture2D/SRV를 단독 소유한다.
+- Constant/Vertex/Index Buffer 생성·조회·업데이트와 파일 Texture 생성·SRV 조회를 담당한다.
+- 외부에는 `BufferHandle`과 `TextureHandle`을 발급하고, 즉시 바인딩용 raw pointer를 비소유 대여한다.
 - Camera, Light, Material 의미, 셰이더 슬롯과 Draw 순서를 모른다.
 - 초기 구현은 개별 삭제, 슬롯 재사용과 generation을 지원하지 않는다.
-- 다음 확장 대상은 일반 Texture2D와 SRV다.
+- `D3D11Utils`가 실제 DX11 Buffer/Texture 생성과 Dynamic Buffer Map/Unmap 절차를 수행하고, ResourceManager는 검증·소유·메타데이터·Handle 발급을 담당한다.
 
 ### Renderer
 
@@ -86,9 +86,11 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 - `GameObject`는 이름, Transform과 MeshComponent를 값으로 소유한다.
 - `MeshComponent`는 Mesh와 Material을 비소유 포인터로 참조한다.
 - `Mesh`는 Vertex/Index `BufferHandle`, Vertex Stride와 Index Count를 가진다.
-- `Texture`는 아직 Texture2D/SRV `ComPtr`를 직접 소유하며 ResourceManager 이관 전의 과도기 상태다.
+- `Texture`는 Texture2D/SRV를 직접 소유하지 않고 `TextureHandle`만 가진다.
 - `Material`은 Texture를 비소유 참조하고 BaseColor를 가진다.
-- 향후 `AssetManager`가 Mesh, Texture, Material 같은 논리 에셋을 관리하며 GPU Handle을 보관한다.
+- `AssetManager`는 문자열 key 기반으로 `Mesh`와 `Texture` 논리 에셋을 `unique_ptr`로 소유하고 캐싱한다.
+- 같은 Texture 경로 또는 Mesh key를 다시 요청하면 기존 객체 주소를 반환한다. 현재 경로 정규화는 지원하지 않는다.
+- `Material`은 아직 AppBase가 값으로 소유하며, 바로 다음 단계에서 AssetManager 소유로 옮긴다.
 - Constant Buffer, Shadow Map, Bloom Render Target은 논리 에셋이 아니라 그래픽 런타임 리소스다.
 
 ## 현재 소유 및 의존 구조
@@ -101,8 +103,13 @@ AppBase
 │  ├─ Resize
 │  └─ Present
 ├─ GraphicsResourceManager --비소유--> GraphicsDevice
-│  └─ BufferResource[]
-│     └─ 실제 Constant / Vertex / Index Buffer ComPtr
+│  ├─ BufferResource[]
+│  │  └─ 실제 Constant / Vertex / Index Buffer ComPtr
+│  └─ TextureResource[]
+│     └─ 실제 Texture2D / SRV ComPtr
+├─ AssetManager --비소유--> GraphicsResourceManager
+│  ├─ 문자열 key → unique_ptr<Mesh>
+│  └─ 문자열 경로 → unique_ptr<Texture>
 ├─ Renderer --비소유--> GraphicsDevice, GraphicsResourceManager
 │  ├─ Shader / InputLayout
 │  ├─ Rasterizer / DepthStencil / Sampler State
@@ -114,19 +121,16 @@ AppBase
 │        ├─ 비소유 const Mesh*
 │        └─ 비소유 Material*
 ├─ Camera
-├─ Mesh m_cubeMesh / m_triangleMesh
-│  └─ Vertex / Index BufferHandle
-├─ Texture m_texture
-│  └─ 현재 Texture2D / SRV ComPtr 직접 소유
 └─ Material m_cubeMaterial / m_triangleMaterial
    └─ 비소유 const Texture*
 
 AppBase --FrameRenderData--> Renderer::BeginFrame
 AppBase --RenderItem-------> Renderer::DrawRenderItem
 Renderer / Mesh --BufferHandle--> GraphicsResourceManager
+Renderer / Texture --TextureHandle--> GraphicsResourceManager
 ```
 
-AppBase 멤버는 `GraphicsDevice → GraphicsResourceManager → Renderer` 순서로 선언돼 있다. C++ 멤버는 역순으로 파괴되므로 Renderer가 먼저 소멸하고 GraphicsResourceManager와 GraphicsDevice가 뒤에 소멸한다.
+AppBase 멤버는 `GraphicsDevice → GraphicsResourceManager → AssetManager → Renderer` 순서로 선언돼 있다. C++ 멤버는 역순으로 파괴되므로 Renderer와 AssetManager가 먼저 소멸하고 GraphicsResourceManager와 GraphicsDevice가 뒤에 소멸한다.
 
 ## BufferHandle과 ResourceManager 규칙
 
@@ -137,6 +141,7 @@ AppBase 멤버는 `GraphicsDevice → GraphicsResourceManager → Renderer` 순�
 - ResourceManager가 실제 Buffer의 생성, 소유, 조회, 업데이트와 소멸을 담당한다.
 - ResourceManager가 반환한 raw DirectX 포인터는 즉시 바인딩할 때만 사용하며 외부에서 `Release()`하거나 장기간 보관하지 않는다.
 - Handle이 `IsValid()`여도 임의로 큰 인덱스일 수 있으므로 ResourceManager 조회 시 배열 범위를 반드시 검사한다.
+- `TextureHandle`도 같은 index 기반 값 타입 규칙을 따르며, 실제 Texture2D/SRV를 소유하지 않는다.
 - 초기 구현에서는 리소스를 배열에서 개별 삭제하지 않으므로 index만 사용한다. 삭제 및 슬롯 재사용이 필요해질 때 `index + generation`을 도입한다.
 - 초기 구현에 `shared_ptr`, `weak_ptr`, free list나 범용 리소스 계층을 미리 넣지 않는다.
 
@@ -173,40 +178,47 @@ AppBase 멤버는 `GraphicsDevice → GraphicsResourceManager → Renderer` 순�
 - BufferHandle과 GraphicsResourceManager
 - Camera/Light/Object/Material Constant Buffer의 Handle 이관
 - Mesh Vertex/Index Buffer의 Handle 이관
+- D3D11Utils의 Immutable/Constant Buffer 생성과 Dynamic Buffer 갱신 공통화
+- TextureHandle과 GraphicsResourceManager의 Texture2D/SRV 소유
+- Texture의 직접 ComPtr 제거와 Handle 전환
+- Renderer의 TextureHandle → ResourceManager::GetSRV 바인딩
+- AssetManager의 Texture 경로 캐시와 Mesh key 캐시
+- AppBase의 직접 Mesh/Texture 소유 제거
 
 ## 현재 알려진 점검 항목
 
-- AppBase Render 순회는 Mesh만 확인하므로 Material이 없는 오브젝트가 Renderer 실패와 프로그램 종료로 이어질 수 있다. Renderable 판정 정책 또는 기본 Material 정책이 필요하다.
+- AppBase Render 순회는 Mesh와 Material이 모두 있는 오브젝트만 RenderItem으로 변환한다. 추후 기본 Material/Texture 정책이 필요해지면 별도로 도입한다.
 - Renderer의 메서드는 GraphicsDevice뿐 아니라 ResourceManager 유효 조건도 명시적으로 확인하는 방향을 검토한다.
 - Input Layout Offset의 숫자 계산은 `Vertex` 멤버 위치를 직접 표현하는 방식으로 개선할 수 있다.
 - GeometryGenerator의 Position/Color/Normal/UV 평행 배열은 Vertex 직접 구성 또는 면 추가 helper로 중복과 불일치 위험을 줄일 수 있다.
 - Vertex Color는 현재 Shader 입출력을 통과하지만 최종 Pixel Color 계산에는 사용되지 않는다. 실제 사용하거나 제거할지 결정한다.
-- GraphicsResourceManager의 공개 `UpdateBuffer`는 이름은 범용이지만 현재 16-byte 정렬을 강제해 사실상 Constant Buffer 갱신 정책이다. Texture 이관 이후 API 이름과 범위를 재검토한다.
-- D3D11Utils에는 ResourceManager 이관 후 사용되지 않는 Buffer/Depth helper가 남아 있다. Texture 이관 후 실제 호출을 기준으로 정리한다.
+- GraphicsResourceManager의 공개 `UpdateBuffer`는 이름은 범용이지만 현재 16-byte 정렬을 강제해 사실상 Constant Buffer 갱신 정책이다. 실제로 다른 Dynamic Buffer가 추가될 때 API 이름과 범위를 재검토한다.
+- D3D11Utils의 타입 기반 Buffer 편의 오버로드는 모든 생성 호출이 ResourceManager를 거치게 되면 공개 필요성을 실제 호출 기준으로 재검토한다.
+- AssetManager의 key는 현재 입력 문자열 그대로 사용한다. Texture 경로 정규화와 외부 Mesh 파일 로딩은 다음 Asset 확장 단계에서 다룬다.
 - ImGui 부분 초기화 실패와 Shutdown 상태 추적은 기능 우선순위에 따라 나중에 보완한다.
 - 일부 한글 주석의 문자 인코딩이 깨져 있으므로 기능 변경과 분리해 UTF-8 정책을 정리한다.
 
 ## 바로 다음 우선 작업
 
-다음 기능 단위는 Texture2D/SRV를 GraphicsResourceManager와 Handle 기반으로 이관하는 것이다.
+다음 기능 단위는 `Material`의 소유권을 AppBase에서 AssetManager로 옮기는 것이다.
 
 진행 방향:
 
-1. `TextureHandle`의 최소 책임과 무효 상태를 정의한다.
-2. ResourceManager 내부에 Texture2D와 SRV를 함께 소유하는 Resource 저장소를 정의한다.
-3. Texture 생성, 조회 API를 추가한다.
-4. `Texture`가 직접 가진 Texture2D/SRV `ComPtr`를 Handle로 교체한다.
-5. Material은 계속 Texture 논리 객체를 비소유 참조하거나, 실제 요구가 생길 때 TextureHandle 보관 방식과 비교한다.
-6. Renderer가 ResourceManager를 통해 SRV를 조회하여 즉시 바인딩한다.
-7. 기존 Cube/Triangle Texture와 Material 편집 결과가 동일한지 사용자가 빌드·실행으로 검증한다.
-8. 이관 완료 후 사용되지 않는 D3D11Utils Texture/Buffer helper를 호출 기준으로 정리한다.
+1. `AssetManager.h`에 `Material`을 전방 선언한다.
+2. `Material* CreateMaterial(const std::string& key)`를 선언한다. Material은 ImGui에서 편집하므로 Mesh/Texture와 달리 mutable pointer를 반환한다.
+3. `unordered_map<string, unique_ptr<Material>>` 캐시를 추가한다.
+4. `AssetManager.cpp`에서 `Material.h`를 포함하고 같은 key면 기존 Material을 반환하며, 없으면 기본 Material을 생성·저장한다.
+5. AppBase의 `m_cubeMaterial`, `m_triangleMaterial` 값 멤버를 제거한다.
+6. AppBase가 서로 다른 key로 두 Material을 생성하고 Texture/BaseColor를 설정한 뒤 MeshComponent에 연결한다.
+7. 같은 Material key 공유 시 편집 결과가 공유된다는 정책을 확인한다.
+8. 이 인터페이스 변경 묶음이 끝나면 사용자가 원할 때 `Debug | x64` 컴파일로 확인한다. 현재 2026-08-23 작업에서는 빌드/실행하지 않았다.
 
-Texture 이관 전에 필요한 작은 안전성 보완은 Material 없는 GameObject의 Render 정책과 Renderer 의존성 유효 조건을 명확히 하는 것이다. 대규모 UI 분리, AssetManager, ECS는 지금 도입하지 않는다.
+Material 이관 다음에는 외부 Mesh 파일 로딩 경계를 설계한다. 지금 AssetManager의 `CreateMesh(key, MeshData)`는 절차적으로 만든 MeshData 캐시이며 파일 importer는 아직 없다.
 
 ## 이후 주요 로드맵
 
-1. Texture/SRV Handle과 GraphicsResourceManager 이관
-2. AssetManager와 외부 Mesh/Texture 로딩
+1. Material AssetManager 소유 이전으로 최소 Asset 계층 완성
+2. 외부 Mesh 파일 로딩과 Texture 경로 정책
 3. ImGui Scene Hierarchy/Inspector와 배치 기능 확장
 4. 1인칭 WASD/마우스 입력과 Editor/Play 상태
 5. 다수 Point Light와 네온 조명
@@ -231,7 +243,8 @@ Texture 이관 전에 필요한 작은 안전성 보완은 Material 없는 GameO
 
 ## 빌드 및 실행 정보
 
-- 저장소 루트: `C:/Users/tls15/source/repos/MyPF`
+- 노트북 저장소 루트: `C:/Users/Diguedman/source/repos/MyPF`
+- 데스크톱 저장소 루트: `C:/Users/tls15/source/repos/MyPF`
 - 솔루션: `MyPF/MyPF.sln`
 - 프로젝트 디렉터리: `MyPF/`
 - 기본 검증 구성: `Debug | x64`
