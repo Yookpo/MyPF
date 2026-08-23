@@ -110,16 +110,16 @@ namespace My
 			return false;
 		}
 
-		const Texture* tex1 = m_assetManager.LoadTexture("wall.jpg");
+		const Texture* cubeTex = m_assetManager.LoadTexture("wall.jpg");
+		const Texture* triangleTex = m_assetManager.LoadTexture("wall.jpg");
 
-		if (!tex1)
+		if (!cubeTex && !triangleTex && (cubeTex == triangleTex))
 		{
 			return false;
 		}
 
-
-		m_cubeMaterial.SetAlbedoTexture(tex1);
-		m_triangleMaterial.SetAlbedoTexture(tex1);
+		m_cubeMaterial.SetAlbedoTexture(cubeTex);
+		m_triangleMaterial.SetAlbedoTexture(triangleTex);
 
 		m_cubeMaterial.SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 		m_triangleMaterial.SetBaseColor(Vector3(0.2f, 0.64f, 0.18f));
