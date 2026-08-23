@@ -5,10 +5,10 @@
 #include "Mesh.h"
 #include "Camera.h"
 #include "DirectionalLight.h"
-#include "Texture.h"
 #include "Material.h"
 #include "GraphicsDevice.h"
 #include "GraphicsResourceManager.h"
+#include "AssetManager.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -52,12 +52,12 @@ namespace My
 
 		GraphicsDevice m_graphicsDevice;
 		GraphicsResourceManager m_resourceManager;
+		AssetManager m_assetManager;
 		Renderer m_renderer;
 		GameTimer m_gameTimer;
 
 		Mesh m_cubeMesh;
 		Mesh m_triangleMesh;
-		Texture m_texture;
 		Material m_cubeMaterial;
 		Material m_triangleMaterial;
 

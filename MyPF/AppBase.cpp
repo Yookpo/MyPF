@@ -71,6 +71,11 @@ namespace My
 			return false;
 		}
 
+		if (!m_assetManager.Initialize(m_resourceManager))
+		{
+			return false;
+		}
+
 		if (!m_renderer.Initialize(m_graphicsDevice, m_resourceManager, m_screenWidth, m_screenHeight))
 		{
 			return false;
@@ -105,13 +110,16 @@ namespace My
 			return false;
 		}
 
-		if (!m_texture.Initialize(m_resourceManager, "wall.jpg"))
+		const Texture* tex1 = m_assetManager.LoadTexture("wall.jpg");
+
+		if (!tex1)
 		{
 			return false;
 		}
 
-		m_cubeMaterial.SetAlbedoTexture(&m_texture);
-		m_triangleMaterial.SetAlbedoTexture(&m_texture);
+
+		m_cubeMaterial.SetAlbedoTexture(tex1);
+		m_triangleMaterial.SetAlbedoTexture(tex1);
 
 		m_cubeMaterial.SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 		m_triangleMaterial.SetBaseColor(Vector3(0.2f, 0.64f, 0.18f));

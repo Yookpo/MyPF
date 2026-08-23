@@ -132,6 +132,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AppBase.cpp" />
+    <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="D3D11Utils.cpp" />
     <ClCompile Include="GameObject.cpp" />
@@ -156,6 +157,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AppBase.h" />
+    <ClInclude Include="AssetManager.h" />
     <ClInclude Include="BufferHandle.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="D3D11Utils.h" />

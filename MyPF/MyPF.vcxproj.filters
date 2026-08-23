@@ -102,6 +102,9 @@
     <ClCompile Include="GraphicsResourceManager.cpp">
       <Filter>Resources</Filter>
     </ClCompile>
+    <ClCompile Include="AssetManager.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -193,6 +196,9 @@
     </ClInclude>
     <ClInclude Include="TextureHandle.h">
       <Filter>Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="AssetManager.h">
+      <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

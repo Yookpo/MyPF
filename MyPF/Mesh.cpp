@@ -13,14 +13,13 @@ namespace My
 			return false;
 		}
 
-		m_vertexBufferHandle = vertexHandle;
-
 		indexHandle = resourceManager.CreateIndexBuffer(meshData.indices);
 		if (!indexHandle.IsValid())
 		{
 			return false;
 		}
 
+		m_vertexBufferHandle = vertexHandle;
 		m_indexBufferHandle = indexHandle;
 		m_indexCount = uint32_t(meshData.indices.size());
 
