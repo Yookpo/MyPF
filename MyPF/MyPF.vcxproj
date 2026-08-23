@@ -183,6 +183,7 @@
     <ClInclude Include="Scene.h" />
     <ClInclude Include="ShaderConstants.h" />
     <ClInclude Include="Texture.h" />
+    <ClInclude Include="TextureHandle.h" />
     <ClInclude Include="Transform.h" />
   </ItemGroup>
   <ItemGroup>

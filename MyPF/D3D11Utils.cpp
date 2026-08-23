@@ -172,34 +172,118 @@ namespace My
 		return true;
 	}
 
-	bool D3D11Utils::CreateIndexBuffer(ID3D11Device* device, const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer)
+	bool D3D11Utils::CreateImmutableBuffer(ID3D11Device* device, const void* data, uint32_t byteWidth, UINT bindFlags, ComPtr<ID3D11Buffer>& buffer)
 	{
-		if (!device || !indices.size())
+		if (!device || !data || byteWidth == 0 || bindFlags == 0)
 		{
 			return false;
 		}
 
-		D3D11_BUFFER_DESC bufferDesc = {};
-		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE; // 초기화 후 변경X
-		bufferDesc.ByteWidth = UINT(sizeof(uint32_t) * indices.size());
-		bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
-		bufferDesc.CPUAccessFlags = 0; // 0 if no CPU access is necessary.
-		bufferDesc.StructureByteStride = sizeof(uint32_t);
+		D3D11_BUFFER_DESC bufferDesc{};
+		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
+		bufferDesc.ByteWidth = byteWidth;
+		bufferDesc.BindFlags = bindFlags;
+		bufferDesc.CPUAccessFlags = 0;
+		bufferDesc.MiscFlags = 0;
+		bufferDesc.StructureByteStride = 0;
 
-		D3D11_SUBRESOURCE_DATA indexBufferData = { 0 };
-		indexBufferData.pSysMem = indices.data();
-		indexBufferData.SysMemPitch = 0;
-		indexBufferData.SysMemSlicePitch = 0;
+		D3D11_SUBRESOURCE_DATA initialData{};
+		initialData.pSysMem = data;
 
-		if (FAILED(device->CreateBuffer(&bufferDesc, &indexBufferData,
-			indexBuffer.GetAddressOf())))
+		const HRESULT hr = device->CreateBuffer(
+			&bufferDesc,
+			&initialData,
+			buffer.ReleaseAndGetAddressOf());
+
+		if (FAILED(hr))
 		{
-			OutputDebugStringW(L"CreateIndexBuffer failed");
+			OutputDebugStringW(
+				L"D3D11Utils::CreateImmutableBuffer() failed");
 			return false;
 		}
 
 		return true;
 	}
+
+	bool D3D11Utils::CreateIndexBuffer(ID3D11Device* device, const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer)
+	{
+		const uint32_t maxValue = (std::numeric_limits<uint32_t>::max)();
+
+		if (!device || indices.empty() || indices.size() > maxValue / sizeof(uint32_t))
+		{
+			return false;
+		}
+
+		const uint32_t byteWidth = static_cast<uint32_t>(sizeof(uint32_t) * indices.size());
+
+		return CreateImmutableBuffer(device, indices.data(), byteWidth, D3D11_BIND_INDEX_BUFFER, indexBuffer);
+	}
+
+	bool D3D11Utils::CreateConstantBuffer(ID3D11Device* device, const void* data, uint32_t byteWidth, ComPtr<ID3D11Buffer>& constantBuffer)
+	{
+		if (!device ||
+			!data ||
+			byteWidth == 0 ||
+			byteWidth % 16 != 0)
+		{
+			return false;
+		}
+
+		D3D11_BUFFER_DESC bufferDesc{};
+		bufferDesc.ByteWidth = byteWidth;
+		bufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+		bufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		bufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		bufferDesc.MiscFlags = 0;
+		bufferDesc.StructureByteStride = 0;
+
+		D3D11_SUBRESOURCE_DATA initialData{};
+		initialData.pSysMem = data;
+
+		const HRESULT hr = device->CreateBuffer(
+			&bufferDesc,
+			&initialData,
+			constantBuffer.ReleaseAndGetAddressOf());
+
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(
+				L"D3D11Utils::CreateConstantBuffer() failed");
+			return false;
+		}
+
+		return true;
+	}
+
+	bool D3D11Utils::UpdateBuffer(ID3D11DeviceContext* context, const void* data, uint32_t byteWidth, ID3D11Buffer* buffer)
+	{
+		if (!context || !data || byteWidth == 0 || !buffer)
+		{
+			return false;
+		}
+
+		D3D11_MAPPED_SUBRESOURCE mappedResource{};
+
+		const HRESULT hr = context->Map(
+			buffer,
+			0,
+			D3D11_MAP_WRITE_DISCARD,
+			0,
+			&mappedResource);
+
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(L"D3D11Utils::UpdateBuffer() Map failed");
+			return false;
+		}
+
+		std::memcpy(mappedResource.pData,data,byteWidth);
+
+		context->Unmap(buffer, 0);
+
+		return true;
+	}
+
 	bool D3D11Utils::CreateTexture(ID3D11Device* device, const std::string& filename,
 		ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11ShaderResourceView>& textureResourceView)
 	{

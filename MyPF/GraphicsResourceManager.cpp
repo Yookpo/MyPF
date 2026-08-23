@@ -1,5 +1,6 @@
 #include "GraphicsResourceManager.h"
 #include "GraphicsDevice.h"
+#include "D3D11Utils.h"
 #include <utility>
 #include <cstring>
 
@@ -47,6 +48,60 @@ namespace My
 		return bResource.buffer.Get();
 	}
 
+	ID3D11ShaderResourceView* GraphicsResourceManager::GetSRV(TextureHandle textureHandle) const
+	{
+		if (!m_graphicsDevice)
+		{
+			return nullptr;
+		}
+
+		if (!textureHandle.IsValid())
+		{
+			return nullptr;
+		}
+
+		uint32_t HandleIndex = textureHandle.GetIndex();
+
+		if (HandleIndex >= m_textures.size())
+		{
+			return nullptr;
+		}
+
+		const TextureResource& tResource = m_textures[HandleIndex];
+
+		return tResource.textureSRV.Get();
+	}
+
+	TextureHandle GraphicsResourceManager::CreateTexture(const std::string& filename)
+	{
+		if (!m_graphicsDevice)
+		{
+			return TextureHandle{};
+		}
+
+		if (!m_graphicsDevice->GetDevice())
+		{
+			return TextureHandle{};
+		}
+
+		if (filename.empty())
+		{
+			return TextureHandle{};
+		}
+
+		TextureResource tResource{};
+
+		if (!D3D11Utils::CreateTexture(m_graphicsDevice->GetDevice(), filename, tResource.texture, tResource.textureSRV))
+		{
+			return TextureHandle{};
+		}
+
+		uint32_t newIndex = static_cast<uint32_t>(m_textures.size());
+		m_textures.push_back(std::move(tResource));
+
+		return TextureHandle(newIndex);
+	}
+
 	BufferHandle GraphicsResourceManager::CreateIndexBuffer(const std::vector<uint32_t>& indices)
 	{
 		auto maxValue = (std::numeric_limits<uint32_t>::max)();
@@ -69,30 +124,16 @@ namespace My
 			return BufferHandle{};
 		}
 
-		D3D11_BUFFER_DESC bufferDesc;
-		ZeroMemory(&bufferDesc, sizeof(bufferDesc));
-		bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
-		bufferDesc.ByteWidth = byteWidth;
-		bufferDesc.BindFlags = bindFlags;
-		bufferDesc.CPUAccessFlags = 0;
-		bufferDesc.StructureByteStride = 0;
-
-		D3D11_SUBRESOURCE_DATA bufferData;
-		bufferData.pSysMem = data;
-		bufferData.SysMemPitch = 0;
-		bufferData.SysMemSlicePitch = 0;
-
 		BufferResource newResource;
 
-		auto hr = m_graphicsDevice->GetDevice()->CreateBuffer(&bufferDesc, &bufferData, newResource.buffer.GetAddressOf());
+		if (!D3D11Utils::CreateImmutableBuffer(m_graphicsDevice->GetDevice(), data, byteWidth, bindFlags, newResource.buffer))
+		{
+			return BufferHandle{};
+		}
+
 		newResource.byteWidth = byteWidth;
 		newResource.cpuWritable = false;
 
-		if (FAILED(hr))
-		{
-			OutputDebugStringW(L"CreateBufferInternal() failed()");
-			return BufferHandle{};
-		}
 
 		uint32_t newIndex = static_cast<uint32_t>(m_buffers.size());
 		m_buffers.push_back(std::move(newResource));
@@ -107,32 +148,17 @@ namespace My
 			return BufferHandle{};
 		}
 
-		D3D11_BUFFER_DESC cbDesc;
-		cbDesc.ByteWidth = byteWidth;
-		cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-		cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-		cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		cbDesc.MiscFlags = 0;
-		cbDesc.StructureByteStride = 0;
-
-		D3D11_SUBRESOURCE_DATA initData;
-		initData.pSysMem = data;
-		initData.SysMemPitch = 0;
-		initData.SysMemSlicePitch = 0;
-
 		BufferResource newResource;
 
-		auto hr = m_graphicsDevice->GetDevice()->CreateBuffer(&cbDesc, &initData, newResource.buffer.GetAddressOf());
-		newResource.byteWidth = byteWidth;
-		newResource.cpuWritable = true;
-
-		if (FAILED(hr))
+		if (!D3D11Utils::CreateConstantBuffer(m_graphicsDevice->GetDevice(), data, byteWidth, newResource.buffer))
 		{
-			OutputDebugStringW(L"CreateConstantBufferInternal() failed()");
 			return BufferHandle{};
 		}
 
-		uint32_t newIndex = static_cast<uint32_t>(m_buffers.size());
+		newResource.byteWidth = byteWidth;
+		newResource.cpuWritable = true;
+
+		const uint32_t newIndex = static_cast<uint32_t>(m_buffers.size());
 		m_buffers.push_back(std::move(newResource));
 
 		return BufferHandle(newIndex);
@@ -140,38 +166,21 @@ namespace My
 
 	bool GraphicsResourceManager::UpdateBufferInternal(const BufferHandle& bufferHandle, const void* data, uint32_t byteWidth)
 	{
-		if (!m_graphicsDevice)
-		{
-			return false;
-		}
-
-		if (!m_graphicsDevice->GetContext() || !data || byteWidth == 0 || !bufferHandle.IsValid() || bufferHandle.GetIndex() >= m_buffers.size())
+		if (!m_graphicsDevice || !m_graphicsDevice->GetContext() ||
+			!data || byteWidth == 0 || !bufferHandle.IsValid() || bufferHandle.GetIndex() >= m_buffers.size())
 		{
 			return false;
 		}
 
 		uint32_t Index = bufferHandle.GetIndex();
 		BufferResource& updateResource = m_buffers[Index];
-		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
 
-		if (!updateResource.buffer.Get() || (updateResource.byteWidth != byteWidth) || !updateResource.cpuWritable)
+		if (!updateResource.buffer || (updateResource.byteWidth != byteWidth) || !updateResource.cpuWritable)
 		{
 			return false;
 		}
 
-		D3D11_MAPPED_SUBRESOURCE ms = {};
-		auto hr = Context->Map(updateResource.buffer.Get(), NULL, D3D11_MAP_WRITE_DISCARD, NULL, &ms);
-
-		if (FAILED(hr))
-		{
-			OutputDebugStringW(L"Map() failed.");
-			return false;
-		}
-
-		std::memcpy(ms.pData, data, byteWidth);
-		Context->Unmap(updateResource.buffer.Get(), NULL);
-
-		return true;
+		return D3D11Utils::UpdateBuffer(m_graphicsDevice->GetContext(), data, byteWidth, updateResource.buffer.Get());
 	}
 }
 

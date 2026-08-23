@@ -247,8 +247,9 @@ namespace My
 			const Matrix world = tr.GetWorldMatrix();
 			const MeshComponent& meshComponent = obj->GetMeshComponent();
 
-			// mesh가 없으면 그리기 생략
-			if (!meshComponent.HasMesh())
+			// 추후에 mesh가 없을 때만 그리기 생략을 함
+			// 추후에 기본 머터리얼 & 기본 텍스처를 도입
+			if (!meshComponent.HasMesh() || !meshComponent.HasMaterial())
 			{
 				continue;
 			}
