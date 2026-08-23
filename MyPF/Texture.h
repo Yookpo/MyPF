@@ -1,11 +1,10 @@
 #pragma once
-#include <d3d11.h>
-#include <wrl.h>
+#include "TextureHandle.h"
 #include <string>
 
 namespace My
 {
-	using Microsoft::WRL::ComPtr;
+	class GraphicsResourceManager;
 
 	class Texture
 	{
@@ -13,15 +12,14 @@ namespace My
 		Texture() = default;
 		Texture(const Texture&) = delete;
 		Texture& operator = (const Texture&) = delete;
-		
-		bool Initialize(ID3D11Device*, const std::string&);
 
-		ID3D11Texture2D* GetTexture() const { return m_texture.Get(); }
-		ID3D11ShaderResourceView* GetShaderResourceView() const { return m_textureResourceView.Get(); }
+		bool Initialize(GraphicsResourceManager&, const std::string&);
+
+		TextureHandle GetTextureHandle() const { return m_textureHandle; }
+
 
 	private:
-		ComPtr<ID3D11Texture2D> m_texture;
-		ComPtr<ID3D11ShaderResourceView> m_textureResourceView;
+		TextureHandle m_textureHandle;
 	};
 }
 

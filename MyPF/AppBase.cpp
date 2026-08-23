@@ -105,7 +105,7 @@ namespace My
 			return false;
 		}
 
-		if (!m_texture.Initialize(m_graphicsDevice.GetDevice(), "wall.jpg"))
+		if (!m_texture.Initialize(m_resourceManager, "wall.jpg"))
 		{
 			return false;
 		}

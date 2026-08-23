@@ -192,7 +192,7 @@
       <Filter>Rendering</Filter>
     </ClInclude>
     <ClInclude Include="TextureHandle.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>Rendering</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

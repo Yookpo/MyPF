@@ -259,7 +259,13 @@ namespace My
 			materialConstantBuffer
 		};
 
-		ID3D11ShaderResourceView* albedoSRV = albedoTexture->GetShaderResourceView();
+		TextureHandle albedoHandle = albedoTexture->GetTextureHandle();
+		if (!albedoHandle.IsValid())
+		{
+			return false;
+		}
+
+		ID3D11ShaderResourceView* albedoSRV = m_resourceManager->GetSRV(albedoHandle);
 
 		if (!albedoSRV)
 		{

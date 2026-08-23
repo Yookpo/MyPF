@@ -1,15 +1,18 @@
 #include "Texture.h"
-#include "D3D11Utils.h"
+#include "GraphicsResourceManager.h"
 
 namespace My
 {
-	bool Texture::Initialize(ID3D11Device* device, const std::string& fileName)
+	bool Texture::Initialize(GraphicsResourceManager& resourceManager, const std::string& fileName)
 	{
-		if (!D3D11Utils::CreateTexture(device, fileName, m_texture, m_textureResourceView))
+		TextureHandle textureHandle = resourceManager.CreateTexture(fileName);
+
+		if (!textureHandle.IsValid())
 		{
-			OutputDebugStringW(L"Texture Load Failed");
 			return false;
 		}
+
+		m_textureHandle = textureHandle;
 
 		return true;
 	}

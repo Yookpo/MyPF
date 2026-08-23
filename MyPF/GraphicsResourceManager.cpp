@@ -2,7 +2,7 @@
 #include "GraphicsDevice.h"
 #include "D3D11Utils.h"
 #include <utility>
-#include <cstring>
+
 
 namespace My
 {
@@ -74,17 +74,7 @@ namespace My
 
 	TextureHandle GraphicsResourceManager::CreateTexture(const std::string& filename)
 	{
-		if (!m_graphicsDevice)
-		{
-			return TextureHandle{};
-		}
-
-		if (!m_graphicsDevice->GetDevice())
-		{
-			return TextureHandle{};
-		}
-
-		if (filename.empty())
+		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice() || filename.empty())
 		{
 			return TextureHandle{};
 		}
