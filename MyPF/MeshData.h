@@ -3,6 +3,7 @@
 #include <vector>
 #include <cstdint>
 
+// 순수 Geometry 표현
 namespace My
 {
 	using DirectX::SimpleMath::Vector3;
