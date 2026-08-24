@@ -4,7 +4,6 @@
 #include "Scene.h"
 #include "Camera.h"
 #include "DirectionalLight.h"
-#include "Material.h"
 #include "GraphicsDevice.h"
 #include "GraphicsResourceManager.h"
 #include "AssetManager.h"
@@ -54,9 +53,6 @@ namespace My
 		AssetManager m_assetManager;
 		Renderer m_renderer;
 		GameTimer m_gameTimer;
-
-		Material m_cubeMaterial;
-		Material m_triangleMaterial;
 
 		Scene m_scene;
 		GameObject* m_selectedObject;

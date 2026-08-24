@@ -2,6 +2,7 @@
 #include "GeometryGenerator.h"
 #include "RenderItem.h"
 #include "FrameRenderData.h"
+#include "Material.h"
 
 namespace My
 {
@@ -116,17 +117,25 @@ namespace My
 			return false;
 		}
 
-		m_cubeMaterial.SetAlbedoTexture(cubeTex);
-		m_triangleMaterial.SetAlbedoTexture(triangleTex);
+		auto cubeMat = m_assetManager.CreateMaterial("cubeMat");
+		auto triangleMat = m_assetManager.CreateMaterial("triangleMat");
 
-		m_cubeMaterial.SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
-		m_triangleMaterial.SetBaseColor(Vector3(0.2f, 0.64f, 0.18f));
+		if (!cubeMat || !triangleMat)
+		{
+			return false;
+		}
+
+		cubeMat->SetAlbedoTexture(cubeTex);
+		triangleMat->SetAlbedoTexture(triangleTex);
+
+		cubeMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
+		triangleMat->SetBaseColor(Vector3(0.2f, 0.64f, 0.18f));
 
 		cube1->GetMeshComponent().SetMesh(cubeMesh);
 		triangle1->GetMeshComponent().SetMesh(triangleMesh);
 
-		cube1->GetMeshComponent().SetMaterial(&m_cubeMaterial);
-		triangle1->GetMeshComponent().SetMaterial(&m_triangleMaterial);
+		cube1->GetMeshComponent().SetMaterial(cubeMat);
+		triangle1->GetMeshComponent().SetMaterial(triangleMat);
 
 		return true;
 	}

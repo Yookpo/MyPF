@@ -9,6 +9,9 @@ namespace My
 	class Texture;
 	class Mesh;
 	struct MeshData;
+	class Material;
+
+
 
 	class AssetManager
 	{
@@ -22,11 +25,13 @@ namespace My
 		bool Initialize(GraphicsResourceManager&);
 		const Texture* LoadTexture(const std::string&);
 		const Mesh* CreateMesh(const std::string&, const MeshData&);
+		Material* CreateMaterial(const std::string&);
 
 	private:
 		GraphicsResourceManager* m_resourceManager;
 		std::unordered_map<std::string, std::unique_ptr<Texture>> m_textures;
 		std::unordered_map<std::string, std::unique_ptr<Mesh>> m_meshes;
+		std::unordered_map<std::string, std::unique_ptr<Material>> m_materials;
 	};
 
 }

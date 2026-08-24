@@ -2,6 +2,7 @@
 #include "GraphicsResourceManager.h"
 #include "Texture.h"
 #include "Mesh.h"
+#include "Material.h"
 
 namespace My
 {
@@ -76,6 +77,28 @@ namespace My
 		m_meshes.emplace(meshName, std::move(mesh));
 
 		return loadedMesh;
+	}
+
+	Material* AssetManager::CreateMaterial(const std::string& key)
+	{
+		if (!m_resourceManager || key.empty())
+		{
+			return nullptr;
+		}
+
+		// 캐시 검색 -> 캐시 히트시 기존 Material 반환
+		auto iter = m_materials.find(key);
+		if (iter != m_materials.end())
+		{
+			return (iter->second).get();
+		}
+
+		auto material = std::make_unique<Material>();
+		Material* createdMaterial = material.get();
+		
+		m_materials.emplace(key, std::move(material));
+
+		return createdMaterial;
 	}
 
 }
