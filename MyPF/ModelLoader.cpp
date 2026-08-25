@@ -1,16 +1,19 @@
+#include "ModelLoader.h"
+
 // vcpkg install assimp:x64-windows
 // Preprocessor definitions에 NOMINMAX 추가
 #include <assimp\Importer.hpp>
 #include <assimp\postprocess.h>
 #include <assimp\scene.h>
 
-#include "ModelLoader.h"
 #include "ModelData.h"
 #include <Windows.h>
+#include <filesystem>
 
 namespace My
 {
 	using namespace DirectX::SimpleMath;
+
 
 	bool ModelLoader::Load(const std::string& filePath, ModelData& outModelData)
 	{
@@ -43,24 +46,38 @@ namespace My
 			return false;
 		}
 
-		// 모델에 포함된 모든 mesh 처리
+		// 모델 폴더 계산
+		const std::string modelDirectory = std::filesystem::path(filePath).parent_path().string();
+
+		// 모델에 포함된 모든 mesh 및 material 처리
 		for (UINT i = 0; i < pScene->mNumMeshes; i++)
 		{
 			ImportedMeshData importedMesh{};
+			const aiMesh* sourceMesh = pScene->mMeshes[i];
 
-			if (!ProcessMesh(pScene->mMeshes[i], importedMesh))
+			if (!ProcessMesh(sourceMesh, importedMesh))
 			{
 				outModelData.meshes.clear();
 				return false;
 			}
 
-			outModelData.meshes.push_back(std::move(importedMesh));
+			if (pScene->HasMaterials() && sourceMesh->mMaterialIndex < pScene->mNumMaterials)
+			{
+				const aiMaterial* sourceMaterial = pScene->mMaterials[sourceMesh->mMaterialIndex];
+				importedMesh.albedoTexturePath = ProcessMaterial(sourceMaterial, modelDirectory);
+			}
 
+
+			outModelData.meshes.push_back(std::move(importedMesh));
 		}
+
+
+
 
 		return !outModelData.meshes.empty();
 	}
 
+	// GeoMetry 변환 
 	bool ModelLoader::ProcessMesh(const aiMesh* sourceMesh, ImportedMeshData& outImportedMesh)
 	{
 		outImportedMesh = ImportedMeshData{};
@@ -74,6 +91,7 @@ namespace My
 		// Assimp Vertex -> Vertex 변환
 		MeshData meshData;
 
+		// uv가 없는 모델은 (0,0) 으로 초기화
 		const bool hasTexCoords = sourceMesh->HasTextureCoords(0);
 
 		// Walk through each of the mesh's vertices
@@ -122,6 +140,52 @@ namespace My
 
 		return true;
 	}
+
+	std::string ModelLoader::ProcessMaterial(const aiMaterial* sourceMaterial, const std::string& modelDirectory)
+	{
+		if (!sourceMaterial)
+		{
+			return {};
+		}
+
+		if (sourceMaterial->GetTextureCount(aiTextureType_DIFFUSE) == 0)
+		{
+			return {};
+		}
+
+		aiString assimpTexturePath;
+
+		if (sourceMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &assimpTexturePath) != AI_SUCCESS)
+		{
+			return {};
+		}
+
+		const std::string rawTexturePath = assimpTexturePath.C_Str();
+
+		if (rawTexturePath.empty())
+		{
+			return {};
+		}
+
+		// "*0" 같은 경로는 모델 파일 내부에 포함된 Embedded Texture다.
+		// 현재 Texture 로더는 파일 경로만 지원하므로 이번에는 제외한다.
+		if (rawTexturePath.front() == '*')
+		{
+			return {};
+		}
+
+		std::filesystem::path resolvedPath{ rawTexturePath };
+
+		if (resolvedPath.is_relative())
+		{
+			resolvedPath =
+				std::filesystem::path(modelDirectory) / resolvedPath;
+		}
+
+		return resolvedPath.lexically_normal().string();
+	}
+
+
 
 }
 

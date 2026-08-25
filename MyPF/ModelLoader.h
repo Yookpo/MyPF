@@ -2,8 +2,8 @@
 #include <string>
 #include "ModelData.h"
 
-struct aiScene;
 struct aiMesh;
+struct aiMaterial;
 
 namespace My
 {
@@ -14,6 +14,7 @@ namespace My
 
 	private:
 		static bool ProcessMesh(const aiMesh* sourceMesh, ImportedMeshData& outImportedMesh);
+		static std::string ProcessMaterial(const aiMaterial* sourceMaterial, const std::string& modelDirectory);
 	};
 }
 
