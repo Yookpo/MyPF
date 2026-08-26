@@ -215,6 +215,9 @@
     <ClInclude Include="Model.h">
       <Filter>Assets</Filter>
     </ClInclude>
+    <ClInclude Include="ModelComponent.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\simplePixelShader.hlsl">

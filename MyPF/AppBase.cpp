@@ -102,9 +102,14 @@ namespace My
 			return false;
 		}
 
+		if (model1 != model2)
+		{
+			return false;
+		}
 
 		GameObject* cube1 = &m_scene.CreateGameObject("cube1");
 		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");
+		GameObject* zelda1 = &m_scene.CreateGameObject("Zelda1");
 
 		cube1->GetTransform().SetPosition(Vector3(-0.6f, 0.0f, 0.0f));
 		cube1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
@@ -112,7 +117,9 @@ namespace My
 		triangle1->GetTransform().SetPosition(Vector3(0.6f, 0.0f, 0.0f));
 		triangle1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
 
-		m_selectedObject = cube1;
+		zelda1->GetTransform().SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+
+		m_selectedObject = zelda1;
 
 		MeshData cubeData = GeometryGenerator::MakeCube();
 		MeshData triangleData = GeometryGenerator::MakeTriangle();
@@ -152,6 +159,8 @@ namespace My
 
 		cube1->GetMeshComponent().SetMaterial(cubeMat);
 		triangle1->GetMeshComponent().SetMaterial(triangleMat);
+
+		zelda1->GetModelComponent().SetModel(model1);
 
 		return true;
 	}
