@@ -3,6 +3,9 @@
 #include "Texture.h"
 #include "Mesh.h"
 #include "Material.h"
+#include "ModelData.h"
+#include "ModelLoader.h"
+#include "Model.h"
 
 namespace My
 {
@@ -99,6 +102,72 @@ namespace My
 		m_materials.emplace(key, std::move(material));
 
 		return createdMaterial;
+	}
+
+	const Model* AssetManager::LoadModel(const std::string& filePath)
+	{
+		if (!m_resourceManager || filePath.empty())
+		{
+			return nullptr;
+		}
+
+		// 캐시 검색 -> 캐시 히트시 기존 model 반환
+		auto iter = m_models.find(filePath);
+		if (iter != m_models.end())
+		{
+			return (iter->second).get();
+		}
+
+		ModelData modelData{};
+
+		if (!ModelLoader::Load(filePath, modelData))
+		{
+			return nullptr;
+		}
+
+		std::vector<ModelPart> parts;
+		parts.reserve(modelData.meshes.size());
+
+		for (std::size_t i = 0; i < modelData.meshes.size(); i++)
+		{
+			const ImportedMeshData& importedMesh = modelData.meshes[i];
+
+			const std::string meshKey = filePath + "#mesh_" + std::to_string(i);
+			const std::string materialKey = filePath + "#material_" + std::to_string(i);
+
+			const Mesh* createdMesh = CreateMesh(meshKey, importedMesh.meshData);
+			Material*	createdMaterial = CreateMaterial(materialKey);
+
+			if (!createdMesh || !createdMaterial)
+			{
+				return nullptr;
+			}
+
+			if (!importedMesh.albedoTexturePath.empty())
+			{
+				const Texture* albedoTexture = LoadTexture(importedMesh.albedoTexturePath);
+
+				if (!albedoTexture)
+				{
+					return nullptr;
+				}
+
+				createdMaterial->SetAlbedoTexture(albedoTexture);
+			}
+
+			ModelPart part{};
+			part.mesh = createdMesh;
+			part.material = createdMaterial;
+
+			parts.push_back(part);
+		}
+
+		auto		 model = std::make_unique<Model>(std::move(parts));
+		const Model* loadedModel = model.get();
+
+		m_models.emplace(filePath, std::move(model));
+
+		return loadedModel;
 	}
 
 } // namespace My

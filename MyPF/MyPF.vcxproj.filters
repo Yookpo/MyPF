@@ -109,7 +109,7 @@
       <Filter>Rendering</Filter>
     </ClCompile>
     <ClCompile Include="ModelLoader.cpp">
-      <Filter>소스 파일</Filter>
+      <Filter>Assets</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -206,11 +206,14 @@
     <ClInclude Include="GraphicsResourceManager.h">
       <Filter>Rendering</Filter>
     </ClInclude>
-    <ClInclude Include="ModelLoader.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="ModelData.h">
       <Filter>Resources</Filter>
+    </ClInclude>
+    <ClInclude Include="ModelLoader.h">
+      <Filter>Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="Model.h">
+      <Filter>Assets</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
