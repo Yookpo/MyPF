@@ -89,39 +89,44 @@ namespace My
 		}
 
 		// Test
-		auto* model1 = m_assetManager.LoadModel("Assets/Models/zelda/source/zeldaPosed001.fbx");
-		auto* model2 = m_assetManager.LoadModel("Assets/Models/zelda/source/zeldaPosed001.fbx");
+		//auto* zelda = m_assetManager.LoadModel("Assets/Models/zelda/source/zeldaPosed001.fbx");
+		auto* pikachu = m_assetManager.LoadModel("Assets/Models/pikachu/source/Pikachu.obj");
+		auto* dragonite = m_assetManager.LoadModel("Assets/Models/dragonite/dragonite.gltf");
 
-		if (!model1 || model1->GetParts().empty())
+		if (!dragonite || dragonite->GetParts().empty())
 		{
 			return false;
 		}
 
-		if (!model2 || model2->GetParts().empty())
+		if (!pikachu || pikachu->GetParts().empty())
 		{
 			return false;
 		}
 
-		if (model1 != model2)
-		{
-			return false;
-		}
 
-		GameObject* cube1 = &m_scene.CreateGameObject("cube1");
-		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");
-		GameObject* zelda1 = &m_scene.CreateGameObject("Zelda1");
+		/*GameObject* cube1 = &m_scene.CreateGameObject("cube1");
+		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");*/
+		
 
-		cube1->GetTransform().SetPosition(Vector3(-0.6f, 0.0f, 0.0f));
+		/*cube1->GetTransform().SetPosition(Vector3(-0.6f, 0.0f, 0.0f));
 		cube1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
 
 		triangle1->GetTransform().SetPosition(Vector3(0.6f, 0.0f, 0.0f));
-		triangle1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
+		triangle1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));*/
 
-		zelda1->GetTransform().SetPosition(Vector3(0.0f, 0.0f, 0.0f));
+		GameObject* dragonite1 = &m_scene.CreateGameObject("dragonite1");
 
-		m_selectedObject = zelda1;
+		dragonite1->GetTransform().SetPosition(Vector3(-0.6f, -0.2f, 0.0f));
+		dragonite1->GetTransform().SetScale(Vector3(0.003f, 0.003f, 0.003f));
 
-		MeshData cubeData = GeometryGenerator::MakeCube();
+		GameObject* pikachu1 = &m_scene.CreateGameObject("pikachu");
+
+		pikachu1->GetTransform().SetPosition(Vector3(0.6f, -0.2f, 0.0f));
+		pikachu1->GetTransform().SetScale(Vector3(0.1f, 0.1f, 0.1f));
+
+		m_selectedObject = dragonite1;
+
+		/*MeshData cubeData = GeometryGenerator::MakeCube();
 		MeshData triangleData = GeometryGenerator::MakeTriangle();
 
 		auto cubeMesh = m_assetManager.CreateMesh("cube", cubeData);
@@ -158,9 +163,10 @@ namespace My
 		triangle1->GetMeshComponent().SetMesh(triangleMesh);
 
 		cube1->GetMeshComponent().SetMaterial(cubeMat);
-		triangle1->GetMeshComponent().SetMaterial(triangleMat);
+		triangle1->GetMeshComponent().SetMaterial(triangleMat);*/
 
-		zelda1->GetModelComponent().SetModel(model1);
+		dragonite1->GetModelComponent().SetModel(dragonite);
+		pikachu1->GetModelComponent().SetModel(pikachu);
 
 		return true;
 	}
@@ -177,7 +183,7 @@ namespace My
 			LoadCursor(nullptr, IDC_ARROW),
 			NULL,
 			NULL,
-			L"CyberPunk",
+			L"TEST",
 			NULL
 		};
 
@@ -192,7 +198,7 @@ namespace My
 		AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, false);
 
 		m_mainWindow = CreateWindow(
-			wc.lpszClassName, L"CyberPunk",
+			wc.lpszClassName, L"TEST",
 			WS_OVERLAPPEDWINDOW,
 			100,				// 윈도우 좌측 상단의 x 좌표
 			100,				// 윈도우 좌측 상단의 y 좌표
@@ -278,24 +284,50 @@ namespace My
 		const auto& sceneObjects = m_scene.GetGameObjects();
 		for (const auto& obj : sceneObjects)
 		{
-			const Transform&	 tr = obj->GetTransform();
-			const Matrix		 world = tr.GetWorldMatrix();
-			const MeshComponent& meshComponent = obj->GetMeshComponent();
+			const Transform&	  tr = obj->GetTransform();
+			const Matrix		  world = tr.GetWorldMatrix();
+			const MeshComponent&  meshComponent = obj->GetMeshComponent();
+			const ModelComponent& modelComponent = obj->GetModelComponent();
 
-			// 추후에 mesh가 없을 때만 그리기 생략을 함
-			// 추후에 기본 머터리얼 & 기본 텍스처를 도입
-			if (!meshComponent.HasMesh() || !meshComponent.HasMaterial())
+			if (modelComponent.HasModel())
 			{
-				continue;
+				// Model 가져오기
+				const auto*			   model = modelComponent.GetModel();
+				const std::vector<ModelPart>& parts = model->GetParts();
+
+				// 모든 ModelPart 순회
+				for (size_t i = 0; i < parts.size(); i++)
+				{
+					// 각 Part의 Mesh/Material로 RenderItem 생성
+					RenderItem renderItem{
+						parts[i].mesh, parts[i].material, world
+					};
+
+					if (!m_renderer.DrawRenderItem(renderItem))
+					{
+						OutputDebugStringW(L"Draw RenderItem failed, Program shutting down");
+						PostQuitMessage(-1);
+						return;
+					}
+				}
 			}
 
-			RenderItem renderItem{ meshComponent.GetMesh(), meshComponent.GetMaterial(), world };
-
-			if (!m_renderer.DrawRenderItem(renderItem))
+			// 모델이 없으면 기존 Mesh 처리
+			else
 			{
-				OutputDebugStringW(L"Draw RenderItem failed, Program shutting down");
-				PostQuitMessage(-1);
-				return;
+				if (!meshComponent.HasMesh() || !meshComponent.HasMaterial())
+				{
+					continue;
+				}
+
+				RenderItem renderItem{ meshComponent.GetMesh(), meshComponent.GetMaterial(), world };
+
+				if (!m_renderer.DrawRenderItem(renderItem))
+				{
+					OutputDebugStringW(L"Draw RenderItem failed, Program shutting down");
+					PostQuitMessage(-1);
+					return;
+				}
 			}
 		}
 

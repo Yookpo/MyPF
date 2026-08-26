@@ -38,10 +38,15 @@ float4 main(PS_INPUT input) : SV_TARGET
     float diffuse = saturate(dot(-direction, normal));
     
     float3 albedo = albedoTexture.Sample(linearSampler, input.uv).rgb;
-    albedo *= baseColor;
+    float3 surfaceColor = albedo * baseColor;
     
-    float3 finalColor = albedo * color * intensity * diffuse;
+    float ambientStrength = 0.4f;
+    float3 ambientColor = surfaceColor * ambientStrength;
     
-    return float4(finalColor, 1.0f);
+    float3 diffuseColor = surfaceColor * color * intensity * diffuse;
+    
+    float3 finalColor = ambientColor + diffuseColor;
+    
+    return float4(saturate(finalColor), 1.0f);
 }
 
