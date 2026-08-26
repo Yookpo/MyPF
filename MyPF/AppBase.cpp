@@ -3,6 +3,7 @@
 #include "RenderItem.h"
 #include "FrameRenderData.h"
 #include "Material.h"
+#include "Model.h"
 
 namespace My
 {
@@ -86,6 +87,21 @@ namespace My
 		{
 			return false;
 		}
+
+		// Test
+		auto* model1 = m_assetManager.LoadModel("Assets/Models/zelda/source/zeldaPosed001.fbx");
+		auto* model2 = m_assetManager.LoadModel("Assets/Models/zelda/source/zeldaPosed001.fbx");
+
+		if (!model1 || model1->GetParts().empty())
+		{
+			return false;
+		}
+
+		if (!model2 || model2->GetParts().empty())
+		{
+			return false;
+		}
+
 
 		GameObject* cube1 = &m_scene.CreateGameObject("cube1");
 		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");
