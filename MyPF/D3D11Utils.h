@@ -9,7 +9,7 @@
 #include <vector>
 #include <array>
 #include <windows.h>
-#include <wrl.h>	// comptr
+#include <wrl.h> // comptr
 
 namespace My
 {
@@ -30,9 +30,8 @@ namespace My
 		static bool CreateVertexShaderAndInputLayout(
 			ID3D11Device* device, const wstring& fileName,
 			const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements,
-			ComPtr<ID3D11VertexShader>& m_vertexShader,
-			ComPtr<ID3D11InputLayout>& m_inputLayout
-		);
+			ComPtr<ID3D11VertexShader>&				m_vertexShader,
+			ComPtr<ID3D11InputLayout>&				m_inputLayout);
 
 		static bool CreatePixelShader(ID3D11Device* device,
 			const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader);
@@ -41,14 +40,13 @@ namespace My
 			ID3D11Device* device, const void* data, uint32_t byteWidth,
 			UINT bindFlags, ComPtr<ID3D11Buffer>& buffer);
 
-
 		static bool CreateIndexBuffer(ID3D11Device* device,
 			const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer);
 
 		template <typename T_VERTEX>
 		static bool CreateVertexBuffer(ID3D11Device* device,
-			const vector<T_VERTEX>& vertices,
-			ComPtr<ID3D11Buffer>& vertexBuffer)
+			const vector<T_VERTEX>&					 vertices,
+			ComPtr<ID3D11Buffer>&					 vertexBuffer)
 		{
 			const uint32_t maxValue = (std::numeric_limits<uint32_t>::max)();
 
@@ -63,15 +61,15 @@ namespace My
 		}
 
 		static bool CreateConstantBuffer(
-			ID3D11Device* device,
-			const void* data,
-			uint32_t byteWidth,
+			ID3D11Device*		  device,
+			const void*			  data,
+			uint32_t			  byteWidth,
 			ComPtr<ID3D11Buffer>& constantBuffer);
 
 		template <typename T_CONSTANT>
 		static bool CreateConstantBuffer(ID3D11Device* device,
-			const T_CONSTANT& constantBufferData,
-			ComPtr<ID3D11Buffer>& constantBuffer)
+			const T_CONSTANT&						   constantBufferData,
+			ComPtr<ID3D11Buffer>&					   constantBuffer)
 		{
 			static_assert((sizeof(T_CONSTANT) % 16) == 0,
 				"Constant Buffer size must be 16-byte aligned");
@@ -85,25 +83,21 @@ namespace My
 
 		static bool UpdateBuffer(
 			ID3D11DeviceContext* context,
-			const void* data,
-			uint32_t byteWidth,
-			ID3D11Buffer* buffer);
+			const void*			 data,
+			uint32_t			 byteWidth,
+			ID3D11Buffer*		 buffer);
 
 		template <typename T_DATA>
 		static bool UpdateBuffer(ID3D11DeviceContext* context,
-			const T_DATA& bufferData,
-			ID3D11Buffer* buffer) {
+			const T_DATA&							  bufferData,
+			ID3D11Buffer*							  buffer)
+		{
 
 			return UpdateBuffer(context, &bufferData, static_cast<uint32_t>(sizeof(T_DATA)), buffer);
 		}
 
 		static bool CreateTexture(ID3D11Device* device, const std::string& filename,
-			ComPtr<ID3D11Texture2D>& texture,
+			ComPtr<ID3D11Texture2D>&		  texture,
 			ComPtr<ID3D11ShaderResourceView>& textureResourceView);
 	};
-}
-
-
-
-
-
+} // namespace My

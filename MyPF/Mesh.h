@@ -12,7 +12,7 @@ namespace My
 	public:
 		Mesh() = default;
 		Mesh(const Mesh&) = delete;
-		Mesh& operator = (const Mesh&) = delete;
+		Mesh& operator=(const Mesh&) = delete;
 
 		bool Initialize(GraphicsResourceManager&, const MeshData&);
 
@@ -31,8 +31,4 @@ namespace My
 		uint32_t m_indexCount = 0;
 	};
 
-}
-
-
-
-
+} // namespace My

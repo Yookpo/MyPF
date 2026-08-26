@@ -10,9 +10,8 @@ namespace My
 
 	struct RenderItem
 	{
-		const Mesh* mesh{ nullptr };
+		const Mesh*		mesh{ nullptr };
 		const Material* material{ nullptr };
-		Matrix world{ Matrix() };
+		Matrix			world{ Matrix() };
 	};
-}
-
+} // namespace My

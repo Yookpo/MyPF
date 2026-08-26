@@ -6,10 +6,13 @@
 
 namespace My
 {
-	void CheckResult(HRESULT hr, ID3DBlob* errorBlob) {
-		if (FAILED(hr)) {
+	void CheckResult(HRESULT hr, ID3DBlob* errorBlob)
+	{
+		if (FAILED(hr))
+		{
 			// 파일이 없을 경우
-			if ((hr & D3D11_ERROR_FILE_NOT_FOUND) != 0) {
+			if ((hr & D3D11_ERROR_FILE_NOT_FOUND) != 0)
+			{
 				std::cout << "File not found.\n";
 			}
 
@@ -47,14 +50,14 @@ namespace My
 		depthStencilBufferDesc.MipLevels = 1;
 		depthStencilBufferDesc.ArraySize = 1;
 		depthStencilBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		//if (numQualityLevels > 0) {
-		//    depthStencilBufferDesc.SampleDesc.Count = 4; // how many multisamples
-		//    depthStencilBufferDesc.SampleDesc.Quality = numQualityLevels - 1;
-		//}
-		//else {
-		//    depthStencilBufferDesc.SampleDesc.Count = 1; // how many multisamples
-		//    depthStencilBufferDesc.SampleDesc.Quality = 0;
-		//}
+		// if (numQualityLevels > 0) {
+		//     depthStencilBufferDesc.SampleDesc.Count = 4; // how many multisamples
+		//     depthStencilBufferDesc.SampleDesc.Quality = numQualityLevels - 1;
+		// }
+		// else {
+		//     depthStencilBufferDesc.SampleDesc.Count = 1; // how many multisamples
+		//     depthStencilBufferDesc.SampleDesc.Quality = 0;
+		// }
 		depthStencilBufferDesc.SampleDesc.Count = 1; // how many multisamples
 		depthStencilBufferDesc.SampleDesc.Quality = 0;
 
@@ -70,8 +73,7 @@ namespace My
 			OutputDebugStringW(L"CreateTexture2D() failed");
 			return false;
 		}
-		if (FAILED(device->CreateDepthStencilView(depthStencilBuffer.Get(), 0, depthStencilView.GetAddressOf())
-		))
+		if (FAILED(device->CreateDepthStencilView(depthStencilBuffer.Get(), 0, depthStencilView.GetAddressOf())))
 		{
 			OutputDebugStringW(L"CreateDepthStencilView() failed");
 			return false;
@@ -128,14 +130,14 @@ namespace My
 		}
 
 		if (FAILED(device->CreateVertexShader(shaderBlob->GetBufferPointer(),
-			shaderBlob->GetBufferSize(), NULL, &m_vertexShader)))
+				shaderBlob->GetBufferSize(), NULL, &m_vertexShader)))
 		{
 			OutputDebugStringW(L"CreateVertexShader() failed");
 			return false;
 		}
 
 		if (FAILED(device->CreateInputLayout(inputElements.data(), static_cast<UINT>(inputElements.size()),
-			shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), &m_inputLayout)))
+				shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), &m_inputLayout)))
 		{
 			OutputDebugStringW(L"CreateInputLayout() failed");
 			return false;
@@ -164,7 +166,7 @@ namespace My
 		}
 
 		if (FAILED(device->CreatePixelShader(shaderBlob->GetBufferPointer(),
-			shaderBlob->GetBufferSize(), NULL, &m_pixelShader)))
+				shaderBlob->GetBufferSize(), NULL, &m_pixelShader)))
 		{
 			OutputDebugStringW(L"CreatePixelShader() failed");
 			return false;
@@ -222,10 +224,7 @@ namespace My
 
 	bool D3D11Utils::CreateConstantBuffer(ID3D11Device* device, const void* data, uint32_t byteWidth, ComPtr<ID3D11Buffer>& constantBuffer)
 	{
-		if (!device ||
-			!data ||
-			byteWidth == 0 ||
-			byteWidth % 16 != 0)
+		if (!device || !data || byteWidth == 0 || byteWidth % 16 != 0)
 		{
 			return false;
 		}
@@ -278,7 +277,7 @@ namespace My
 			return false;
 		}
 
-		std::memcpy(mappedResource.pData,data,byteWidth);
+		std::memcpy(mappedResource.pData, data, byteWidth);
 
 		context->Unmap(buffer, 0);
 
@@ -299,16 +298,16 @@ namespace My
 		}
 
 		//// 4채널로 만들어서 복사
-		//std::vector<uint8_t> image;
-		//image.resize(width * height * 4);
-		//for (size_t i = 0; i < width * height; i++)
+		// std::vector<uint8_t> image;
+		// image.resize(width * height * 4);
+		// for (size_t i = 0; i < width * height; i++)
 		//{
 		//	for (size_t c = 0; c < 3; c++)
 		//	{
 		//		image[4 * i + c] = img[i * channels + c];
 		//	}
 		//	image[4 * i + 3] = 255;
-		//}
+		// }
 
 		// Create Texture
 		D3D11_TEXTURE2D_DESC txtDesc = {};
@@ -342,8 +341,4 @@ namespace My
 
 		return true;
 	}
-}
-
-
-
-
+} // namespace My

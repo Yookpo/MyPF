@@ -12,4 +12,3 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, LPSTR param, int
 
 	return app.Run();
 }
-

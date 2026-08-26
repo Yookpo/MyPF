@@ -16,6 +16,4 @@ namespace My
 
 		return true;
 	}
-}
-
-
+} // namespace My

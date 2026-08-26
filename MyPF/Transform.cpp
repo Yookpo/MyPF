@@ -9,9 +9,10 @@ namespace My
 
 	Matrix Transform::GetWorldMatrix() const
 	{
-		return 	(Matrix::CreateScale(m_scale) * Matrix::CreateRotationY(m_rotation.y) *
-			Matrix::CreateRotationX(m_rotation.x) * Matrix::CreateRotationZ(m_rotation.z) *
+		return (Matrix::CreateScale(m_scale) * 
+			Matrix::CreateRotationY(m_rotation.y) * 
+			Matrix::CreateRotationX(m_rotation.x) * 
+			Matrix::CreateRotationZ(m_rotation.z) * 
 			Matrix::CreateTranslation(m_position));
 	}
-}
-
+} // namespace My

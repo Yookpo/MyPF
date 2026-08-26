@@ -55,7 +55,6 @@ namespace My
 			return false;
 		}
 
-
 		m_objectConstantData.model = Matrix();
 		m_objectConstantData.invTranspose = Matrix();
 		m_objectBufferHandle = m_resourceManager->CreateConstantBuffer(m_objectConstantData);
@@ -64,7 +63,6 @@ namespace My
 		{
 			return false;
 		}
-
 
 		m_materialConstantData.baseColor = Vector3(1.0f);
 		m_materialConstantData.pad = 0.0f;
@@ -75,29 +73,26 @@ namespace My
 			return false;
 		}
 
-
 		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = {
-			{"POSITION",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,
-			D3D11_INPUT_PER_VERTEX_DATA,0},
-			{"COLOR",0,DXGI_FORMAT_R32G32B32_FLOAT,0,4 * 3,
-			D3D11_INPUT_PER_VERTEX_DATA,0},
-			{"NORMAL",0,DXGI_FORMAT_R32G32B32_FLOAT,0,4 * 3 * 2,
-			D3D11_INPUT_PER_VERTEX_DATA,0},
-			{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,4 * 3 * 3,
-			D3D11_INPUT_PER_VERTEX_DATA,0}
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+				D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4 * 3,
+				D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4 * 3 * 2,
+				D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 4 * 3 * 3,
+				D3D11_INPUT_PER_VERTEX_DATA, 0 }
 		};
 
 		if (!D3D11Utils::CreateVertexShaderAndInputLayout(
-			Device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader,
-			m_inputLayout
-		))
+				Device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader,
+				m_inputLayout))
 		{
 			return false;
 		}
 
 		if (!D3D11Utils::CreatePixelShader(
-			Device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader
-		))
+				Device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader))
 		{
 			return false;
 		}
@@ -120,7 +115,6 @@ namespace My
 		return true;
 	}
 
-
 	bool Renderer::BeginFrame(const FrameRenderData& frameRenderData, const std::array<float, 4>& m_backgroundColor)
 	{
 		if (!m_graphicsDevice)
@@ -129,7 +123,7 @@ namespace My
 			return false;
 		}
 
-		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
+		ID3D11DeviceContext*	Context = m_graphicsDevice->GetContext();
 		ID3D11RenderTargetView* RTV = m_graphicsDevice->GetRTV();
 		ID3D11DepthStencilView* DSV = m_graphicsDevice->GetDSV();
 
@@ -137,7 +131,6 @@ namespace My
 		{
 			return false;
 		}
-
 
 		Context->ClearRenderTargetView(RTV, m_backgroundColor.data());
 		Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -201,9 +194,9 @@ namespace My
 			return false;
 		}
 
-		const Mesh& drawMesh = *renderItem.mesh;
+		const Mesh&		drawMesh = *renderItem.mesh;
 		const Material& drawMat = *renderItem.material;
-		const Texture* albedoTexture = drawMat.GetAlbedoTexture();
+		const Texture*	albedoTexture = drawMat.GetAlbedoTexture();
 
 		if (!albedoTexture)
 		{
@@ -251,11 +244,11 @@ namespace My
 		}
 
 		ID3D11Buffer* constantBuffers[2] = {
-			objectConstantBuffer,cameraConstantBuffer,
+			objectConstantBuffer,
+			cameraConstantBuffer,
 		};
 
-		ID3D11Buffer* pixelConstantBuffers =
-		{
+		ID3D11Buffer* pixelConstantBuffers = {
 			materialConstantBuffer
 		};
 
@@ -333,7 +326,6 @@ namespace My
 		return true;
 	}
 
-
 	void Renderer::SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight)
 	{
 		if (!m_graphicsDevice)
@@ -357,11 +349,10 @@ namespace My
 		m_screenViewport.Width = screenWidth;
 		m_screenViewport.Height = screenHeight;
 		m_screenViewport.MinDepth = 0.0f;
-		m_screenViewport.MaxDepth = 1.0f;	// Note: important for depth buffering
+		m_screenViewport.MaxDepth = 1.0f; // Note: important for depth buffering
 
 		Context->RSSetViewports(1, &m_screenViewport);
 	}
-
 
 	bool Renderer::CreateRasterizerState()
 	{
@@ -371,7 +362,7 @@ namespace My
 			return false;
 		}
 
-		ID3D11Device* Device = m_graphicsDevice->GetDevice();
+		ID3D11Device*		 Device = m_graphicsDevice->GetDevice();
 		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
 
 		if (!Device || !Context)
@@ -388,10 +379,8 @@ namespace My
 		rastDesc.FrontCounterClockwise = false;
 		rastDesc.DepthClipEnable = true; // <- zNear, zFar 확인에 필요
 
-
-
 		if (FAILED(Device->CreateRasterizerState(&rastDesc,
-			m_rasterizerState.GetAddressOf())))
+				m_rasterizerState.GetAddressOf())))
 		{
 			OutputDebugStringW(L"CreateRasterizerState() failed");
 			return false;
@@ -402,5 +391,4 @@ namespace My
 
 		return true;
 	}
-}
-
+} // namespace My

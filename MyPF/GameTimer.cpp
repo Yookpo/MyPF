@@ -3,7 +3,7 @@
 namespace My
 {
 	GameTimer::GameTimer()
-		: m_deltaTime{ 0.0f }, m_totalTime{ 0.0f}
+		: m_deltaTime{ 0.0f }, m_totalTime{ 0.0f }
 	{
 		Reset();
 	}
@@ -35,5 +35,4 @@ namespace My
 	{
 		return m_totalTime;
 	}
-}
-
+} // namespace My

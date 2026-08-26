@@ -13,5 +13,4 @@ namespace My
 		m_baseColor = newColor;
 	}
 
-}
-
+} // namespace My

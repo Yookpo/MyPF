@@ -27,6 +27,6 @@ namespace My
 	private:
 		// 무효 인덱스 상수
 		static const uint32_t m_invalidIndex = (std::numeric_limits<uint32_t>::max)();
-		uint32_t m_index;
+		uint32_t			  m_index;
 	};
-}
+} // namespace My

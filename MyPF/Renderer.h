@@ -27,7 +27,7 @@ namespace My
 		void SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight);
 
 	private:
-		GraphicsDevice* m_graphicsDevice = nullptr;
+		GraphicsDevice*			 m_graphicsDevice = nullptr;
 		GraphicsResourceManager* m_resourceManager = nullptr;
 
 		ComPtr<ID3D11RasterizerState> m_rasterizerState;
@@ -37,16 +37,16 @@ namespace My
 
 		// shader
 		ComPtr<ID3D11VertexShader> m_vertexShader;
-		ComPtr<ID3D11PixelShader> m_pixelShader;
-		ComPtr<ID3D11InputLayout> m_inputLayout;
+		ComPtr<ID3D11PixelShader>  m_pixelShader;
+		ComPtr<ID3D11InputLayout>  m_inputLayout;
 
 		// sampler
 		ComPtr<ID3D11SamplerState> m_samplerState;
 
 		// constantData
-		CameraConstantData m_cameraConstantData;
-		LightConstantData m_lightConstantData;
-		ObjectConstantData m_objectConstantData;
+		CameraConstantData	 m_cameraConstantData;
+		LightConstantData	 m_lightConstantData;
+		ObjectConstantData	 m_objectConstantData;
 		MaterialConstantData m_materialConstantData;
 
 		// BufferHandle -> 실제 버퍼 소유자는 리소스매니저
@@ -55,11 +55,7 @@ namespace My
 		BufferHandle m_objectBufferHandle;
 		BufferHandle m_materialBufferHandle;
 
-
 		D3D11_VIEWPORT m_screenViewport;
 	};
 
-
-}
-
-
+} // namespace My

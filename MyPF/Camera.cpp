@@ -57,16 +57,11 @@ namespace My
 		if (m_usePerspectiveProjection)
 		{
 			return XMMatrixPerspectiveFovLH(
-				XMConvertToRadians(m_fovAngleY), m_aspectRatio, m_nearZ, m_farZ
-			);
+				XMConvertToRadians(m_fovAngleY), m_aspectRatio, m_nearZ, m_farZ);
 		}
 		else
 		{
 			return XMMatrixOrthographicOffCenterLH(-m_aspectRatio, m_aspectRatio, -1.0f, 1.0f, m_nearZ, m_farZ);
 		}
 	}
-}
-
-
-
-
+} // namespace My

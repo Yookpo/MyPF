@@ -14,7 +14,6 @@ namespace My
 {
 	using namespace DirectX::SimpleMath;
 
-
 	bool ModelLoader::Load(const std::string& filePath, ModelData& outModelData)
 	{
 		// 같은 ModelData 재사용 시 이전 모델 데이터 남아있으면 안된다
@@ -53,7 +52,7 @@ namespace My
 		for (UINT i = 0; i < pScene->mNumMeshes; i++)
 		{
 			ImportedMeshData importedMesh{};
-			const aiMesh* sourceMesh = pScene->mMeshes[i];
+			const aiMesh*	 sourceMesh = pScene->mMeshes[i];
 
 			if (!ProcessMesh(sourceMesh, importedMesh))
 			{
@@ -67,17 +66,13 @@ namespace My
 				importedMesh.albedoTexturePath = ProcessMaterial(sourceMaterial, modelDirectory);
 			}
 
-
 			outModelData.meshes.push_back(std::move(importedMesh));
 		}
-
-
-
 
 		return !outModelData.meshes.empty();
 	}
 
-	// GeoMetry 변환 
+	// GeoMetry 변환
 	bool ModelLoader::ProcessMesh(const aiMesh* sourceMesh, ImportedMeshData& outImportedMesh)
 	{
 		outImportedMesh = ImportedMeshData{};
@@ -185,7 +180,4 @@ namespace My
 		return resolvedPath.lexically_normal().string();
 	}
 
-
-
-}
-
+} // namespace My

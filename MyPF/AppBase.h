@@ -36,25 +36,24 @@ namespace My
 
 		virtual LRESULT MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-
 	protected:
-		bool InitMainWindow();
-		bool InitGUI();
+		bool  InitMainWindow();
+		bool  InitGUI();
 		float GetAspectRatio(float sceneViewWidth, float sceneViewHeight) const;
 
 	public:
-		HWND m_mainWindow;
-		int m_screenWidth;	// 렌더링할 최종 화면의 해상도
-		int m_screenHeight;
+		HWND  m_mainWindow;
+		int	  m_screenWidth; // 렌더링할 최종 화면의 해상도
+		int	  m_screenHeight;
 		float m_guiWidth = 0;
 
-		GraphicsDevice m_graphicsDevice;
+		GraphicsDevice			m_graphicsDevice;
 		GraphicsResourceManager m_resourceManager;
-		AssetManager m_assetManager;
-		Renderer m_renderer;
-		GameTimer m_gameTimer;
+		AssetManager			m_assetManager;
+		Renderer				m_renderer;
+		GameTimer				m_gameTimer;
 
-		Scene m_scene;
+		Scene		m_scene;
 		GameObject* m_selectedObject;
 
 		Camera m_camera;
@@ -64,7 +63,4 @@ namespace My
 		std::array<float, 4> m_backgroundColor;
 	};
 
-}
-
-
-
+} // namespace My

@@ -42,11 +42,10 @@ namespace My
 		m_depthStencilView.Reset();
 		m_depthTexture.Reset();
 
-		HRESULT hr = m_swapChain->ResizeBuffers(0,	// 현재 개수 유지
-			screenWidth, screenHeight,	// 해상도 변경
-			DXGI_FORMAT_UNKNOWN,	// 현재 포맷 유지
-			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
-		);
+		HRESULT hr = m_swapChain->ResizeBuffers(0, // 현재 개수 유지
+			screenWidth, screenHeight,			   // 해상도 변경
+			DXGI_FORMAT_UNKNOWN,				   // 현재 포맷 유지
+			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
 		if (FAILED(hr))
 		{
 			return false;
@@ -62,7 +61,6 @@ namespace My
 
 		return true;
 	}
-
 
 	bool GraphicsDevice::Present()
 	{
@@ -89,35 +87,35 @@ namespace My
 		createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
 		const D3D_FEATURE_LEVEL featureLevels[2] = { D3D_FEATURE_LEVEL_11_0 };
-		D3D_FEATURE_LEVEL featureLevel;
+		D3D_FEATURE_LEVEL		featureLevel;
 
 		// swapchain 생성
 		DXGI_SWAP_CHAIN_DESC sd;
 		ZeroMemory(&sd, sizeof(sd));
 
-		sd.BufferDesc.Width = screenWidth;	  // set the back buffer width
-		sd.BufferDesc.Height = screenHeight;	  // set the back buffer height
+		sd.BufferDesc.Width = screenWidth;		 // set the back buffer width
+		sd.BufferDesc.Height = screenHeight;	 // set the back buffer height
 		sd.BufferDesc.RefreshRate.Numerator = 0; // use 32-bit color
 		sd.BufferDesc.RefreshRate.Denominator = 1;
 		sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-		sd.BufferCount = 2;	 // double buffering
+		sd.BufferCount = 2; // double buffering
 
 		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		sd.OutputWindow = mainWindow; // the window to be used
-		sd.Windowed = TRUE;             // windowed/full-screen mode
+		sd.OutputWindow = mainWindow;					   // the window to be used
+		sd.Windowed = TRUE;								   // windowed/full-screen mode
 		sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH; // allow full-screen switching
 		sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 
-		sd.SampleDesc.Count = 1;	// No use MSAA
+		sd.SampleDesc.Count = 1; // No use MSAA
 		sd.SampleDesc.Quality = 0;
 
 		if (FAILED(D3D11CreateDeviceAndSwapChain(
-			0, // Default adapter
-			D3D_DRIVER_TYPE_HARDWARE,
-			0, // No software device
-			createDeviceFlags, featureLevels, 1, D3D11_SDK_VERSION, &sd,
-			m_swapChain.GetAddressOf(), m_device.GetAddressOf(), &featureLevel,
-			m_context.GetAddressOf())))
+				0, // Default adapter
+				D3D_DRIVER_TYPE_HARDWARE,
+				0, // No software device
+				createDeviceFlags, featureLevels, 1, D3D11_SDK_VERSION, &sd,
+				m_swapChain.GetAddressOf(), m_device.GetAddressOf(), &featureLevel,
+				m_context.GetAddressOf())))
 		{
 			OutputDebugStringW(L"D3D11CreateDeviceAndSwapChain() failed");
 			return false;
@@ -130,7 +128,6 @@ namespace My
 		}
 
 		return true;
-
 	}
 
 	bool GraphicsDevice::CreateRenderTargetView()
@@ -146,8 +143,7 @@ namespace My
 		if (backBuffer)
 		{
 			if (FAILED(m_device->CreateRenderTargetView(
-				backBuffer.Get(), nullptr, m_renderTargetView.GetAddressOf()
-			)))
+					backBuffer.Get(), nullptr, m_renderTargetView.GetAddressOf())))
 			{
 				OutputDebugStringW(L"CreateRTV() failed");
 				return false;
@@ -182,14 +178,14 @@ namespace My
 		depthStencilBufferDesc.MipLevels = 1;
 		depthStencilBufferDesc.ArraySize = 1;
 		depthStencilBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		//if (numQualityLevels > 0) {
-		//    depthStencilBufferDesc.SampleDesc.Count = 4; // how many multisamples
-		//    depthStencilBufferDesc.SampleDesc.Quality = numQualityLevels - 1;
-		//}
-		//else {
-		//    depthStencilBufferDesc.SampleDesc.Count = 1; // how many multisamples
-		//    depthStencilBufferDesc.SampleDesc.Quality = 0;
-		//}
+		// if (numQualityLevels > 0) {
+		//     depthStencilBufferDesc.SampleDesc.Count = 4; // how many multisamples
+		//     depthStencilBufferDesc.SampleDesc.Quality = numQualityLevels - 1;
+		// }
+		// else {
+		//     depthStencilBufferDesc.SampleDesc.Count = 1; // how many multisamples
+		//     depthStencilBufferDesc.SampleDesc.Quality = 0;
+		// }
 		depthStencilBufferDesc.SampleDesc.Count = 1; // how many multisamples
 		depthStencilBufferDesc.SampleDesc.Quality = 0;
 
@@ -203,8 +199,7 @@ namespace My
 			OutputDebugStringW(L"CreateTexture2D() failed");
 			return false;
 		}
-		if (FAILED(m_device->CreateDepthStencilView(m_depthTexture.Get(), 0, m_depthStencilView.GetAddressOf())
-		))
+		if (FAILED(m_device->CreateDepthStencilView(m_depthTexture.Get(), 0, m_depthStencilView.GetAddressOf())))
 		{
 			OutputDebugStringW(L"CreateDepthStencilView() failed");
 			return false;
@@ -212,4 +207,4 @@ namespace My
 
 		return true;
 	}
-}
+} // namespace My

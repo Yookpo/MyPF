@@ -6,7 +6,6 @@ namespace My
 	using namespace DirectX;
 	using namespace DirectX::SimpleMath;
 
-
 	MeshData GeometryGenerator::MakeTriangle()
 	{
 		vector<Vector3> positions;
@@ -30,7 +29,6 @@ namespace My
 		coords.push_back(Vector2(0.5f, 0.0f));
 		coords.push_back(Vector2(1.0f, 1.0f));
 
-
 		MeshData meshData;
 
 		for (int i = 0; i < 3; i++)
@@ -44,7 +42,7 @@ namespace My
 			meshData.vertices.push_back(v);
 		}
 		meshData.indices = {
-			0,1,2
+			0, 1, 2
 		};
 
 		return meshData;
@@ -169,7 +167,8 @@ namespace My
 
 		MeshData meshData;
 
-		for (size_t i = 0; i < positions.size(); i++) {
+		for (size_t i = 0; i < positions.size(); i++)
+		{
 			Vertex v;
 			v.position = positions[i];
 			v.color = colors[i];
@@ -179,18 +178,15 @@ namespace My
 		}
 
 		meshData.indices = {
-			0,  1,  2,  0,  2,  3,  // 윗면
-			4,  5,  6,  4,  6,  7,  // 아랫면
-			8,  9,  10, 8,  10, 11, // 앞면
+			0, 1, 2, 0, 2, 3,		// 윗면
+			4, 5, 6, 4, 6, 7,		// 아랫면
+			8, 9, 10, 8, 10, 11,	// 앞면
 			12, 13, 14, 12, 14, 15, // 뒷면
 			16, 17, 18, 16, 18, 19, // 왼쪽
-			20, 21, 22, 20, 22, 23  // 오른쪽
+			20, 21, 22, 20, 22, 23	// 오른쪽
 		};
 
 		return meshData;
 	}
 
-}
-
-
-
+} // namespace My

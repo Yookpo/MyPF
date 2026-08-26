@@ -35,21 +35,21 @@ namespace My
 
 		switch (msg)
 		{
-		case WM_SIZE:
-			m_screenWidth = int(LOWORD(lParam));
-			m_screenHeight = int(HIWORD(lParam));
+			case WM_SIZE:
+				m_screenWidth = int(LOWORD(lParam));
+				m_screenHeight = int(HIWORD(lParam));
 
-			if (m_graphicsDevice.GetDevice() && (m_screenWidth > 0 && m_screenHeight > 0))
-			{
-				m_graphicsDevice.Resize(m_screenWidth, m_screenHeight);
-			}
+				if (m_graphicsDevice.GetDevice() && (m_screenWidth > 0 && m_screenHeight > 0))
+				{
+					m_graphicsDevice.Resize(m_screenWidth, m_screenHeight);
+				}
 
-			break;
+				break;
 
-		case WM_DESTROY:
-			m_mainWindow = nullptr;
-			::PostQuitMessage(0);
-			return 0;
+			case WM_DESTROY:
+				m_mainWindow = nullptr;
+				::PostQuitMessage(0);
+				return 0;
 		}
 
 		return ::DefWindowProcW(hWnd, msg, wParam, lParam);
@@ -143,11 +143,10 @@ namespace My
 	bool AppBase::InitMainWindow()
 	{
 		// 창 클래스 등록
-		WNDCLASSEX wc =
-		{
-			sizeof(WNDCLASSEX),CS_CLASSDC,
+		WNDCLASSEX wc = {
+			sizeof(WNDCLASSEX), CS_CLASSDC,
 			WndProc,
-			0L,0L,
+			0L, 0L,
 			GetModuleHandle(NULL),
 			NULL,
 			LoadCursor(nullptr, IDC_ARROW),
@@ -163,17 +162,17 @@ namespace My
 			return false;
 		}
 
-		RECT wr = { 0,0, m_screenWidth,m_screenHeight };
+		RECT wr = { 0, 0, m_screenWidth, m_screenHeight };
 
 		AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, false);
 
 		m_mainWindow = CreateWindow(
 			wc.lpszClassName, L"CyberPunk",
 			WS_OVERLAPPEDWINDOW,
-			100,	// 윈도우 좌측 상단의 x 좌표
-			100,	// 윈도우 좌측 상단의 y 좌표
-			wr.right - wr.left,	 // 윈도우 가로 방향 해상도
-			wr.bottom - wr.top,	 // 윈도우 세로 방향 해상도
+			100,				// 윈도우 좌측 상단의 x 좌표
+			100,				// 윈도우 좌측 상단의 y 좌표
+			wr.right - wr.left, // 윈도우 가로 방향 해상도
+			wr.bottom - wr.top, // 윈도우 세로 방향 해상도
 			NULL, NULL, wc.hInstance, NULL);
 
 		if (!m_mainWindow)
@@ -195,11 +194,13 @@ namespace My
 		ImGuiIO& io = ImGui::GetIO();
 
 		// Setup Platform/Renderer backends
-		if (!ImGui_ImplDX11_Init(m_graphicsDevice.GetDevice(), m_graphicsDevice.GetContext())) {
+		if (!ImGui_ImplDX11_Init(m_graphicsDevice.GetDevice(), m_graphicsDevice.GetContext()))
+		{
 			return false;
 		}
 
-		if (!ImGui_ImplWin32_Init((void*)m_mainWindow)) {
+		if (!ImGui_ImplWin32_Init((void*)m_mainWindow))
+		{
 			return false;
 		}
 
@@ -211,13 +212,8 @@ namespace My
 		return (sceneViewWidth / sceneViewHeight);
 	}
 
-
-
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720),
-		m_mainWindow(nullptr), m_graphicsDevice{}, m_renderer{},
-		m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f },
-		m_selectedObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -236,7 +232,6 @@ namespace My
 		ImGui_ImplWin32_Shutdown();
 		ImGui::DestroyContext();
 	}
-
 
 	void AppBase::Update(float dt) {}
 	void AppBase::Render()
@@ -258,8 +253,8 @@ namespace My
 		const auto& sceneObjects = m_scene.GetGameObjects();
 		for (const auto& obj : sceneObjects)
 		{
-			const Transform& tr = obj->GetTransform();
-			const Matrix world = tr.GetWorldMatrix();
+			const Transform&	 tr = obj->GetTransform();
+			const Matrix		 world = tr.GetWorldMatrix();
 			const MeshComponent& meshComponent = obj->GetMeshComponent();
 
 			// 추후에 mesh가 없을 때만 그리기 생략을 함
@@ -269,7 +264,7 @@ namespace My
 				continue;
 			}
 
-			RenderItem renderItem{ meshComponent.GetMesh(), meshComponent.GetMaterial(),world };
+			RenderItem renderItem{ meshComponent.GetMesh(), meshComponent.GetMaterial(), world };
 
 			if (!m_renderer.DrawRenderItem(renderItem))
 			{
@@ -277,7 +272,6 @@ namespace My
 				PostQuitMessage(-1);
 				return;
 			}
-
 		}
 
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
@@ -324,7 +318,6 @@ namespace My
 			m_directionalLight.intensity = lightIntensity;
 		}
 
-
 		ImGui::Separator();
 		ImGui::Text("Camera");
 		Vector3 cameraPos = m_camera.GetPosition();
@@ -359,7 +352,7 @@ namespace My
 		for (const auto& obj : sceneObjects)
 		{
 			GameObject* gameObject = obj.get();
-			const bool isSelected = (m_selectedObject == gameObject);
+			const bool	isSelected = (m_selectedObject == gameObject);
 
 			ImGui::PushID(gameObject);
 
@@ -377,8 +370,8 @@ namespace My
 		{
 			ImGui::Text("Selected: %s", m_selectedObject->GetName().c_str());
 			MeshComponent& comp = m_selectedObject->GetMeshComponent();
-			Transform& tr = m_selectedObject->GetTransform();
-			Material* mat = comp.GetMaterial();
+			Transform&	   tr = m_selectedObject->GetTransform();
+			Material*	   mat = comp.GetMaterial();
 
 			// 위치 수정
 			Vector3 pos = tr.GetPosition();
@@ -449,7 +442,6 @@ namespace My
 
 					m_camera.SetAspectRatio(sceneViewRatio);
 					m_renderer.SetSceneViewport(m_guiWidth, 0, sceneViewWidth, sceneViewHeight);
-
 				}
 
 				Update(m_gameTimer.GetDeltaTime());
@@ -461,7 +453,4 @@ namespace My
 		return static_cast<int>(msg.wParam);
 	}
 
-
-
-}
-
+} // namespace My

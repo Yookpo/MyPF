@@ -93,13 +93,12 @@ namespace My
 			return (iter->second).get();
 		}
 
-		auto material = std::make_unique<Material>();
+		auto	  material = std::make_unique<Material>();
 		Material* createdMaterial = material.get();
-		
+
 		m_materials.emplace(key, std::move(material));
 
 		return createdMaterial;
 	}
 
-}
-
+} // namespace My

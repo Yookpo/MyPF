@@ -8,8 +8,8 @@ namespace My
 
 	struct FrameRenderData
 	{
-		Matrix view;
-		Matrix projection;
+		Matrix			 view;
+		Matrix			 projection;
 		DirectionalLight directionalLight;
 	};
-}
+} // namespace My

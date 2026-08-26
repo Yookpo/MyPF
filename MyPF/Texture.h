@@ -11,16 +11,13 @@ namespace My
 	public:
 		Texture() = default;
 		Texture(const Texture&) = delete;
-		Texture& operator = (const Texture&) = delete;
+		Texture& operator=(const Texture&) = delete;
 
 		bool Initialize(GraphicsResourceManager&, const std::string&);
 
 		TextureHandle GetTextureHandle() const { return m_textureHandle; }
 
-
 	private:
 		TextureHandle m_textureHandle;
 	};
-}
-
-
+} // namespace My

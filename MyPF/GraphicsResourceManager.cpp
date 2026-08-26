@@ -3,7 +3,6 @@
 #include "D3D11Utils.h"
 #include <utility>
 
-
 namespace My
 {
 	bool GraphicsResourceManager::Initialize(GraphicsDevice& graphicsDevice)
@@ -104,7 +103,6 @@ namespace My
 		auto byte = sizeof(uint32_t) * indices.size();
 
 		return CreateImmutableBufferInternal(indices.data(), static_cast<uint32_t>(byte), D3D11_BIND_INDEX_BUFFER);
-
 	}
 
 	BufferHandle GraphicsResourceManager::CreateImmutableBufferInternal(const void* data, uint32_t byteWidth, UINT bindFlags)
@@ -123,7 +121,6 @@ namespace My
 
 		newResource.byteWidth = byteWidth;
 		newResource.cpuWritable = false;
-
 
 		uint32_t newIndex = static_cast<uint32_t>(m_buffers.size());
 		m_buffers.push_back(std::move(newResource));
@@ -156,13 +153,12 @@ namespace My
 
 	bool GraphicsResourceManager::UpdateBufferInternal(const BufferHandle& bufferHandle, const void* data, uint32_t byteWidth)
 	{
-		if (!m_graphicsDevice || !m_graphicsDevice->GetContext() ||
-			!data || byteWidth == 0 || !bufferHandle.IsValid() || bufferHandle.GetIndex() >= m_buffers.size())
+		if (!m_graphicsDevice || !m_graphicsDevice->GetContext() || !data || byteWidth == 0 || !bufferHandle.IsValid() || bufferHandle.GetIndex() >= m_buffers.size())
 		{
 			return false;
 		}
 
-		uint32_t Index = bufferHandle.GetIndex();
+		uint32_t		Index = bufferHandle.GetIndex();
 		BufferResource& updateResource = m_buffers[Index];
 
 		if (!updateResource.buffer || (updateResource.byteWidth != byteWidth) || !updateResource.cpuWritable)
@@ -172,6 +168,4 @@ namespace My
 
 		return D3D11Utils::UpdateBuffer(m_graphicsDevice->GetContext(), data, byteWidth, updateResource.buffer.Get());
 	}
-}
-
-
+} // namespace My

@@ -8,8 +8,4 @@ namespace My
 
 		return *m_gameObjects.back();
 	}
-}
-
-
-
-
+} // namespace My
