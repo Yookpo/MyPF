@@ -1,6 +1,6 @@
 # MyPF Codex 작업 지침
 
-마지막 갱신: 2026-08-23
+마지막 갱신: 2026-08-27
 
 ## 프로젝트 목표
 
@@ -30,6 +30,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 - 문서, 작업 인계 파일, 빌드 설정처럼 사용자가 직접 수정을 요청한 파일만 Codex가 수정할 수 있다.
 - Codex는 새 기능의 목적과 책임을 먼저 설명하고, 기능을 작고 응집된 단계로 나누어 안내한다.
 - 사용자가 수동으로 코드를 받아 적지 않도록 각 단계에서 필요한 배경지식, 판단 기준과 질문을 먼저 제공한다.
+- 사용자의 코드가 잘못됐거나 불완전해도 곧바로 완성 코드를 제시하지 않는다. 먼저 놓친 개념과 조건을 설명하고 사용자가 다시 작성하도록 유도하며, 사용자가 막혔다고 명시하고 완성 형태를 요청할 때만 직접적인 완성 코드를 제공한다.
 - 사용자가 막힌 문법이나 API를 구체적으로 질문하면 해당 문법, API 사용법과 실패 원인을 더 직접적으로 설명한다.
 - 사용자가 수정을 완료하면 실제 작업 트리를 다시 읽고 코드 리뷰를 수행한다.
 - 오류가 발견돼도 Codex가 임의로 고치지 않고 원인, 영향과 사용자가 수정할 방향을 먼저 설명한다.
@@ -83,14 +84,17 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 ### Scene과 Asset 계층
 
 - `Scene`은 `vector<unique_ptr<GameObject>>`로 GameObject를 소유한다.
-- `GameObject`는 이름, Transform과 MeshComponent를 값으로 소유한다.
+- `GameObject`는 이름, Transform, MeshComponent와 ModelComponent를 값으로 소유한다.
 - `MeshComponent`는 Mesh와 Material을 비소유 포인터로 참조한다.
+- `ModelComponent`는 AssetManager가 소유한 Model을 `const Model*`로 비소유 참조한다.
 - `Mesh`는 Vertex/Index `BufferHandle`, Vertex Stride와 Index Count를 가진다.
 - `Texture`는 Texture2D/SRV를 직접 소유하지 않고 `TextureHandle`만 가진다.
 - `Material`은 Texture를 비소유 참조하고 BaseColor를 가진다.
-- `AssetManager`는 문자열 key 기반으로 `Mesh`와 `Texture` 논리 에셋을 `unique_ptr`로 소유하고 캐싱한다.
-- 같은 Texture 경로 또는 Mesh key를 다시 요청하면 기존 객체 주소를 반환한다. 현재 경로 정규화는 지원하지 않는다.
-- `Material`은 아직 AppBase가 값으로 소유하며, 바로 다음 단계에서 AssetManager 소유로 옮긴다.
+- `Model`은 여러 `ModelPart`를 소유하며 각 Part는 Mesh와 Material을 비소유 참조한다.
+- `ModelLoader`는 Assimp 데이터를 프로젝트 독립 CPU 데이터인 `ModelData`로 변환하고 GPU 자원을 생성하지 않는다.
+- `AssetManager`는 문자열 key 또는 파일 경로 기반으로 `Mesh`, `Texture`, `Material`, `Model` 논리 에셋을 `unique_ptr`로 소유하고 캐싱한다.
+- `AssetManager::LoadModel()`은 ModelData를 받아 Mesh/Material/Texture를 생성하고 ModelPart를 조립한다.
+- 같은 Texture 경로, Mesh/Material key 또는 Model 파일 경로를 다시 요청하면 기존 객체 주소를 반환한다. 현재 경로 정규화는 지원하지 않는다.
 - Constant Buffer, Shadow Map, Bloom Render Target은 논리 에셋이 아니라 그래픽 런타임 리소스다.
 
 ## 현재 소유 및 의존 구조
@@ -109,7 +113,10 @@ AppBase
 │     └─ 실제 Texture2D / SRV ComPtr
 ├─ AssetManager --비소유--> GraphicsResourceManager
 │  ├─ 문자열 key → unique_ptr<Mesh>
-│  └─ 문자열 경로 → unique_ptr<Texture>
+│  ├─ 문자열 경로 → unique_ptr<Texture>
+│  ├─ 문자열 key → unique_ptr<Material>
+│  └─ 파일 경로 → unique_ptr<Model>
+│     └─ ModelPart[] --비소유--> Mesh / Material
 ├─ Renderer --비소유--> GraphicsDevice, GraphicsResourceManager
 │  ├─ Shader / InputLayout
 │  ├─ Rasterizer / DepthStencil / Sampler State
@@ -117,12 +124,9 @@ AppBase
 ├─ Scene
 │  └─ GameObject[]
 │     ├─ Transform
-│     └─ MeshComponent
-│        ├─ 비소유 const Mesh*
-│        └─ 비소유 Material*
-├─ Camera
-└─ Material m_cubeMaterial / m_triangleMaterial
-   └─ 비소유 const Texture*
+│     ├─ MeshComponent --비소유--> Mesh / Material
+│     └─ ModelComponent --비소유--> Model
+└─ Camera / DirectionalLight
 
 AppBase --FrameRenderData--> Renderer::BeginFrame
 AppBase --RenderItem-------> Renderer::DrawRenderItem
@@ -153,7 +157,7 @@ AppBase 멤버는 `GraphicsDevice → GraphicsResourceManager → AssetManager �
 4. ImGui 폭을 제외한 Scene View 크기로 Camera Aspect Ratio와 Renderer Viewport를 갱신한다.
 5. AppBase가 Camera와 DirectionalLight로 `FrameRenderData`를 만든다.
 6. `Renderer::BeginFrame()`이 RTV/DSV를 Clear하고 Camera/Light Constant Buffer를 갱신한다.
-7. AppBase가 Scene의 GameObject를 순회하고 `RenderItem`을 만든다.
+7. AppBase가 Scene의 GameObject를 순회한다. ModelComponent가 있으면 각 ModelPart를, 아니면 MeshComponent를 `RenderItem`으로 변환한다.
 8. `Renderer::DrawRenderItem()`이 Object/Material Constant Buffer를 갱신한다.
 9. Renderer가 ResourceManager에서 Vertex/Index/Constant Buffer raw pointer를 대여한다.
 10. Mesh Buffer, Texture SRV, Shader, Constant Buffer와 Sampler를 바인딩하고 `DrawIndexed()`를 호출한다.
@@ -183,6 +187,12 @@ AppBase 멤버는 `GraphicsDevice → GraphicsResourceManager → AssetManager �
 - Texture의 직접 ComPtr 제거와 Handle 전환
 - Renderer의 TextureHandle → ResourceManager::GetSRV 바인딩
 - AssetManager의 Texture 경로 캐시와 Mesh key 캐시
+- AssetManager의 mutable Material key 캐시
+- Assimp 기반 ModelLoader와 독립 CPU `ModelData`
+- `Model`, `ModelPart`, `ModelComponent`와 Model 파일 경로 캐시
+- FBX Zelda, OBJ Pikachu, glTF Dragonite의 다중 Mesh/Material/BaseColor Texture 렌더링
+- GameObject Transform 하나로 Model의 모든 Part를 함께 배치하고 조절하는 흐름
+- TensorWorks UE-Clang-Format 기반 `.clang-format`
 - AppBase의 직접 Mesh/Texture 소유 제거
 
 ## 현재 알려진 점검 항목
@@ -194,35 +204,36 @@ AppBase 멤버는 `GraphicsDevice → GraphicsResourceManager → AssetManager �
 - Vertex Color는 현재 Shader 입출력을 통과하지만 최종 Pixel Color 계산에는 사용되지 않는다. 실제 사용하거나 제거할지 결정한다.
 - GraphicsResourceManager의 공개 `UpdateBuffer`는 이름은 범용이지만 현재 16-byte 정렬을 강제해 사실상 Constant Buffer 갱신 정책이다. 실제로 다른 Dynamic Buffer가 추가될 때 API 이름과 범위를 재검토한다.
 - D3D11Utils의 타입 기반 Buffer 편의 오버로드는 모든 생성 호출이 ResourceManager를 거치게 되면 공개 필요성을 실제 호출 기준으로 재검토한다.
-- AssetManager의 key는 현재 입력 문자열 그대로 사용한다. Texture 경로 정규화와 외부 Mesh 파일 로딩은 다음 Asset 확장 단계에서 다룬다.
+- AssetManager의 key와 Model/Texture 경로는 현재 입력 문자열 그대로 사용한다. 동일 파일도 경로 표기가 다르면 별도 에셋이 될 수 있다.
+- ModelLoader는 현재 `pScene->mMeshes`를 평면 순회하므로 `aiNode` 계층 Transform과 Mesh Instance를 반영하지 않는다. 실제 골목 에셋에서 필요성이 확인될 때 확장한다.
+- Material과 ModelLoader는 현재 BaseColor/Diffuse Texture만 처리한다. Normal Map, Metallic/Roughness와 glTF PBR 확장은 젖은 바닥과 Material 확장 단계에서 진행한다.
+- Pixel Shader의 Ambient Strength는 현재 `0.4f`로 하드코딩돼 있다. 정식 조명 데이터와 ImGui로 연결하는 것이 바로 다음 작업이다.
 - ImGui 부분 초기화 실패와 Shutdown 상태 추적은 기능 우선순위에 따라 나중에 보완한다.
 - 일부 한글 주석의 문자 인코딩이 깨져 있으므로 기능 변경과 분리해 UTF-8 정책을 정리한다.
 
 ## 바로 다음 우선 작업
 
-다음 기능 단위는 `Material`의 소유권을 AppBase에서 AssetManager로 옮기는 것이다.
+다음 기능 단위는 Pixel Shader에 하드코딩된 Ambient Strength를 정식 조명 데이터로 연결하는 것이다.
 
 진행 방향:
 
-1. `AssetManager.h`에 `Material`을 전방 선언한다.
-2. `Material* CreateMaterial(const std::string& key)`를 선언한다. Material은 ImGui에서 편집하므로 Mesh/Texture와 달리 mutable pointer를 반환한다.
-3. `unordered_map<string, unique_ptr<Material>>` 캐시를 추가한다.
-4. `AssetManager.cpp`에서 `Material.h`를 포함하고 같은 key면 기존 Material을 반환하며, 없으면 기본 Material을 생성·저장한다.
-5. AppBase의 `m_cubeMaterial`, `m_triangleMaterial` 값 멤버를 제거한다.
-6. AppBase가 서로 다른 key로 두 Material을 생성하고 Texture/BaseColor를 설정한 뒤 MeshComponent에 연결한다.
-7. 같은 Material key 공유 시 편집 결과가 공유된다는 정책을 확인한다.
-8. 이 인터페이스 변경 묶음이 끝나면 사용자가 원할 때 `Debug | x64` 컴파일로 확인한다. 현재 2026-08-23 작업에서는 빌드/실행하지 않았다.
+1. `DirectionalLight`에 `ambientStrength`를 추가한다.
+2. CPU `LightConstantData`의 기존 `pad`를 `ambientStrength`로 교체해 32바이트 배치를 유지한다.
+3. `Renderer::BeginFrame()`에서 FrameRenderData의 값을 Light Constant Buffer에 복사한다.
+4. HLSL cbuffer의 `pad`를 `ambientStrength`로 바꾸고 지역 하드코딩 값을 제거한다.
+5. ImGui Light 영역에 Ambient Strength 슬라이더를 추가한다.
+6. Pikachu와 Dragonite에서 직접광과 주변광이 독립적으로 조절되는지 사용자가 실행 확인한다.
 
-Material 이관 다음에는 외부 Mesh 파일 로딩 경계를 설계한다. 지금 AssetManager의 `CreateMesh(key, MeshData)`는 절차적으로 만든 MeshData 캐시이며 파일 importer는 아직 없다.
+이 작업이 끝나면 STEP 3의 Editor/Play 상태와 1인칭 WASD/마우스 입력으로 진입한다. ModelLoader의 aiNode/PBR 확장은 당장 진행하지 않는다.
 
 ## 이후 주요 로드맵
 
-1. Material AssetManager 소유 이전으로 최소 Asset 계층 완성
-2. 외부 Mesh 파일 로딩과 Texture 경로 정책
+1. DirectionalLight Ambient Strength 데이터/ImGui 연결
+2. Editor/Play 상태와 1인칭 WASD/마우스 입력
 3. ImGui Scene Hierarchy/Inspector와 배치 기능 확장
-4. 1인칭 WASD/마우스 입력과 Editor/Play 상태
+4. 사이버펑크 골목 Greybox와 최소 상호작용 흐름
 5. 다수 Point Light와 네온 조명
-6. 사이버펑크 골목 기본 콘텐츠 구성
+6. 실제 골목 콘텐츠 구성
 7. Shadow Mapping
 8. 젖은 바닥 재질과 반사
 9. HDR Scene Target과 Bloom
