@@ -89,7 +89,7 @@ namespace My
 		}
 
 		// Test
-		//auto* zelda = m_assetManager.LoadModel("Assets/Models/zelda/source/zeldaPosed001.fbx");
+		// auto* zelda = m_assetManager.LoadModel("Assets/Models/zelda/source/zeldaPosed001.fbx");
 		auto* pikachu = m_assetManager.LoadModel("Assets/Models/pikachu/source/Pikachu.obj");
 		auto* dragonite = m_assetManager.LoadModel("Assets/Models/dragonite/dragonite.gltf");
 
@@ -103,10 +103,8 @@ namespace My
 			return false;
 		}
 
-
 		/*GameObject* cube1 = &m_scene.CreateGameObject("cube1");
 		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");*/
-		
 
 		/*cube1->GetTransform().SetPosition(Vector3(-0.6f, 0.0f, 0.0f));
 		cube1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
@@ -118,6 +116,7 @@ namespace My
 
 		dragonite1->GetTransform().SetPosition(Vector3(-0.6f, -0.2f, 0.0f));
 		dragonite1->GetTransform().SetScale(Vector3(0.003f, 0.003f, 0.003f));
+		dragonite1->GetTransform().SetRotation(Vector3(1.5f, 0.0f, 0.0f));
 
 		GameObject* pikachu1 = &m_scene.CreateGameObject("pikachu");
 
@@ -244,7 +243,7 @@ namespace My
 	}
 
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -292,7 +291,7 @@ namespace My
 			if (modelComponent.HasModel())
 			{
 				// Model 가져오기
-				const auto*			   model = modelComponent.GetModel();
+				const auto*					  model = modelComponent.GetModel();
 				const std::vector<ModelPart>& parts = model->GetParts();
 
 				// 모든 ModelPart 순회
@@ -345,116 +344,145 @@ namespace My
 		// ImGui 로직
 		// 이후 ImGui UI 컨트롤 추가는 ImGui::NewFrame()과 ImGui::Render() 사이인 여기에 위치
 		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-		ImGui::Begin("Test Window");
-		ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::Begin("Control Panel");
 
-		if (ImGui::ColorEdit4("Control BackColor", m_backgroundColor.data(), 0))
+		// 현재 Play 모드인가?
+		if (m_appMode == AppMode::Play)
 		{
-		}
+			ImGui::Text("Mode: Play");
+			ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
-		ImGui::Separator();
-		ImGui::Text("Light");
-		Vector3 lightDir = m_directionalLight.direction;
-		if (ImGui::DragFloat3("Light Direction", &lightDir.x, 0.01f, -1.0f, 1.0f))
-		{
-			if (lightDir.LengthSquared() > 0.00001f)
+			if (ImGui::Button("Stop"))
 			{
-				lightDir.Normalize();
-				m_directionalLight.direction = lightDir;
+				m_camera = m_editorCameraSnapshot;
+				m_appMode = AppMode::Editor;
 			}
 		}
 
-		Vector3 lightColor = m_directionalLight.color;
-		if (ImGui::ColorEdit3("Light Color", &lightColor.x))
+		// 현재 Edit 모드인가?
+		else
 		{
-			m_directionalLight.color = lightColor;
-		}
-		float lightIntensity = m_directionalLight.intensity;
-		if (ImGui::SliderFloat("Light Intensity", &lightIntensity, 0.0f, 5.0f))
-		{
-			m_directionalLight.intensity = lightIntensity;
-		}
+			ImGui::Text("Mode: Editor");
 
-		ImGui::Separator();
-		ImGui::Text("Camera");
-		Vector3 cameraPos = m_camera.GetPosition();
-		if (ImGui::DragFloat3("Camera Move", &cameraPos.x, 0.01f, -10.0f, 10.0f))
-		{
-			m_camera.SetPosition(cameraPos);
-		}
-
-		float cameraYaw = m_camera.GetYaw();
-		float cameraPitch = m_camera.GetPitch();
-		float cameraFov = m_camera.GetFovAngleY();
-
-		bool yawChanged = ImGui::DragFloat("Yaw Slider", &cameraYaw, 0.1f, -180.0f, 180.0f);
-		bool pitchChanged = ImGui::DragFloat("Pitch Slider", &cameraPitch, 0.1f, -89.0f, 89.0f);
-		bool fovChanged = ImGui::SliderFloat("Fov Slider", &cameraFov, 30.0f, 120.0f);
-
-		if (yawChanged || pitchChanged)
-		{
-			m_camera.SetYawPitch(cameraYaw, cameraPitch);
-		}
-
-		if (fovChanged)
-		{
-			m_camera.SetFovAngleY(cameraFov);
-		}
-
-		ImGui::Separator();
-		ImGui::Text("Scene Objects");
-
-		const auto& sceneObjects = m_scene.GetGameObjects();
-
-		for (const auto& obj : sceneObjects)
-		{
-			GameObject* gameObject = obj.get();
-			const bool	isSelected = (m_selectedObject == gameObject);
-
-			ImGui::PushID(gameObject);
-
-			if (ImGui::Selectable(gameObject->GetName().c_str(), isSelected))
+			if (ImGui::Button("Play"))
 			{
-				m_selectedObject = gameObject;
+				m_editorCameraSnapshot = m_camera;
+				m_appMode = AppMode::Play;
 			}
 
-			ImGui::PopID();
-		}
-
-		ImGui::Separator();
-
-		if (m_selectedObject)
-		{
-			ImGui::Text("Selected: %s", m_selectedObject->GetName().c_str());
-			MeshComponent& comp = m_selectedObject->GetMeshComponent();
-			Transform&	   tr = m_selectedObject->GetTransform();
-			Material*	   mat = comp.GetMaterial();
-
-			// 위치 수정
-			Vector3 pos = tr.GetPosition();
-			if (ImGui::DragFloat3("Move", &pos.x, 0.01f, -1.0f, 1.0f))
+			if (ImGui::ColorEdit4("Control BackColor", m_backgroundColor.data(), 0))
 			{
-				tr.SetPosition(pos);
-			}
-			// 회전 수정
-			Vector3 rot = tr.GetRotation();
-			if (ImGui::SliderFloat3("Rotate(Rad)", &rot.x, -3.14f, 3.14f))
-			{
-				tr.SetRotation(rot);
-			}
-			// 스케일 수정
-			Vector3 scale = tr.GetScale();
-			if (ImGui::SliderFloat3("Scaling", &scale.x, 0.1f, 2.0f))
-			{
-				tr.SetScale(scale);
 			}
 
-			if (mat)
+			ImGui::Separator();
+			ImGui::Text("Light");
+			Vector3 lightDir = m_directionalLight.direction;
+			if (ImGui::DragFloat3("Light Direction", &lightDir.x, 0.01f, -1.0f, 1.0f))
 			{
-				Vector3 matBaseColor = mat->GetBaseColor();
-				if (ImGui::SliderFloat3("Base Color", &matBaseColor.x, 0.0f, 1.0f))
+				if (lightDir.LengthSquared() > 0.00001f)
 				{
-					mat->SetBaseColor(matBaseColor);
+					lightDir.Normalize();
+					m_directionalLight.direction = lightDir;
+				}
+			}
+
+			Vector3 lightColor = m_directionalLight.color;
+			if (ImGui::ColorEdit3("Light Color", &lightColor.x))
+			{
+				m_directionalLight.color = lightColor;
+			}
+			float lightIntensity = m_directionalLight.intensity;
+			if (ImGui::SliderFloat("Light Intensity", &lightIntensity, 0.0f, 5.0f))
+			{
+				m_directionalLight.intensity = lightIntensity;
+			}
+			float ambientStrength = m_directionalLight.ambientStrength;
+			if (ImGui::SliderFloat("Ambient Strength", &ambientStrength, 0.0f, 1.0f))
+			{
+				m_directionalLight.ambientStrength = ambientStrength;
+			}
+
+			ImGui::Separator();
+			ImGui::Text("Camera");
+			Vector3 cameraPos = m_camera.GetPosition();
+			if (ImGui::DragFloat3("Camera Move", &cameraPos.x, 0.01f, -10.0f, 10.0f))
+			{
+				m_camera.SetPosition(cameraPos);
+			}
+
+			float cameraYaw = m_camera.GetYaw();
+			float cameraPitch = m_camera.GetPitch();
+			float cameraFov = m_camera.GetFovAngleY();
+
+			bool yawChanged = ImGui::DragFloat("Yaw Slider", &cameraYaw, 0.1f, -180.0f, 180.0f);
+			bool pitchChanged = ImGui::DragFloat("Pitch Slider", &cameraPitch, 0.1f, -89.0f, 89.0f);
+			bool fovChanged = ImGui::SliderFloat("Fov Slider", &cameraFov, 30.0f, 120.0f);
+
+			if (yawChanged || pitchChanged)
+			{
+				m_camera.SetYawPitch(cameraYaw, cameraPitch);
+			}
+
+			if (fovChanged)
+			{
+				m_camera.SetFovAngleY(cameraFov);
+			}
+
+			ImGui::Separator();
+			ImGui::Text("Scene Objects");
+
+			const auto& sceneObjects = m_scene.GetGameObjects();
+
+			for (const auto& obj : sceneObjects)
+			{
+				GameObject* gameObject = obj.get();
+				const bool	isSelected = (m_selectedObject == gameObject);
+
+				ImGui::PushID(gameObject);
+
+				if (ImGui::Selectable(gameObject->GetName().c_str(), isSelected))
+				{
+					m_selectedObject = gameObject;
+				}
+
+				ImGui::PopID();
+			}
+
+			ImGui::Separator();
+
+			if (m_selectedObject)
+			{
+				ImGui::Text("Selected: %s", m_selectedObject->GetName().c_str());
+				MeshComponent& comp = m_selectedObject->GetMeshComponent();
+				Transform&	   tr = m_selectedObject->GetTransform();
+				Material*	   mat = comp.GetMaterial();
+
+				// 위치 수정
+				Vector3 pos = tr.GetPosition();
+				if (ImGui::DragFloat3("Move", &pos.x, 0.01f, -1.0f, 1.0f))
+				{
+					tr.SetPosition(pos);
+				}
+				// 회전 수정
+				Vector3 rot = tr.GetRotation();
+				if (ImGui::SliderFloat3("Rotate(Rad)", &rot.x, -3.14f, 3.14f))
+				{
+					tr.SetRotation(rot);
+				}
+				// 스케일 수정
+				Vector3 scale = tr.GetScale();
+				if (ImGui::SliderFloat3("Scaling", &scale.x, 0.1f, 2.0f))
+				{
+					tr.SetScale(scale);
+				}
+
+				if (mat)
+				{
+					Vector3 matBaseColor = mat->GetBaseColor();
+					if (ImGui::SliderFloat3("Base Color", &matBaseColor.x, 0.0f, 1.0f))
+					{
+						mat->SetBaseColor(matBaseColor);
+					}
 				}
 			}
 		}

@@ -6,7 +6,7 @@ cbuffer LightConstantData : register(b0)
     float3 direction;
     float intensity;
     float3 color;
-    float pad;
+    float ambientStrength;
 }
 
 cbuffer MaterialConstantData : register(b1)
@@ -40,7 +40,6 @@ float4 main(PS_INPUT input) : SV_TARGET
     float3 albedo = albedoTexture.Sample(linearSampler, input.uv).rgb;
     float3 surfaceColor = albedo * baseColor;
     
-    float ambientStrength = 0.4f;
     float3 ambientColor = surfaceColor * ambientStrength;
     
     float3 diffuseColor = surfaceColor * color * intensity * diffuse;

@@ -20,10 +20,10 @@ namespace My
 
 	struct LightConstantData
 	{
-		Vector3 direction; // 12
-		float	intensity; // 4
-		Vector3 color;	   // 12
-		float	pad;	   // 4
+		Vector3 direction;		 // 12
+		float	intensity;		 // 4
+		Vector3 color;			 // 12
+		float	ambientStrength; // 4
 	};
 
 	struct MaterialConstantData

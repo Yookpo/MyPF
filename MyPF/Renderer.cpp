@@ -47,7 +47,7 @@ namespace My
 		m_lightConstantData.direction = Vector3(0.0f, -0.5f, 1.0f);
 		m_lightConstantData.color = Vector3(0.0f);
 		m_lightConstantData.intensity = 1.0f;
-		m_lightConstantData.pad = 0.0f;
+		m_lightConstantData.ambientStrength = 0.4f;
 		m_lightBufferHandle = m_resourceManager->CreateConstantBuffer(m_lightConstantData);
 
 		if (!m_lightBufferHandle.IsValid())
@@ -155,6 +155,7 @@ namespace My
 		m_lightConstantData.direction.Normalize();
 		m_lightConstantData.color = frameRenderData.directionalLight.color;
 		m_lightConstantData.intensity = frameRenderData.directionalLight.intensity;
+		m_lightConstantData.ambientStrength = frameRenderData.directionalLight.ambientStrength;
 
 		if (!m_resourceManager->UpdateBuffer(m_lightBufferHandle, m_lightConstantData))
 		{

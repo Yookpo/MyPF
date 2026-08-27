@@ -19,6 +19,11 @@ extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam
 
 namespace My
 {
+	enum class AppMode
+	{
+		Editor,
+		Play,
+	};
 
 	class AppBase
 	{
@@ -47,6 +52,8 @@ namespace My
 		int	  m_screenHeight;
 		float m_guiWidth = 0;
 
+		AppMode m_appMode;
+
 		GraphicsDevice			m_graphicsDevice;
 		GraphicsResourceManager m_resourceManager;
 		AssetManager			m_assetManager;
@@ -57,6 +64,7 @@ namespace My
 		GameObject* m_selectedObject;
 
 		Camera m_camera;
+		Camera m_editorCameraSnapshot;
 
 		DirectionalLight m_directionalLight;
 
