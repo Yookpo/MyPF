@@ -244,6 +244,14 @@ namespace My
 		return (sceneViewWidth / sceneViewHeight);
 	}
 
+	void AppBase::ExitPlayMode()
+	{
+		m_inputSystem.Reset();
+		m_camera = m_editorCameraSnapshot;
+		m_appMode = AppMode::Editor;
+		return;
+	}
+
 	AppBase::AppBase()
 		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 2.0f }, m_mouseSensitivity{ 0.1f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
 	{
@@ -275,9 +283,7 @@ namespace My
 		// ESC로 Play 모드 종료
 		if (m_inputSystem.IsKeyDown(VK_ESCAPE))
 		{
-			m_inputSystem.Reset();
-			m_camera = m_editorCameraSnapshot;
-			m_appMode = AppMode::Editor;
+			ExitPlayMode();
 			return;
 		}
 
@@ -436,9 +442,7 @@ namespace My
 
 			if (ImGui::Button("Stop"))
 			{
-				m_inputSystem.Reset();
-				m_camera = m_editorCameraSnapshot;
-				m_appMode = AppMode::Editor;
+				ExitPlayMode();
 			}
 
 			// Test

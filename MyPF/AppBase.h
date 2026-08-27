@@ -46,6 +46,7 @@ namespace My
 		bool  InitMainWindow();
 		bool  InitGUI();
 		float GetAspectRatio(float sceneViewWidth, float sceneViewHeight) const;
+		void  ExitPlayMode();
 
 	public:
 		HWND  m_mainWindow;
