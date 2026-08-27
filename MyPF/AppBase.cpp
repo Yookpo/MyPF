@@ -49,6 +49,13 @@ namespace My
 
 				break;
 
+			case WM_KILLFOCUS:
+				if (m_appMode == AppMode::Play)
+				{
+					ExitPlayMode();
+				}
+				break;
+
 			case WM_DESTROY:
 				m_mainWindow = nullptr;
 				::PostQuitMessage(0);
@@ -244,12 +251,52 @@ namespace My
 		return (sceneViewWidth / sceneViewHeight);
 	}
 
+	void AppBase::EnterPlayMode()
+	{
+		// 커서 숨김은 전환 시 한 번 호출
+		ShowCursor(FALSE);
+
+		m_editorCameraSnapshot = m_camera;
+		m_inputSystem.Reset();
+		m_appMode = AppMode::Play;
+
+		return;
+	}
+
 	void AppBase::ExitPlayMode()
 	{
+		ShowCursor(TRUE);
+
 		m_inputSystem.Reset();
 		m_camera = m_editorCameraSnapshot;
 		m_appMode = AppMode::Editor;
+
 		return;
+	}
+
+	void AppBase::CenterCursorInSceneView()
+	{
+		if (!m_mainWindow || (m_screenWidth - m_guiWidth) <= 0 || m_screenHeight <= 0)
+		{
+			return;
+		}
+
+		float centerClientX = m_guiWidth + (m_screenWidth - m_guiWidth) * 0.5f;
+		float centerClientY = m_screenHeight * 0.5f;
+
+		POINT sceneViewPos{ static_cast<LONG>(centerClientX), static_cast<LONG>(centerClientY) };
+
+		if (!ClientToScreen(m_mainWindow, &sceneViewPos))
+		{
+			return;
+		}
+
+		if (!SetCursorPos(sceneViewPos.x, sceneViewPos.y))
+		{
+			return;
+		}
+
+		m_inputSystem.SetMouseReferencePosition(centerClientX, centerClientY);
 	}
 
 	AppBase::AppBase()
@@ -342,6 +389,7 @@ namespace My
 		cameraPos += moveDirection * m_cameraSpeed * dt;
 
 		m_camera.SetPosition(cameraPos);
+		CenterCursorInSceneView();
 	}
 
 	void AppBase::Render()
@@ -487,9 +535,7 @@ namespace My
 
 			if (ImGui::Button("Play"))
 			{
-				m_editorCameraSnapshot = m_camera;
-				m_inputSystem.Reset();
-				m_appMode = AppMode::Play;
+				EnterPlayMode();
 			}
 
 			if (ImGui::ColorEdit4("Control BackColor", m_backgroundColor.data(), 0))

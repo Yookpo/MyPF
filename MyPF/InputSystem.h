@@ -18,6 +18,8 @@ namespace My
 		bool IsKeyDown(UINT key) const;
 
 		MouseDelta ConsumeMouseDelta();
+		void	   SetMouseReferencePosition(int x, int y);
+		void	   ResetMouseTracking();
 		void	   Reset();
 
 	private:

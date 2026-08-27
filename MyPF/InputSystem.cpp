@@ -66,16 +66,28 @@ namespace My
 		return delta;
 	}
 
+	void InputSystem::SetMouseReferencePosition(int x, int y)
+	{
+		m_mouseDelta.m_mouseDeltaX = m_mouseDelta.m_mouseDeltaY = 0;
+		m_mouseX = x;
+		m_mouseY = y;
+		m_hasMousePosition = true;
+	}
+
+	void InputSystem::ResetMouseTracking()
+	{
+		m_mouseDelta.m_mouseDeltaX = m_mouseDelta.m_mouseDeltaY = 0;
+		m_mouseX = m_mouseY = 0;
+		m_hasMousePosition = false;
+	}
+
 	// Window가 포커스를 잃었을 때
 	// Editor에서 Play로 전환될 때
 	// Play에서 Stop으로 돌아올 때
 	void InputSystem::Reset()
 	{
 		m_keyDown.fill(false);
-
-		m_mouseDelta.m_mouseDeltaX = m_mouseDelta.m_mouseDeltaY = 0;
-		m_mouseX = m_mouseY = 0;
-		m_hasMousePosition = false;
+		ResetMouseTracking();
 	}
 
 } // namespace My
