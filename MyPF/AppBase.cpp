@@ -272,9 +272,18 @@ namespace My
 			return;
 		}
 
+		// ESC로 Play 모드 종료
+		if (m_inputSystem.IsKeyDown(VK_ESCAPE))
+		{
+			m_inputSystem.Reset();
+			m_camera = m_editorCameraSnapshot;
+			m_appMode = AppMode::Editor;
+			return;
+		}
+
 		MouseDelta delta = m_inputSystem.ConsumeMouseDelta();
-		float	cameraYaw = m_camera.GetYaw();
-		float	cameraPitch = m_camera.GetPitch();
+		float	   cameraYaw = m_camera.GetYaw();
+		float	   cameraPitch = m_camera.GetPitch();
 
 		cameraYaw += (delta.m_mouseDeltaX * m_mouseSensitivity);
 		cameraPitch -= (delta.m_mouseDeltaY * m_mouseSensitivity);
@@ -298,7 +307,6 @@ namespace My
 		}
 
 		Vector3 moveDirection{};
-		
 
 		if (m_inputSystem.IsKeyDown('W'))
 		{
