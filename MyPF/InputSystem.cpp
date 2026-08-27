@@ -1,4 +1,5 @@
 #include "InputSystem.h"
+#include <windowsx.h>
 
 namespace My
 {
@@ -26,6 +27,21 @@ namespace My
 				}
 				break;
 
+			case WM_MOUSEMOVE:
+			{
+				int curX = GET_X_LPARAM(lParam);
+				int curY = GET_Y_LPARAM(lParam);
+				if (m_hasMousePosition)
+				{
+					m_mouseDelta.m_mouseDeltaX += (curX - m_mouseX);
+					m_mouseDelta.m_mouseDeltaY += (curY - m_mouseY);
+				}
+				m_mouseX = curX;
+				m_mouseY = curY;
+				m_hasMousePosition = true;
+				break;
+			}
+
 			case WM_KILLFOCUS:
 				Reset();
 				break;
@@ -42,12 +58,24 @@ namespace My
 		return m_keyDown[key];
 	}
 
+	MouseDelta InputSystem::ConsumeMouseDelta()
+	{
+		MouseDelta delta = m_mouseDelta;
+		m_mouseDelta.m_mouseDeltaX = m_mouseDelta.m_mouseDeltaY = 0;
+
+		return delta;
+	}
+
 	// Window가 포커스를 잃었을 때
 	// Editor에서 Play로 전환될 때
 	// Play에서 Stop으로 돌아올 때
 	void InputSystem::Reset()
 	{
 		m_keyDown.fill(false);
+
+		m_mouseDelta.m_mouseDeltaX = m_mouseDelta.m_mouseDeltaY = 0;
+		m_mouseX = m_mouseY = 0;
+		m_hasMousePosition = false;
 	}
 
 } // namespace My

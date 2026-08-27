@@ -245,7 +245,7 @@ namespace My
 	}
 
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 2.0f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 2.0f }, m_mouseSensitivity{ 0.1f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -272,10 +272,18 @@ namespace My
 			return;
 		}
 
+		MouseDelta delta = m_inputSystem.ConsumeMouseDelta();
+		float	cameraYaw = m_camera.GetYaw();
+		float	cameraPitch = m_camera.GetPitch();
+
+		cameraYaw += (delta.m_mouseDeltaX * m_mouseSensitivity);
+		cameraPitch -= (delta.m_mouseDeltaY * m_mouseSensitivity);
+
+		m_camera.SetYawPitch(cameraYaw, cameraPitch);
+
 		Vector3 cameraPos = m_camera.GetPosition();
 		Vector3 cameraForward = m_camera.GetForward();
 		Vector3 cameraUp = m_camera.GetUp();
-
 		cameraForward.y = 0.0f;
 
 		if (cameraForward.LengthSquared() > 0.00001f)
@@ -290,6 +298,8 @@ namespace My
 		}
 
 		Vector3 moveDirection{};
+		
+
 		if (m_inputSystem.IsKeyDown('W'))
 		{
 			moveDirection += cameraForward;
@@ -409,6 +419,10 @@ namespace My
 			ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
 			if (ImGui::SliderFloat("Camera Speed", &m_cameraSpeed, 0.0f, 10.0f))
+			{
+			}
+
+			if (ImGui::SliderFloat("Mouse Sensitivity", &m_mouseSensitivity, 0.01f, 1.0f))
 			{
 			}
 

@@ -68,6 +68,7 @@ namespace My
 		Camera m_camera;
 		Camera m_editorCameraSnapshot;
 		float  m_cameraSpeed;
+		float  m_mouseSensitivity;
 
 		DirectionalLight m_directionalLight;
 
