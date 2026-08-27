@@ -29,6 +29,8 @@ namespace My
 	// Windows가 전달하는 창 이벤트 처리
 	LRESULT AppBase::MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	{
+		m_inputSystem.ProcessMessage(msg, wParam, lParam);
+
 		if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
 		{
 			return true;
@@ -243,7 +245,7 @@ namespace My
 	}
 
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 2.0f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -263,7 +265,61 @@ namespace My
 		ImGui::DestroyContext();
 	}
 
-	void AppBase::Update(float dt) {}
+	void AppBase::Update(float dt)
+	{
+		if (m_appMode == AppMode::Editor)
+		{
+			return;
+		}
+
+		Vector3 cameraPos = m_camera.GetPosition();
+		Vector3 cameraForward = m_camera.GetForward();
+		Vector3 cameraUp = m_camera.GetUp();
+
+		cameraForward.y = 0.0f;
+
+		if (cameraForward.LengthSquared() > 0.00001f)
+		{
+			cameraForward.Normalize();
+		}
+
+		Vector3 cameraRight = cameraUp.Cross(cameraForward);
+		if (cameraRight.LengthSquared() > 0.00001f)
+		{
+			cameraRight.Normalize();
+		}
+
+		Vector3 moveDirection{};
+		if (m_inputSystem.IsKeyDown('W'))
+		{
+			moveDirection += cameraForward;
+		}
+
+		if (m_inputSystem.IsKeyDown('S'))
+		{
+			moveDirection -= cameraForward;
+		}
+
+		if (m_inputSystem.IsKeyDown('A'))
+		{
+			moveDirection -= cameraRight;
+		}
+
+		if (m_inputSystem.IsKeyDown('D'))
+		{
+			moveDirection += cameraRight;
+		}
+
+		if (moveDirection.LengthSquared() > 0.00001f)
+		{
+			moveDirection.Normalize();
+		}
+
+		cameraPos += moveDirection * m_cameraSpeed * dt;
+
+		m_camera.SetPosition(cameraPos);
+	}
+
 	void AppBase::Render()
 	{
 		FrameRenderData frameRenderData;
@@ -352,10 +408,49 @@ namespace My
 			ImGui::Text("Mode: Play");
 			ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
+			if (ImGui::SliderFloat("Camera Speed", &m_cameraSpeed, 0.0f, 10.0f))
+			{
+			}
+
 			if (ImGui::Button("Stop"))
 			{
+				m_inputSystem.Reset();
 				m_camera = m_editorCameraSnapshot;
 				m_appMode = AppMode::Editor;
+			}
+
+			// Test
+			if (m_inputSystem.IsKeyDown('W'))
+			{
+				ImGui::Text("W : Down");
+			}
+			else
+			{
+				ImGui::Text("W : Up");
+			}
+			if (m_inputSystem.IsKeyDown('S'))
+			{
+				ImGui::Text("S : Down");
+			}
+			else
+			{
+				ImGui::Text("S : Up");
+			}
+			if (m_inputSystem.IsKeyDown('A'))
+			{
+				ImGui::Text("A : Down");
+			}
+			else
+			{
+				ImGui::Text("A : Up");
+			}
+			if (m_inputSystem.IsKeyDown('D'))
+			{
+				ImGui::Text("D : Down");
+			}
+			else
+			{
+				ImGui::Text("D : Up");
 			}
 		}
 
@@ -367,6 +462,7 @@ namespace My
 			if (ImGui::Button("Play"))
 			{
 				m_editorCameraSnapshot = m_camera;
+				m_inputSystem.Reset();
 				m_appMode = AppMode::Play;
 			}
 

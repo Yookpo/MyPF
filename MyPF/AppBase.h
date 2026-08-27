@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "Renderer.h"
 #include "GameTimer.h"
+#include "InputSystem.h"
 #include "Scene.h"
 #include "Camera.h"
 #include "DirectionalLight.h"
@@ -59,12 +60,14 @@ namespace My
 		AssetManager			m_assetManager;
 		Renderer				m_renderer;
 		GameTimer				m_gameTimer;
+		InputSystem				m_inputSystem;
 
 		Scene		m_scene;
 		GameObject* m_selectedObject;
 
 		Camera m_camera;
 		Camera m_editorCameraSnapshot;
+		float  m_cameraSpeed;
 
 		DirectionalLight m_directionalLight;
 
