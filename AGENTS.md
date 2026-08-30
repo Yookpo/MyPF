@@ -21,7 +21,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 최종 결과물은 범용 엔진 자체가 아니라 `DX11 렌더링 기술 + 확장 가능한 구조 + 짧지만 완결된 플레이 경험`을 보여주는 포트폴리오다.
 
-현재 전체 진행률은 약 45%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 기본 1인칭 조작은 완료했지만 실제 골목, 상호작용, 다수 조명과 고급 렌더링 효과는 남아 있다.
+현재 전체 진행률은 약 50%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작은 완료했다. 1m 단위 Greybox 골목과 거리·시선 기반 전원 스위치 상호작용까지 연결했으며, 다수 조명과 고급 렌더링 효과는 남아 있다.
 
 ## Codex와 사용자의 역할
 
@@ -29,6 +29,9 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 - Codex는 사용자의 명시적인 요청 없이 프로젝트 소스를 생성하거나 수정하지 않는다.
 - 문서, 작업 인계 파일, 빌드 설정처럼 사용자가 직접 수정을 요청한 파일만 Codex가 수정할 수 있다.
 - Codex는 새 기능의 목적, 배경지식, 책임 경계와 완료 조건을 먼저 설명한다.
+- 기능을 구현할 때마다 왜 필요한지와 최종 데모에 어떤 기여를 하는지 먼저 설명한다.
+- 사용자가 스스로 설계와 코드를 생각할 수 있도록 첫 힌트부터 단계적으로 제공한다.
+- 사용자가 더 구체적인 도움이 필요하다고 할 때만 다음 힌트를 제공하고, 완성 코드는 사용자가 명시적으로 요청할 때만 보여준다.
 - 작업은 한 줄씩 지나치게 잘게 나누지 않고 검토 가능한 하나의 기능 책임 단위로 안내한다.
 - 코드가 잘못됐거나 불완전해도 즉시 완성 코드를 제시하지 않는다. 먼저 놓친 개념과 조건을 설명하고 사용자가 다시 작성하도록 유도한다.
 - 사용자가 막혔다고 명시하고 완성 형태를 요청할 때만 직접적인 완성 코드를 제공한다.
@@ -87,6 +90,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 ### InputSystem과 Camera
 
 - InputSystem은 Win32 메시지를 key state와 누적 MouseDelta로 변환한다.
+- InputSystem은 `WasKeyPressed`와 프레임 종료 초기화로 키의 단발 입력을 제공한다.
 - focus 상실, Play 진입과 종료에서 입력 상태를 Reset한다.
 - Camera는 Position, +Z Forward, Up, Yaw/Pitch, FOV, Aspect와 View/Projection 계산을 담당한다.
 - AppBase는 Play에서 deltaTime 기반 평면 WASD 이동과 마우스 회전을 적용한다.
@@ -109,6 +113,8 @@ AppBase
 │     └─ ModelComponent --비소유--> Model
 ├─ InputSystem
 ├─ Camera / EditorCameraSnapshot
+├─ 전원 스위치 GameObject 비소유 참조
+├─ 전원 상태와 거리·시선 상호작용 설정
 └─ DirectionalLight
 
 AppBase --FrameRenderData--> Renderer::BeginFrame
@@ -123,12 +129,14 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 2. focus를 잃으면 Play를 종료하고 입력 상태를 Reset한다.
 3. GameTimer를 Tick하고 ImGui 프레임을 시작한다.
 4. Editor/Play UI를 만들고 Scene View 크기로 Camera Aspect와 Renderer Viewport를 갱신한다.
-5. Play이면 ESC, WASD와 MouseDelta로 Camera를 갱신하고 커서를 Scene View 중앙으로 되돌린다.
-6. AppBase가 Camera와 DirectionalLight로 FrameRenderData를 만든다.
-7. Renderer::BeginFrame이 Camera/Light Constant Buffer를 갱신한다.
-8. AppBase가 Scene을 순회해 ModelPart 또는 MeshComponent를 RenderItem으로 변환한다.
-9. Renderer가 Object/Material Buffer, Mesh와 Texture를 바인딩해 DrawIndexed한다.
-10. ImGui DrawData를 렌더링하고 Present한다.
+5. Play이면 ESC, WASD와 MouseDelta로 Camera를 갱신한다.
+6. E 단발 입력이 들어오면 전원 스위치의 거리와 시선 조건을 검사하고 전원을 활성화한다.
+7. 커서를 Scene View 중앙으로 되돌린다.
+8. AppBase가 Camera와 DirectionalLight로 FrameRenderData를 만든다.
+9. Renderer::BeginFrame이 Camera/Light Constant Buffer를 갱신한다.
+10. AppBase가 Scene을 순회해 ModelPart 또는 MeshComponent를 RenderItem으로 변환한다.
+11. Renderer가 Object/Material Buffer, Mesh와 Texture를 바인딩해 DrawIndexed한다.
+12. ImGui DrawData를 렌더링하고 Present한다.
 
 ## 현재 완료된 주요 기능
 
@@ -152,14 +160,22 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - 마우스 Yaw/Pitch, 커서 숨김/중앙 복귀
 - ESC, Stop과 focus 상실 시 Play 종료
 - Play 종료 시 Editor Camera Snapshot 복원
+- `GeometryGenerator::MakeCube()`의 기본 크기를 1m 단위 Cube로 통일
+- 폭 4m, 높이 4m, 길이 20m의 Greybox 골목과 1.6m 카메라 시작점
+- 바닥과 좌우/끝 벽이 공용 Cube Mesh와 Greybox Material을 공유
+- 끝 벽의 전원 스위치 GameObject와 독립 Material
+- 상호작용 거리 2m와 시선 내적 임계값 0.8 판정
+- `WasKeyPressed('E')`로 단발 상호작용 입력 처리
+- 전원 상태 `Off → On`의 단방향 활성화와 ImGui 상태 검증
 
 ## 현재 알려진 문제와 보류 항목
 
-- 활성 Scene은 Pikachu/Dragonite 테스트 콘텐츠이며 골목 Greybox가 없다.
+- 활성 Scene은 Greybox 골목이며 외부 모델 파이프라인은 유지하지만 현재 장면에는 배치하지 않는다.
 - AppBase에 Cube/Triangle 과거 테스트 코드가 주석 블록으로 남아 있다.
 - 카메라 충돌과 플레이어 높이/월드 단위 정책이 없다.
 - ImGui Transform 위치 `-1~1`, Scale `0.1~2` 범위는 골목 배치에 부족하다.
-- AppBase가 초기화, 테스트 장면, UI, Play 입력과 RenderItem 조립을 모두 담당한다.
+- AppBase가 초기화, Greybox 생성, UI, Play 입력, 전원 상호작용과 RenderItem 조립을 모두 담당해 책임이 커졌다.
+- 전원 스위치의 GameObject 참조, 상태, 거리/시선 설정과 동작을 AppBase 밖의 작은 `PowerSwitch` 책임으로 추출할 필요가 있다.
 - Renderer Material 경로는 유효한 Albedo Texture를 전제로 하며 기본 Material/Texture 정책이 없다.
 - GeometryGenerator의 평행 배열은 데이터 불일치 위험이 있다.
 - Vertex Color는 최종 Pixel Color에 사용되지 않는다.
@@ -177,46 +193,41 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 
 ## 바로 다음 우선 작업
 
-다음 기능 책임은 `사이버펑크 골목 Greybox 초기화`다.
+다음 기능 책임은 `PowerSwitch 책임을 AppBase에서 분리`하는 것이다.
 
 목적:
 
-- `1 unit = 1m` 기준의 실제 공간 규모를 확정한다.
-- Camera Speed, Point Light Radius, Shadow Bias, Fog 거리와 Wet Floor 크기의 기준을 만든다.
-- 기존 Scene/Asset/Renderer 경계가 다수 구조물에서도 유지되는지 검증한다.
+- 실제 기능 구현으로 드러난 전원 스위치 상태와 동작을 하나의 OOP 책임으로 캡슐화한다.
+- AppBase는 Input, Camera와 기능 객체를 조율하고, 전원 스위치 자체의 규칙은 알지 않도록 줄인다.
+- 상속용으로 설계되지 않은 현재 GameObject를 억지로 파생하지 않고 컴포지션으로 확장한다.
 
 진행 방향:
 
-1. AppBase에 Scene과 AssetManager를 조정하는 Greybox 초기화 책임을 둔다.
-2. GeometryGenerator::MakeCube와 AssetManager로 공용 Cube Mesh, wall.jpg Texture와 Greybox Material을 한 번 만든다.
-3. 바닥, 좌우 벽과 끝 벽 GameObject가 같은 Mesh/Material을 공유하고 Transform만 독립적으로 갖게 한다.
-4. 카메라 높이와 골목 치수를 `1 unit = 1m` 기준으로 맞춘다.
-5. Pikachu/Dragonite 활성 테스트 장면을 Greybox로 교체하되 Model 파이프라인은 제거하지 않는다.
-6. Editor Transform UI 범위를 골목 규모에 맞게 확장한다.
-7. Play에서 공간 크기와 이동 속도를 확인한다. 충돌은 이번 완료 조건이 아니다.
+1. 작은 `PowerSwitch` 타입의 책임과 공개 인터페이스를 먼저 정의한다.
+2. Scene이 소유한 GameObject를 비소유로 연결한다.
+3. `m_isPowerOn`, 상호작용 거리와 시선 임계값을 PowerSwitch로 이동한다.
+4. 거리·시선 판정과 단방향 활성화를 PowerSwitch로 이동한다.
+5. AppBase에는 E 단발 입력, Camera 데이터 전달과 활성화 요청만 남긴다.
+6. PowerSwitch는 AppBase, InputSystem, Renderer, ImGui와 Scene을 모른다.
+7. 현재 ImGui Interaction/Power 표시와 실행 결과가 유지되는지 확인한다.
 
-완료 조건:
-
-- Editor에서 바닥과 양쪽 벽이 짧은 골목 형태로 보인다.
-- 구조물이 공용 Cube Mesh/Material을 공유한다.
-- GameObject Transform은 각각 독립적이다.
-- Play에서 WASD/마우스로 골목을 탐색할 수 있다.
-- Renderer, ResourceManager와 Scene은 Greybox 개념을 모른다.
+PowerSwitch 분리 후에는 전원 상태에 따른 스위치 Material 변화, Point Light와 Emissive 네온으로 진행한다.
 
 ## 이후 주요 로드맵
 
-1. 골목 Greybox와 월드 스케일 확정
-2. 최소 상호작용 기반
-3. 다수 Point Light와 Renderer 제출
-4. Emissive Material과 네온 간판
-5. 전원 장치 상태와 순차 점등
-6. 실제 골목 에셋 배치와 Scene 편집 보강
-7. Shadow Mapping
-8. Normal/Roughness Material과 젖은 바닥 반사
-9. HDR Scene Target, Bloom과 Tone Mapping
-10. 안개, 비와 색조 보정
-11. 충돌/이동 제한, 디버그 UI와 최적화
-12. 라이선스 정리와 1~2분 최종 연출
+1. ✅ 골목 Greybox와 월드 스케일 확정
+2. 🟡 최소 상호작용 기반과 PowerSwitch 책임 분리
+3. 전원 상태에 따른 스위치 시각 피드백
+4. 다수 Point Light와 Renderer 제출
+5. Emissive Material과 네온 간판
+6. 전원 장치 상태와 순차 점등
+7. 실제 골목 에셋 배치와 Scene 편집 보강
+8. Shadow Mapping
+9. Normal/Roughness Material과 젖은 바닥 반사
+10. HDR Scene Target, Bloom과 Tone Mapping
+11. 안개, 비와 색조 보정
+12. 충돌/이동 제한, 디버그 UI와 최적화
+13. 라이선스 정리와 1~2분 최종 연출
 
 ## 작업 절차
 
@@ -238,6 +249,8 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - C++20, HLSL Shader Model 5.0 런타임 컴파일
 - 실행 작업 디렉터리: `MyPF/`
 - Assimp는 데스크톱과 노트북의 사용자 vcpkg 환경에 각각 설치돼 있다.
+- 현재 문서 기준 HEAD: `fefdb2f` — `E키를 누르면 스위치 On Text로 확인`
+- 작업 트리의 `MyPF/imgui.ini` 변경은 런타임 UI 배치이므로 기능 commit에서 제외한다.
 
 ## 변경 안전성
 
