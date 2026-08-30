@@ -254,17 +254,40 @@ namespace My
 		greyBoxMat->SetAlbedoTexture(greyBoxTex);
 		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 
-		// Create Object
-		GameObject* floor1 = &m_scene.CreateGameObject("floor1");
+		// Create floor
+		GameObject* floor = &m_scene.CreateGameObject("floor");
 
-		floor1->GetTransform().SetPosition(Vector3(0.0f, -0.1f, 10.0f));
-		floor1->GetTransform().SetScale(Vector3(2.0f, 0.1f, 10.0f));
+		floor->GetTransform().SetPosition(Vector3(0.0f, -0.1f, 10.0f));
+		floor->GetTransform().SetScale(Vector3(2.0f, 0.1f, 10.0f));
 
-		m_selectedObject = floor1;
+		m_selectedObject = floor;
 
-		floor1->GetMeshComponent().SetMesh(greyBoxMesh);
-		floor1->GetMeshComponent().SetMaterial(greyBoxMat);
+		floor->GetMeshComponent().SetMesh(greyBoxMesh);
+		floor->GetMeshComponent().SetMaterial(greyBoxMat);
 
+		// Create Wall
+		GameObject* leftWall = &m_scene.CreateGameObject("leftWall");
+		GameObject* rightWall = &m_scene.CreateGameObject("rightWall");
+		GameObject* endWall = &m_scene.CreateGameObject("endWall");
+
+		leftWall->GetTransform().SetScale(Vector3(0.1f, 2.0f, 10.0f));
+		rightWall->GetTransform().SetScale(Vector3(0.1f, 2.0f, 10.0f));
+		endWall->GetTransform().SetScale(Vector3(2.0f, 2.0f, 0.1f));
+
+		leftWall->GetTransform().SetPosition(Vector3(-2.1f, 2.0f, 10.0f));
+		rightWall->GetTransform().SetPosition(Vector3(2.1f, 2.0f, 10.0f));
+		endWall->GetTransform().SetPosition(Vector3(0.0f, 2.0f, 20.1f));
+
+		leftWall->GetMeshComponent().SetMesh(greyBoxMesh);
+		rightWall->GetMeshComponent().SetMesh(greyBoxMesh);
+		endWall->GetMeshComponent().SetMesh(greyBoxMesh);
+
+		leftWall->GetMeshComponent().SetMaterial(greyBoxMat);
+		rightWall->GetMeshComponent().SetMaterial(greyBoxMat);
+		endWall->GetMeshComponent().SetMaterial(greyBoxMat);
+
+		// Set Camera Pos
+		m_camera.SetPosition(Vector3(0.0f, 1.6f, 0.0f));
 
 		return true;
 	}
@@ -598,7 +621,7 @@ namespace My
 
 				// 위치 수정
 				Vector3 pos = tr.GetPosition();
-				if (ImGui::DragFloat3("Move", &pos.x, 0.01f, -1.0f, 1.0f))
+				if (ImGui::DragFloat3("Move", &pos.x, 0.01f, -50.0f, 50.0f))
 				{
 					tr.SetPosition(pos);
 				}
@@ -610,7 +633,7 @@ namespace My
 				}
 				// 스케일 수정
 				Vector3 scale = tr.GetScale();
-				if (ImGui::SliderFloat3("Scaling", &scale.x, 0.1f, 2.0f))
+				if (ImGui::SliderFloat3("Scaling", &scale.x, 0.01f, 50.0f))
 				{
 					tr.SetScale(scale);
 				}
