@@ -50,6 +50,8 @@ namespace My
 		void  ExitPlayMode();
 		void  CenterCursorInSceneView();
 
+		bool InitGreyBoxScene();
+
 	public:
 		HWND  m_mainWindow;
 		int	  m_screenWidth; // 렌더링할 최종 화면의 해상도

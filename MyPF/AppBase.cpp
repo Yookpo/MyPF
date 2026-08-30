@@ -97,84 +97,11 @@ namespace My
 			return false;
 		}
 
-		// Test
-		// auto* zelda = m_assetManager.LoadModel("Assets/Models/zelda/source/zeldaPosed001.fbx");
-		auto* pikachu = m_assetManager.LoadModel("Assets/Models/pikachu/source/Pikachu.obj");
-		auto* dragonite = m_assetManager.LoadModel("Assets/Models/dragonite/dragonite.gltf");
-
-		if (!dragonite || dragonite->GetParts().empty())
+		// Init GeryBox Scene
+		if (!InitGreyBoxScene())
 		{
 			return false;
 		}
-
-		if (!pikachu || pikachu->GetParts().empty())
-		{
-			return false;
-		}
-
-		/*GameObject* cube1 = &m_scene.CreateGameObject("cube1");
-		GameObject* triangle1 = &m_scene.CreateGameObject("triangle1");*/
-
-		/*cube1->GetTransform().SetPosition(Vector3(-0.6f, 0.0f, 0.0f));
-		cube1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));
-
-		triangle1->GetTransform().SetPosition(Vector3(0.6f, 0.0f, 0.0f));
-		triangle1->GetTransform().SetScale(Vector3(0.4f, 0.4f, 0.4f));*/
-
-		GameObject* dragonite1 = &m_scene.CreateGameObject("dragonite1");
-
-		dragonite1->GetTransform().SetPosition(Vector3(-0.6f, -0.2f, 0.0f));
-		dragonite1->GetTransform().SetScale(Vector3(0.003f, 0.003f, 0.003f));
-		dragonite1->GetTransform().SetRotation(Vector3(1.5f, 0.0f, 0.0f));
-
-		GameObject* pikachu1 = &m_scene.CreateGameObject("pikachu");
-
-		pikachu1->GetTransform().SetPosition(Vector3(0.6f, -0.2f, 0.0f));
-		pikachu1->GetTransform().SetScale(Vector3(0.1f, 0.1f, 0.1f));
-
-		m_selectedObject = dragonite1;
-
-		/*MeshData cubeData = GeometryGenerator::MakeCube();
-		MeshData triangleData = GeometryGenerator::MakeTriangle();
-
-		auto cubeMesh = m_assetManager.CreateMesh("cube", cubeData);
-		auto triangleMesh = m_assetManager.CreateMesh("triangle", triangleData);
-
-		if (!cubeMesh || !triangleMesh)
-		{
-			return false;
-		}
-
-		const Texture* cubeTex = m_assetManager.LoadTexture("wall.jpg");
-		const Texture* triangleTex = m_assetManager.LoadTexture("wall.jpg");
-
-		if (!cubeTex || !triangleTex || (cubeTex != triangleTex))
-		{
-			return false;
-		}
-
-		auto cubeMat = m_assetManager.CreateMaterial("cubeMat");
-		auto triangleMat = m_assetManager.CreateMaterial("triangleMat");
-
-		if (!cubeMat || !triangleMat)
-		{
-			return false;
-		}
-
-		cubeMat->SetAlbedoTexture(cubeTex);
-		triangleMat->SetAlbedoTexture(triangleTex);
-
-		cubeMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
-		triangleMat->SetBaseColor(Vector3(0.2f, 0.64f, 0.18f));
-
-		cube1->GetMeshComponent().SetMesh(cubeMesh);
-		triangle1->GetMeshComponent().SetMesh(triangleMesh);
-
-		cube1->GetMeshComponent().SetMaterial(cubeMat);
-		triangle1->GetMeshComponent().SetMaterial(triangleMat);*/
-
-		dragonite1->GetModelComponent().SetModel(dragonite);
-		pikachu1->GetModelComponent().SetModel(pikachu);
 
 		return true;
 	}
@@ -297,6 +224,49 @@ namespace My
 		}
 
 		m_inputSystem.SetMouseReferencePosition(centerClientX, centerClientY);
+	}
+
+	bool AppBase::InitGreyBoxScene()
+	{
+		// Setting for Mesh, Material
+		MeshData greyBoxData = GeometryGenerator::MakeCube();
+		auto	 greyBoxMesh = m_assetManager.CreateMesh("greybox", greyBoxData);
+
+		if (!greyBoxMesh)
+		{
+			return false;
+		}
+
+		const Texture* greyBoxTex = m_assetManager.LoadTexture("wall.jpg");
+
+		if (!greyBoxTex)
+		{
+			return false;
+		}
+
+		auto greyBoxMat = m_assetManager.CreateMaterial("greyBoxMat");
+
+		if (!greyBoxMat)
+		{
+			return false;
+		}
+
+		greyBoxMat->SetAlbedoTexture(greyBoxTex);
+		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
+
+		// Create Object
+		GameObject* floor1 = &m_scene.CreateGameObject("floor1");
+
+		floor1->GetTransform().SetPosition(Vector3(0.0f, -0.1f, 10.0f));
+		floor1->GetTransform().SetScale(Vector3(2.0f, 0.1f, 10.0f));
+
+		m_selectedObject = floor1;
+
+		floor1->GetMeshComponent().SetMesh(greyBoxMesh);
+		floor1->GetMeshComponent().SetMaterial(greyBoxMat);
+
+
+		return true;
 	}
 
 	AppBase::AppBase()
@@ -423,6 +393,7 @@ namespace My
 				const std::vector<ModelPart>& parts = model->GetParts();
 
 				// 모든 ModelPart 순회
+				// ModelPart -> RenderItem으로 변환
 				for (size_t i = 0; i < parts.size(); i++)
 				{
 					// 각 Part의 Mesh/Material로 RenderItem 생성
