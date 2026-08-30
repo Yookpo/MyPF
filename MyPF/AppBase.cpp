@@ -257,8 +257,8 @@ namespace My
 		// Create floor
 		GameObject* floor = &m_scene.CreateGameObject("floor");
 
-		floor->GetTransform().SetPosition(Vector3(0.0f, -0.1f, 10.0f));
-		floor->GetTransform().SetScale(Vector3(2.0f, 0.1f, 10.0f));
+		floor->GetTransform().SetPosition(Vector3(0.0f, 0.0f, 10.0f));
+		floor->GetTransform().SetScale(Vector3(4.0f, 0.2f, 20.0f));
 
 		m_selectedObject = floor;
 
@@ -270,9 +270,9 @@ namespace My
 		GameObject* rightWall = &m_scene.CreateGameObject("rightWall");
 		GameObject* endWall = &m_scene.CreateGameObject("endWall");
 
-		leftWall->GetTransform().SetScale(Vector3(0.1f, 2.0f, 10.0f));
-		rightWall->GetTransform().SetScale(Vector3(0.1f, 2.0f, 10.0f));
-		endWall->GetTransform().SetScale(Vector3(2.0f, 2.0f, 0.1f));
+		leftWall->GetTransform().SetScale(Vector3(0.2f, 4.0f, 20.0f));
+		rightWall->GetTransform().SetScale(Vector3(0.2f, 4.0f, 20.0f));
+		endWall->GetTransform().SetScale(Vector3(4.0f, 4.0f, 0.2f));
 
 		leftWall->GetTransform().SetPosition(Vector3(-2.1f, 2.0f, 10.0f));
 		rightWall->GetTransform().SetPosition(Vector3(2.1f, 2.0f, 10.0f));
@@ -289,11 +289,19 @@ namespace My
 		// Set Camera Pos
 		m_camera.SetPosition(Vector3(0.0f, 1.6f, 0.0f));
 
+		// Create Power Switch
+		m_powerSwitchObject = &m_scene.CreateGameObject("powerSwitch");
+		m_powerSwitchObject->GetTransform().SetPosition(Vector3(0.0f, 1.2f, 19.95f));
+		m_powerSwitchObject->GetTransform().SetScale(Vector3(0.4f, 0.6f, 0.1f));
+
+		m_powerSwitchObject->GetMeshComponent().SetMaterial(greyBoxMat);
+		m_powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
+
 		return true;
 	}
 
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 2.0f }, m_mouseSensitivity{ 0.1f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 4.0f }, m_mouseSensitivity{ 0.1f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }, m_powerSwitchObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -331,8 +339,8 @@ namespace My
 		float	   cameraYaw = m_camera.GetYaw();
 		float	   cameraPitch = m_camera.GetPitch();
 
-		cameraYaw += (delta.m_mouseDeltaX * m_mouseSensitivity);
-		cameraPitch -= (delta.m_mouseDeltaY * m_mouseSensitivity);
+		cameraYaw += (delta.deltaX * m_mouseSensitivity);
+		cameraPitch -= (delta.deltaY * m_mouseSensitivity);
 
 		m_camera.SetYawPitch(cameraYaw, cameraPitch);
 
@@ -694,6 +702,8 @@ namespace My
 				Update(m_gameTimer.GetDeltaTime());
 
 				Render();
+
+				m_inputSystem.EndFrame();
 			}
 		}
 

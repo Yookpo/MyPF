@@ -6,8 +6,8 @@ namespace My
 {
 	struct MouseDelta
 	{
-		int m_mouseDeltaX = 0;
-		int m_mouseDeltaY = 0;
+		int deltaX = 0;
+		int deltaY = 0;
 	};
 
 	class InputSystem
@@ -15,7 +15,9 @@ namespace My
 	public:
 		InputSystem();
 		void ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam);
-		bool IsKeyDown(UINT key) const;
+		bool IsKeyDown(UINT keyCode) const;
+		bool WasKeyPressed(UINT keyCode) const;
+		void EndFrame();
 
 		MouseDelta ConsumeMouseDelta();
 		void	   SetMouseReferencePosition(int x, int y);
@@ -23,7 +25,8 @@ namespace My
 		void	   Reset();
 
 	private:
-		std::array<bool, 256> m_keyDown{}; // Win32 Virtual-Key 값을 인덱스
+		std::array<bool, 256> m_keyDown{};	  // 지속 상태
+		std::array<bool, 256> m_keyPressed{}; // 한 프레임 상태
 
 		// UI, Picking, 마우스 위치
 		int	 m_mouseX = 0;

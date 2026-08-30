@@ -16,6 +16,11 @@ namespace My
 			case WM_KEYDOWN:
 				if (wParam < m_keyDown.size())
 				{
+					if (!m_keyDown[wParam])
+					{
+						m_keyPressed[wParam] = true;
+					}
+
 					m_keyDown[wParam] = true;
 				}
 				break;
@@ -33,8 +38,8 @@ namespace My
 				int curY = GET_Y_LPARAM(lParam);
 				if (m_hasMousePosition)
 				{
-					m_mouseDelta.m_mouseDeltaX += (curX - m_mouseX);
-					m_mouseDelta.m_mouseDeltaY += (curY - m_mouseY);
+					m_mouseDelta.deltaX += (curX - m_mouseX);
+					m_mouseDelta.deltaY += (curY - m_mouseY);
 				}
 				m_mouseX = curX;
 				m_mouseY = curY;
@@ -48,35 +53,50 @@ namespace My
 		}
 	}
 
-	bool InputSystem::IsKeyDown(UINT key) const
+	bool InputSystem::IsKeyDown(UINT keyCode) const
 	{
-		if (key >= m_keyDown.size())
+		if (keyCode >= m_keyDown.size())
 		{
 			return false;
 		}
 
-		return m_keyDown[key];
+		return m_keyDown[keyCode];
+	}
+
+	bool InputSystem::WasKeyPressed(UINT keyCode) const
+	{
+		if (keyCode >= m_keyPressed.size())
+		{
+			return false;
+		}
+
+		return m_keyPressed[keyCode];
 	}
 
 	MouseDelta InputSystem::ConsumeMouseDelta()
 	{
 		MouseDelta delta = m_mouseDelta;
-		m_mouseDelta.m_mouseDeltaX = m_mouseDelta.m_mouseDeltaY = 0;
+		m_mouseDelta.deltaX = m_mouseDelta.deltaY = 0;
 
 		return delta;
 	}
 
 	void InputSystem::SetMouseReferencePosition(int x, int y)
 	{
-		m_mouseDelta.m_mouseDeltaX = m_mouseDelta.m_mouseDeltaY = 0;
+		m_mouseDelta.deltaX = m_mouseDelta.deltaY = 0;
 		m_mouseX = x;
 		m_mouseY = y;
 		m_hasMousePosition = true;
 	}
 
+	void InputSystem::EndFrame()
+	{
+		m_keyPressed.fill(false);
+	}
+
 	void InputSystem::ResetMouseTracking()
 	{
-		m_mouseDelta.m_mouseDeltaX = m_mouseDelta.m_mouseDeltaY = 0;
+		m_mouseDelta.deltaX = m_mouseDelta.deltaY = 0;
 		m_mouseX = m_mouseY = 0;
 		m_hasMousePosition = false;
 	}
@@ -87,6 +107,7 @@ namespace My
 	void InputSystem::Reset()
 	{
 		m_keyDown.fill(false);
+		m_keyPressed.fill(false);
 		ResetMouseTracking();
 	}
 

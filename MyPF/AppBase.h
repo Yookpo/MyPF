@@ -69,6 +69,7 @@ namespace My
 
 		Scene		m_scene;
 		GameObject* m_selectedObject;
+		GameObject* m_powerSwitchObject;
 
 		Camera m_camera;
 		Camera m_editorCameraSnapshot;
