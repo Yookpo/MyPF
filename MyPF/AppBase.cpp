@@ -257,7 +257,7 @@ namespace My
 		// Create floor
 		GameObject* floor = &m_scene.CreateGameObject("floor");
 
-		floor->GetTransform().SetPosition(Vector3(0.0f, 0.0f, 10.0f));
+		floor->GetTransform().SetPosition(Vector3(0.0f, -0.1f, 10.0f));
 		floor->GetTransform().SetScale(Vector3(4.0f, 0.2f, 20.0f));
 
 		m_selectedObject = floor;
@@ -294,8 +294,19 @@ namespace My
 		m_powerSwitchObject->GetTransform().SetPosition(Vector3(0.0f, 1.2f, 19.95f));
 		m_powerSwitchObject->GetTransform().SetScale(Vector3(0.4f, 0.6f, 0.1f));
 
-		m_powerSwitchObject->GetMeshComponent().SetMaterial(greyBoxMat);
+		// Switch Mat
+		auto powerSwitchMat = m_assetManager.CreateMaterial("powerSwitchMat");
+
+		if (!powerSwitchMat)
+		{
+			return false;
+		}
+
+		powerSwitchMat->SetAlbedoTexture(greyBoxTex);
+		powerSwitchMat->SetBaseColor(Vector3(0.35f, 0.05f, 0.05f));
+
 		m_powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
+		m_powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
 
 		return true;
 	}
