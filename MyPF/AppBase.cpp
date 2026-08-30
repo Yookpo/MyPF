@@ -311,8 +311,31 @@ namespace My
 		return true;
 	}
 
+	bool AppBase::CanInteractWithPowerSwitch() const
+	{
+		if (!m_powerSwitchObject)
+		{
+			return false;
+		}
+
+		const Vector3 cameraPosition = m_camera.GetPosition();
+		const Vector3 switchPosition = m_powerSwitchObject->GetTransform().GetPosition();
+
+		Vector3 toSwitch = switchPosition - cameraPosition;
+
+		const float distanceSquared = toSwitch.LengthSquared();
+		const float interactionRangeSquared = m_interactionRange * m_interactionRange;
+
+		if (distanceSquared > interactionRangeSquared)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 4.0f }, m_mouseSensitivity{ 0.1f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }, m_powerSwitchObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 4.0f }, m_mouseSensitivity{ 0.1f }, m_interactionRange{ 2.0f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }, m_powerSwitchObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -504,6 +527,15 @@ namespace My
 			if (ImGui::Button("Stop"))
 			{
 				ExitPlayMode();
+			}
+
+			if (CanInteractWithPowerSwitch())
+			{
+				ImGui::Text("Interaction available");
+			}
+			else
+			{
+				ImGui::Text("Interaction unavailable");
 			}
 
 			// Test

@@ -51,6 +51,7 @@ namespace My
 		void  CenterCursorInSceneView();
 
 		bool InitGreyBoxScene();
+		bool CanInteractWithPowerSwitch() const;
 
 	public:
 		HWND  m_mainWindow;
@@ -75,6 +76,7 @@ namespace My
 		Camera m_editorCameraSnapshot;
 		float  m_cameraSpeed;
 		float  m_mouseSensitivity;
+		float  m_interactionRange;
 
 		DirectionalLight m_directionalLight;
 
