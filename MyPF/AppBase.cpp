@@ -331,11 +331,37 @@ namespace My
 			return false;
 		}
 
+		const Vector3 cameraForward = m_camera.GetForward();
+
+		if (distanceSquared < 0.00001f)
+		{
+			return false;
+		}
+
+		toSwitch.Normalize();
+
+		const float facingDot = toSwitch.Dot(cameraForward);
+
+		if (facingDot < m_interactionFacingThreshold)
+		{
+			return false;
+		}
+
 		return true;
 	}
 
+	void AppBase::ActivatePower()
+	{
+		if (m_isPowerOn)
+		{
+			return;
+		}
+
+		m_isPowerOn = true;
+	}
+
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 4.0f }, m_mouseSensitivity{ 0.1f }, m_interactionRange{ 2.0f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }, m_powerSwitchObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 4.0f }, m_mouseSensitivity{ 0.1f }, m_interactionRange{ 2.0f }, m_interactionFacingThreshold{ 0.8f }, m_isPowerOn{ false }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }, m_powerSwitchObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -424,6 +450,15 @@ namespace My
 		cameraPos += moveDirection * m_cameraSpeed * dt;
 
 		m_camera.SetPosition(cameraPos);
+
+		if (m_inputSystem.WasKeyPressed('E'))
+		{
+			if (CanInteractWithPowerSwitch())
+			{
+				ActivatePower();
+			}
+		}
+
 		CenterCursorInSceneView();
 	}
 
@@ -536,6 +571,15 @@ namespace My
 			else
 			{
 				ImGui::Text("Interaction unavailable");
+			}
+
+			if (m_isPowerOn)
+			{
+				ImGui::Text("Power: On");
+			}
+			else
+			{
+				ImGui::Text("Power: Off");
 			}
 
 			// Test

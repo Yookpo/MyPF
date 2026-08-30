@@ -52,6 +52,7 @@ namespace My
 
 		bool InitGreyBoxScene();
 		bool CanInteractWithPowerSwitch() const;
+		void ActivatePower();
 
 	public:
 		HWND  m_mainWindow;
@@ -77,6 +78,8 @@ namespace My
 		float  m_cameraSpeed;
 		float  m_mouseSensitivity;
 		float  m_interactionRange;
+		float  m_interactionFacingThreshold;
+		bool   m_isPowerOn;
 
 		DirectionalLight m_directionalLight;
 
