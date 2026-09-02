@@ -1,6 +1,6 @@
 # MyPF Codex 작업 지침
 
-마지막 갱신: 2026-08-30
+마지막 갱신: 2026-09-03
 
 ## 프로젝트 목표와 현재 위치
 
@@ -21,7 +21,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 최종 결과물은 범용 엔진 자체가 아니라 `DX11 렌더링 기술 + 확장 가능한 구조 + 짧지만 완결된 플레이 경험`을 보여주는 포트폴리오다.
 
-현재 전체 진행률은 약 50%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작은 완료했다. 1m 단위 Greybox 골목과 거리·시선 기반 전원 스위치 상호작용까지 연결했으며, 다수 조명과 고급 렌더링 효과는 남아 있다.
+현재 전체 진행률은 약 60%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작은 완료했다. 1m 단위 Greybox 골목, 컴포지션 기반 PowerSwitch, 스위치 On/Off 시각 변화, 최대 8개의 Point Light 제출과 거리 감쇠, 전원 상태에 따른 순차 점등까지 실행 확인했다. 다음 핵심 작업은 Emissive Material과 네온 간판 표현이다.
 
 ## Codex와 사용자의 역할
 
@@ -113,8 +113,9 @@ AppBase
 │     └─ ModelComponent --비소유--> Model
 ├─ InputSystem
 ├─ Camera / EditorCameraSnapshot
-├─ 전원 스위치 GameObject 비소유 참조
-├─ 전원 상태와 거리·시선 상호작용 설정
+├─ PowerSwitch --비소유--> Scene 소유 GameObject / Material
+├─ PointLightSequence --비소유--> Scene
+├─ Scene 소유 PointLight[]
 └─ DirectionalLight
 
 AppBase --FrameRenderData--> Renderer::BeginFrame
@@ -130,13 +131,14 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 3. GameTimer를 Tick하고 ImGui 프레임을 시작한다.
 4. Editor/Play UI를 만들고 Scene View 크기로 Camera Aspect와 Renderer Viewport를 갱신한다.
 5. Play이면 ESC, WASD와 MouseDelta로 Camera를 갱신한다.
-6. E 단발 입력이 들어오면 전원 스위치의 거리와 시선 조건을 검사하고 전원을 활성화한다.
-7. 커서를 Scene View 중앙으로 되돌린다.
-8. AppBase가 Camera와 DirectionalLight로 FrameRenderData를 만든다.
-9. Renderer::BeginFrame이 Camera/Light Constant Buffer를 갱신한다.
-10. AppBase가 Scene을 순회해 ModelPart 또는 MeshComponent를 RenderItem으로 변환한다.
-11. Renderer가 Object/Material Buffer, Mesh와 Texture를 바인딩해 DrawIndexed한다.
-12. ImGui DrawData를 렌더링하고 Present한다.
+6. E 단발 입력이 들어오면 PowerSwitch가 거리·시선을 검사하고 전원 상태와 스위치 색을 반전한다.
+7. PointLightSequence가 새 목표를 받고, 매 프레임 누적 시간에 따라 Scene의 Point Light를 하나씩 켜거나 끈다.
+8. 커서를 Scene View 중앙으로 되돌린다.
+9. AppBase가 Camera, DirectionalLight와 Scene의 Point Light 목록으로 FrameRenderData를 만든다.
+10. Renderer::BeginFrame이 CPU 조명을 GPU 상수 데이터로 변환해 Camera/Light Constant Buffer를 갱신한다.
+11. AppBase가 Scene을 순회해 ModelPart 또는 MeshComponent를 RenderItem으로 변환한다.
+12. Renderer가 Object/Material Buffer, Mesh와 Texture를 바인딩해 DrawIndexed한다.
+13. ImGui DrawData를 렌더링하고 Present한다.
 
 ## 현재 완료된 주요 기능
 
@@ -166,7 +168,15 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - 끝 벽의 전원 스위치 GameObject와 독립 Material
 - 상호작용 거리 2m와 시선 내적 임계값 0.8 판정
 - `WasKeyPressed('E')`로 단발 상호작용 입력 처리
-- 전원 상태 `Off → On`의 단방향 활성화와 ImGui 상태 검증
+- PowerSwitch가 Scene 소유 GameObject를 비소유 참조하는 컴포지션 구조
+- 전원 상태 On/Off 토글과 스위치 Material의 빨강/초록 시각 변화
+- Scene이 Position, Range, Color, Intensity, Enabled 상태를 가진 Point Light 목록 소유
+- FrameRenderData의 고정 배열과 개수로 최대 8개 Point Light 제출
+- CPU bool을 GPU `uint32_t`로 변환하고 C++/HLSL 상수 버퍼 레이아웃 정렬
+- `Lighting.hlsli`의 거리 감쇠와 Pixel Shader의 다중 Point Light 누적
+- 서로 다른 색상의 Point Light 4개가 골목을 비추는 실행 결과 확인
+- PointLightSequence가 1.4초 간격으로 생성 순서대로 켜고 역순으로 끄는 연출
+- 점등 중 E키 재입력 시 현재 개수에서 목표 방향을 바꾸는 동작 확인
 
 ## 현재 알려진 문제와 보류 항목
 
@@ -174,15 +184,17 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - AppBase에 Cube/Triangle 과거 테스트 코드가 주석 블록으로 남아 있다.
 - 카메라 충돌과 플레이어 높이/월드 단위 정책이 없다.
 - ImGui Transform 위치 `-1~1`, Scale `0.1~2` 범위는 골목 배치에 부족하다.
-- AppBase가 초기화, Greybox 생성, UI, Play 입력, 전원 상호작용과 RenderItem 조립을 모두 담당해 책임이 커졌다.
-- 전원 스위치의 GameObject 참조, 상태, 거리/시선 설정과 동작을 AppBase 밖의 작은 `PowerSwitch` 책임으로 추출할 필요가 있다.
+- AppBase가 시스템 초기화, Greybox 생성, UI, Play 입력, RenderItem 조립과 기능 객체 조율을 함께 담당해 여전히 크다. 실제 변경 압력이 생기는 책임부터 단계적으로 분리한다.
+- PointLightSequence는 자신만 조명 활성 상태를 변경한다는 전제를 사용하므로 다른 코드가 `SetAllPointLightsEnabled`를 호출하면 내부 개수와 실제 상태가 어긋날 수 있다.
+- Point Light 점등 순서는 별도 연출 목록이 아니라 Scene 생성 순서에 의존한다.
+- 시퀀스는 한 프레임에 한 단계만 처리하므로 큰 프레임 지연 후 남은 시간을 즉시 따라잡지는 않는다.
 - Renderer Material 경로는 유효한 Albedo Texture를 전제로 하며 기본 Material/Texture 정책이 없다.
 - GeometryGenerator의 평행 배열은 데이터 불일치 위험이 있다.
 - Vertex Color는 최종 Pixel Color에 사용되지 않는다.
 - GraphicsResourceManager는 append-only이며 개별 삭제, 슬롯 재사용과 generation이 없다.
 - AssetManager key/path 정규화가 없다.
 - ModelLoader는 aiNode Transform/Instance를 반영하지 않는다.
-- Material은 BaseColor/Diffuse만 지원하며 Normal, Metallic/Roughness와 Emissive가 없다.
+- Material은 BaseColor/Diffuse만 지원하며 Emissive, Normal, Metallic/Roughness가 없다.
 - Texture sRGB/Gamma, MipMap과 UV Tiling 정책이 없다.
 - Pixel Shader 마지막 saturate는 HDR/Bloom 전에 HDR 경로로 옮겨야 한다.
 - ImGui 부분 초기화 실패와 Shutdown 상태 추적은 아직 없다.
@@ -193,34 +205,31 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 
 ## 바로 다음 우선 작업
 
-다음 기능 책임은 `PowerSwitch 책임을 AppBase에서 분리`하는 것이다.
+다음 기능 책임은 `Emissive Material과 네온 표면 표현`이다.
 
 목적:
 
-- 실제 기능 구현으로 드러난 전원 스위치 상태와 동작을 하나의 OOP 책임으로 캡슐화한다.
-- AppBase는 Input, Camera와 기능 객체를 조율하고, 전원 스위치 자체의 규칙은 알지 않도록 줄인다.
-- 상속용으로 설계되지 않은 현재 GameObject를 억지로 파생하지 않고 컴포지션으로 확장한다.
+- Point Light가 주변을 비추는 것과 별개로 네온 간판 표면 자체가 빛나는 색을 표현한다.
+- Material의 발광 색과 밝기를 분리해 전원 상태와 연출에서 재사용한다.
+- 이후 HDR Scene Target과 Bloom이 추출할 수 있는 밝은 발광 값을 준비한다.
 
 진행 방향:
 
-1. 작은 `PowerSwitch` 타입의 책임과 공개 인터페이스를 먼저 정의한다.
-2. Scene이 소유한 GameObject를 비소유로 연결한다.
-3. `m_isPowerOn`, 상호작용 거리와 시선 임계값을 PowerSwitch로 이동한다.
-4. 거리·시선 판정과 단방향 활성화를 PowerSwitch로 이동한다.
-5. AppBase에는 E 단발 입력, Camera 데이터 전달과 활성화 요청만 남긴다.
-6. PowerSwitch는 AppBase, InputSystem, Renderer, ImGui와 Scene을 모른다.
-7. 현재 ImGui Interaction/Power 표시와 실행 결과가 유지되는지 확인한다.
-
-PowerSwitch 분리 후에는 전원 상태에 따른 스위치 Material 변화, Point Light와 Emissive 네온으로 진행한다.
+1. Material에 Emissive Color와 Emissive Intensity를 추가하고 기본값을 발광 없음으로 둔다.
+2. MaterialConstantData의 C++/HLSL 레이아웃을 16바이트 경계에 맞춰 확장한다.
+3. Renderer가 Material의 Emissive 값을 GPU 상수 버퍼로 전달한다.
+4. Pixel Shader가 조명 결과에 Emissive를 더한다.
+5. 테스트 네온 오브젝트를 배치해 조명이 없어도 표면이 밝게 보이는지 확인한다.
+6. 전원 상태 및 PointLightSequence와 Emissive 점등을 연결할 책임 경계를 결정한다.
 
 ## 이후 주요 로드맵
 
 1. ✅ 골목 Greybox와 월드 스케일 확정
-2. 🟡 최소 상호작용 기반과 PowerSwitch 책임 분리
-3. 전원 상태에 따른 스위치 시각 피드백
-4. 다수 Point Light와 Renderer 제출
-5. Emissive Material과 네온 간판
-6. 전원 장치 상태와 순차 점등
+2. ✅ 최소 상호작용 기반과 PowerSwitch 책임 분리
+3. ✅ 전원 상태에 따른 스위치 시각 피드백
+4. ✅ 다수 Point Light와 Renderer 제출
+5. 🟡 Emissive Material과 네온 간판
+6. 🟡 전원 장치 상태와 Point Light 순차 점등 완료, Emissive 연동 남음
 7. 실제 골목 에셋 배치와 Scene 편집 보강
 8. Shadow Mapping
 9. Normal/Roughness Material과 젖은 바닥 반사
@@ -249,7 +258,7 @@ PowerSwitch 분리 후에는 전원 상태에 따른 스위치 Material 변화, 
 - C++20, HLSL Shader Model 5.0 런타임 컴파일
 - 실행 작업 디렉터리: `MyPF/`
 - Assimp는 데스크톱과 노트북의 사용자 vcpkg 환경에 각각 설치돼 있다.
-- 현재 문서 기준 HEAD: `fefdb2f` — `E키를 누르면 스위치 On Text로 확인`
+- 현재 문서 기준 HEAD: `ca6d15c` — `순차점등시퀀스 적용 완료`
 - 작업 트리의 `MyPF/imgui.ini` 변경은 런타임 UI 배치이므로 기능 commit에서 제외한다.
 
 ## 변경 안전성
