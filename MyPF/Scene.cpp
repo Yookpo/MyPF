@@ -15,4 +15,13 @@ namespace My
 
 		return m_pointLights.back();
 	}
+
+	void Scene::SetAllPointLightsEnabled(bool isEnabled)
+	{
+		for (auto& pointLight : m_pointLights)
+		{
+			pointLight.isEnabled = isEnabled;
+		}
+	}
+
 } // namespace My

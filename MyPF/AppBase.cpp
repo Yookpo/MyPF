@@ -256,12 +256,33 @@ namespace My
 		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 
 		// Create Point Light
-		PointLight& pointLight = m_scene.CreatePointLight();
-		pointLight.position = Vector3{ 0.0f, 2.5f, 10.0f };
-		pointLight.range = 6.0f;
-		pointLight.color = Vector3{ 0.55f, 0.10f, 1.0f };
-		pointLight.intensity = 2.0f;
-		pointLight.isEnabled = true;
+		PointLight& pointLight1 = m_scene.CreatePointLight();
+		pointLight1.position = Vector3{ 0.0f, 2.5f, 10.0f };
+		pointLight1.range = 6.0f;
+		pointLight1.color = Vector3{ 0.55f, 0.10f, 1.0f };
+		pointLight1.intensity = 2.0f;
+		pointLight1.isEnabled = false;
+
+		PointLight& pointLight2 = m_scene.CreatePointLight();
+		pointLight2.position = Vector3{ -1.2f, 2.3f, 5.0f };
+		pointLight2.range = 4.5f;
+		pointLight2.color = Vector3{ 0.05f, 0.8f, 1.0f };
+		pointLight2.intensity = 2.0f;
+		pointLight2.isEnabled = false;
+
+		PointLight& pointLight3 = m_scene.CreatePointLight();
+		pointLight3.position = Vector3{ 1.2f, 2.3f, 15.0f };
+		pointLight3.range = 4.5f;
+		pointLight3.color = Vector3{ 1.0f, 0.05f, 0.55f };
+		pointLight3.intensity = 2.0f;
+		pointLight3.isEnabled = false;
+
+		PointLight& pointLight4 = m_scene.CreatePointLight();
+		pointLight4.position = Vector3{ 0.0f, 5.0f, 18.0f };
+		pointLight4.range = 7.5f;
+		pointLight4.color = Vector3{ 0.37f, 0.86f, 1.00f };
+		pointLight4.intensity = 5.0f;
+		pointLight4.isEnabled = false;
 
 		// Create floor
 		GameObject* floor = &m_scene.CreateGameObject("floor");
@@ -416,7 +437,10 @@ namespace My
 		{
 			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
 			{
-				m_powerSwitch.Activate();
+				if (m_powerSwitch.Toggle())
+				{
+					m_scene.SetAllPointLightsEnabled(m_powerSwitch.IsPowerOn());
+				}
 			}
 		}
 

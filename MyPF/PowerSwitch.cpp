@@ -19,15 +19,17 @@ namespace My
 		return m_isPowerOn;
 	}
 
-	void PowerSwitch::Activate()
+	bool PowerSwitch::Toggle()
 	{
-		if (!m_gameObject || m_isPowerOn)
+		if (!m_gameObject)
 		{
-			return;
+			return false;
 		}
 
-		m_isPowerOn = true;
+		m_isPowerOn = !m_isPowerOn;
 		ApplyVisualState();
+
+		return true;
 	}
 
 	bool PowerSwitch::CanInteract(const Vector3& viewerPosition, const Vector3& viewerForward) const

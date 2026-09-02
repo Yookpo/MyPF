@@ -13,7 +13,7 @@ namespace My
 
 		void Initialize(GameObject& gameObject);
 		bool IsPowerOn() const;
-		void Activate();
+		bool Toggle();
 		bool CanInteract(const Vector3& position, const Vector3& forward) const;
 
 	private:

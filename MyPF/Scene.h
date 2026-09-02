@@ -13,12 +13,13 @@ namespace My
 		GameObject&										CreateGameObject(const std::string& name);
 		const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const { return m_gameObjects; }
 
-		PointLight&										CreatePointLight();
+		PointLight&					   CreatePointLight();
 		const std::vector<PointLight>& GetPointLights() const { return m_pointLights; }
+		void						   SetAllPointLightsEnabled(bool isEnabled);
 
 	private:
 		std::vector<std::unique_ptr<GameObject>> m_gameObjects;
-		std::vector<PointLight> m_pointLights;
+		std::vector<PointLight>					 m_pointLights;
 	};
 
 } // namespace My
