@@ -1,5 +1,4 @@
 #include "Lighting.hlsli"
-
 Texture2D albedoTexture : register(t0);
 SamplerState linearSampler : register(s0);
 
@@ -38,20 +37,24 @@ struct PS_INPUT
 };
 
 
-
 float4 main(PS_INPUT input) : SV_TARGET
 {
     float3 normal = normalize(input.normal);
-    float diffuse = saturate(dot(-direction, normal));
+    float diffuse = saturate(dot(-direction, normal)); // directional Light¿« diffuseColor
     
     float3 albedo = albedoTexture.Sample(linearSampler, input.uv).rgb;
     float3 surfaceColor = albedo * baseColor;
     
     float3 ambientColor = surfaceColor * ambientStrength;
-    
     float3 diffuseColor = surfaceColor * color * intensity * diffuse;
     
-    float3 finalColor = ambientColor + diffuseColor;
+    float3 pointLightColor = float3(0, 0, 0);
+    for (uint i = 0; i < pointLightCount; i++)
+    {
+        pointLightColor += ComputePointLight(pointLights[i], input.posWorld, normal, surfaceColor);
+    }
+    
+    float3 finalColor = ambientColor + diffuseColor + pointLightColor;
     
     return float4(saturate(finalColor), 1.0f);
 }
