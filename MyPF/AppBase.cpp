@@ -303,7 +303,6 @@ namespace My
 		}
 
 		powerSwitchMat->SetAlbedoTexture(greyBoxTex);
-		powerSwitchMat->SetBaseColor(Vector3(0.35f, 0.05f, 0.05f));
 
 		powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
 		powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
