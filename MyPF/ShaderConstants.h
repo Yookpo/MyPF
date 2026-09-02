@@ -1,5 +1,7 @@
 ﻿#pragma once
 #include <directxtk/SimpleMath.h>
+#include <cstdint>
+#include "PointLight.h"
 
 namespace My
 {
@@ -18,12 +20,27 @@ namespace My
 		Matrix projection;
 	};
 
+	struct PointLightConstantData
+	{
+		Vector3		  position;	 // 12
+		float		  range;	 // 4
+		Vector3		  color;	 // 12
+		float		  intensity; // 4
+		std::uint32_t isEnabled; // 4
+		Vector3		  pad;		 // 12
+	};
+
 	struct LightConstantData
 	{
+		// Directional Light 데이터
 		Vector3 direction;		 // 12
 		float	intensity;		 // 4
 		Vector3 color;			 // 12
 		float	ambientStrength; // 4
+		// Point Light
+		std::uint32_t		   pointLightCount; // 4
+		Vector3				   pad;				// 12
+		PointLightConstantData pointLights[MaxPointLightCount];
 	};
 
 	struct MaterialConstantData

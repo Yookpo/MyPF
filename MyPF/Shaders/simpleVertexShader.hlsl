@@ -21,6 +21,7 @@ struct VS_INPUT
 struct PS_INPUT
 {
     float4 pos : SV_POSITION;
+    float3 posWorld : TEXCOORD1; // 조명 계산용
     float3 color : COLOR0;
     float3 normal : NORMAL0;
     float2 uv : TEXCOORD0;
@@ -33,6 +34,9 @@ PS_INPUT main(VS_INPUT input)
     
     float4 pos = float4(input.pos, 1.0f);
     pos = mul(pos, model);
+    
+    output.posWorld = pos.xyz; // 월드 위치 따로 저장
+    
     pos = mul(pos, view);
     pos = mul(pos, projection);
     

@@ -119,7 +119,7 @@ namespace My
 #endif
 
 		HRESULT hr = D3DCompileFromFile(
-			fileName.c_str(), 0, 0, "main", "vs_5_0", compileFlags, 0, &shaderBlob, &errorBlob);
+			fileName.c_str(), 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", compileFlags, 0, &shaderBlob, &errorBlob);
 
 		CheckResult(hr, errorBlob.Get());
 
@@ -155,7 +155,7 @@ namespace My
 		compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 		HRESULT hr = D3DCompileFromFile(
-			fileName.c_str(), 0, 0, "main", "ps_5_0", compileFlags, 0, &shaderBlob, &errorBlob);
+			fileName.c_str(), 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", compileFlags, 0, &shaderBlob, &errorBlob);
 
 		CheckResult(hr, errorBlob.Get());
 

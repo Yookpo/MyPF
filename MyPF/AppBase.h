@@ -5,6 +5,7 @@
 #include "Scene.h"
 #include "Camera.h"
 #include "DirectionalLight.h"
+#include "PointLight.h"
 #include "GraphicsDevice.h"
 #include "GraphicsResourceManager.h"
 #include "AssetManager.h"

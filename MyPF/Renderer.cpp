@@ -48,6 +48,7 @@ namespace My
 		m_lightConstantData.color = Vector3(0.0f);
 		m_lightConstantData.intensity = 1.0f;
 		m_lightConstantData.ambientStrength = 0.4f;
+
 		m_lightBufferHandle = m_resourceManager->CreateConstantBuffer(m_lightConstantData);
 
 		if (!m_lightBufferHandle.IsValid())
@@ -150,12 +151,26 @@ namespace My
 			return false;
 		}
 
-		// 조명
+		// 조명 처리
+		// Directional Light
 		m_lightConstantData.direction = frameRenderData.directionalLight.direction;
 		m_lightConstantData.direction.Normalize();
 		m_lightConstantData.color = frameRenderData.directionalLight.color;
 		m_lightConstantData.intensity = frameRenderData.directionalLight.intensity;
 		m_lightConstantData.ambientStrength = frameRenderData.directionalLight.ambientStrength;
+		// Point Light
+		m_lightConstantData.pointLightCount = static_cast<std::uint32_t>(frameRenderData.pointLightCount);
+		for (std::size_t i = 0; i < frameRenderData.pointLightCount; i++)
+		{
+			const auto&				sourceLight = frameRenderData.pointLights[i];
+			PointLightConstantData& destinationLight = m_lightConstantData.pointLights[i];
+
+			destinationLight.position = sourceLight.position;
+			destinationLight.range = sourceLight.range;
+			destinationLight.color = sourceLight.color;
+			destinationLight.intensity = sourceLight.intensity;
+			destinationLight.isEnabled = sourceLight.isEnabled ? 1u : 0u;
+		}
 
 		if (!m_resourceManager->UpdateBuffer(m_lightBufferHandle, m_lightConstantData))
 		{

@@ -45,7 +45,7 @@ namespace My
 
 		// constantData
 		CameraConstantData	 m_cameraConstantData;
-		LightConstantData	 m_lightConstantData;
+		LightConstantData	 m_lightConstantData{};
 		ObjectConstantData	 m_objectConstantData;
 		MaterialConstantData m_materialConstantData;
 

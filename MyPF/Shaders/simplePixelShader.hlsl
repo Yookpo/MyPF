@@ -1,3 +1,5 @@
+#include "Lighting.hlsli"
+
 Texture2D albedoTexture : register(t0);
 SamplerState linearSampler : register(s0);
 
@@ -7,6 +9,9 @@ cbuffer LightConstantData : register(b0)
     float intensity;
     float3 color;
     float ambientStrength;
+    uint pointLightCount;
+    float3 pad;
+    PointLight pointLights[NUM_POINT_LIGHTS];
 }
 
 cbuffer MaterialConstantData : register(b1)
@@ -25,11 +30,13 @@ struct VS_INPUT
 
 struct PS_INPUT
 {
-    float4 position : SV_POSITION;
+    float4 pos : SV_POSITION;
+    float3 posWorld : TEXCOORD1; // 조명 계산용
     float3 color : COLOR0;
     float3 normal : NORMAL0;
     float2 uv : TEXCOORD0;
 };
+
 
 
 float4 main(PS_INPUT input) : SV_TARGET

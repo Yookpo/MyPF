@@ -8,4 +8,11 @@ namespace My
 
 		return *m_gameObjects.back();
 	}
+
+	PointLight& Scene::CreatePointLight()
+	{
+		m_pointLights.emplace_back();
+
+		return m_pointLights.back();
+	}
 } // namespace My

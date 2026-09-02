@@ -115,7 +115,7 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="PowerSwitch.cpp">
-      <Filter>소스 파일</Filter>
+      <Filter>Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -227,8 +227,11 @@
     <ClInclude Include="InputSystem.h">
       <Filter>Core</Filter>
     </ClInclude>
+    <ClInclude Include="PointLight.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
     <ClInclude Include="PowerSwitch.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -242,6 +245,9 @@
   <ItemGroup>
     <None Include="ImGui\imgui.ini">
       <Filter>ImGui</Filter>
+    </None>
+    <None Include="Shaders\Lighting.hlsli">
+      <Filter>Shaders</Filter>
     </None>
   </ItemGroup>
 </Project>

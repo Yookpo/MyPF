@@ -1,4 +1,5 @@
-﻿#include "AppBase.h"
+﻿#include <algorithm>
+#include "AppBase.h"
 #include "GeometryGenerator.h"
 #include "RenderItem.h"
 #include "FrameRenderData.h"
@@ -254,6 +255,14 @@ namespace My
 		greyBoxMat->SetAlbedoTexture(greyBoxTex);
 		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 
+		// Create Point Light
+		PointLight& pointLight = m_scene.CreatePointLight();
+		pointLight.position = Vector3{ 0.0f, 2.5f, 10.0f };
+		pointLight.range = 6.0f;
+		pointLight.color = Vector3{ 0.55f, 0.10f, 1.0f };
+		pointLight.intensity = 2.0f;
+		pointLight.isEnabled = true;
+
 		// Create floor
 		GameObject* floor = &m_scene.CreateGameObject("floor");
 
@@ -416,11 +425,19 @@ namespace My
 
 	void AppBase::Render()
 	{
-		FrameRenderData frameRenderData;
+		FrameRenderData frameRenderData{};
 
 		frameRenderData.view = m_camera.GetViewMatrix();
 		frameRenderData.projection = m_camera.GetProjectionMatrix();
 		frameRenderData.directionalLight = m_directionalLight;
+
+		const std::vector<PointLight>& scenePointLights = m_scene.GetPointLights();
+		frameRenderData.pointLightCount = (MaxPointLightCount < scenePointLights.size()) ? MaxPointLightCount : scenePointLights.size();
+
+		for (std::size_t i = 0; i < frameRenderData.pointLightCount; i++)
+		{
+			frameRenderData.pointLights[i] = scenePointLights[i];
+		}
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{
