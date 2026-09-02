@@ -114,6 +114,9 @@
     <ClCompile Include="InputSystem.cpp">
       <Filter>Core</Filter>
     </ClCompile>
+    <ClCompile Include="PowerSwitch.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -223,6 +226,9 @@
     </ClInclude>
     <ClInclude Include="InputSystem.h">
       <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="PowerSwitch.h">
+      <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

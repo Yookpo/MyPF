@@ -290,9 +290,9 @@ namespace My
 		m_camera.SetPosition(Vector3(0.0f, 1.6f, 0.0f));
 
 		// Create Power Switch
-		m_powerSwitchObject = &m_scene.CreateGameObject("powerSwitch");
-		m_powerSwitchObject->GetTransform().SetPosition(Vector3(0.0f, 1.2f, 19.95f));
-		m_powerSwitchObject->GetTransform().SetScale(Vector3(0.4f, 0.6f, 0.1f));
+		auto powerSwitchObject = &m_scene.CreateGameObject("powerSwitch");
+		powerSwitchObject->GetTransform().SetPosition(Vector3(0.0f, 1.2f, 19.95f));
+		powerSwitchObject->GetTransform().SetScale(Vector3(0.4f, 0.6f, 0.1f));
 
 		// Switch Mat
 		auto powerSwitchMat = m_assetManager.CreateMaterial("powerSwitchMat");
@@ -305,63 +305,16 @@ namespace My
 		powerSwitchMat->SetAlbedoTexture(greyBoxTex);
 		powerSwitchMat->SetBaseColor(Vector3(0.35f, 0.05f, 0.05f));
 
-		m_powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
-		m_powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
+		powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
+		powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
+
+		m_powerSwitch.Initialize(*powerSwitchObject);
 
 		return true;
-	}
-
-	bool AppBase::CanInteractWithPowerSwitch() const
-	{
-		if (!m_powerSwitchObject)
-		{
-			return false;
-		}
-
-		const Vector3 cameraPosition = m_camera.GetPosition();
-		const Vector3 switchPosition = m_powerSwitchObject->GetTransform().GetPosition();
-
-		Vector3 toSwitch = switchPosition - cameraPosition;
-
-		const float distanceSquared = toSwitch.LengthSquared();
-		const float interactionRangeSquared = m_interactionRange * m_interactionRange;
-
-		if (distanceSquared > interactionRangeSquared)
-		{
-			return false;
-		}
-
-		const Vector3 cameraForward = m_camera.GetForward();
-
-		if (distanceSquared < 0.00001f)
-		{
-			return false;
-		}
-
-		toSwitch.Normalize();
-
-		const float facingDot = toSwitch.Dot(cameraForward);
-
-		if (facingDot < m_interactionFacingThreshold)
-		{
-			return false;
-		}
-
-		return true;
-	}
-
-	void AppBase::ActivatePower()
-	{
-		if (m_isPowerOn)
-		{
-			return;
-		}
-
-		m_isPowerOn = true;
 	}
 
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 4.0f }, m_mouseSensitivity{ 0.1f }, m_interactionRange{ 2.0f }, m_interactionFacingThreshold{ 0.8f }, m_isPowerOn{ false }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }, m_powerSwitchObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 4.0f }, m_mouseSensitivity{ 0.1f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -453,9 +406,9 @@ namespace My
 
 		if (m_inputSystem.WasKeyPressed('E'))
 		{
-			if (CanInteractWithPowerSwitch())
+			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
 			{
-				ActivatePower();
+				m_powerSwitch.Activate();
 			}
 		}
 
@@ -564,7 +517,7 @@ namespace My
 				ExitPlayMode();
 			}
 
-			if (CanInteractWithPowerSwitch())
+			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
 			{
 				ImGui::Text("Interaction available");
 			}
@@ -573,7 +526,7 @@ namespace My
 				ImGui::Text("Interaction unavailable");
 			}
 
-			if (m_isPowerOn)
+			if (m_powerSwitch.IsPowerOn())
 			{
 				ImGui::Text("Power: On");
 			}

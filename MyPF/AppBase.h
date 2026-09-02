@@ -8,6 +8,7 @@
 #include "GraphicsDevice.h"
 #include "GraphicsResourceManager.h"
 #include "AssetManager.h"
+#include "PowerSwitch.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -51,8 +52,6 @@ namespace My
 		void  CenterCursorInSceneView();
 
 		bool InitGreyBoxScene();
-		bool CanInteractWithPowerSwitch() const;
-		void ActivatePower();
 
 	public:
 		HWND  m_mainWindow;
@@ -71,15 +70,12 @@ namespace My
 
 		Scene		m_scene;
 		GameObject* m_selectedObject;
-		GameObject* m_powerSwitchObject;
+		PowerSwitch m_powerSwitch;
 
 		Camera m_camera;
 		Camera m_editorCameraSnapshot;
 		float  m_cameraSpeed;
 		float  m_mouseSensitivity;
-		float  m_interactionRange;
-		float  m_interactionFacingThreshold;
-		bool   m_isPowerOn;
 
 		DirectionalLight m_directionalLight;
 
