@@ -104,6 +104,8 @@ namespace My
 			return false;
 		}
 
+		m_pointLightSequence.Initialize(m_scene);
+
 		return true;
 	}
 
@@ -433,18 +435,22 @@ namespace My
 
 		m_camera.SetPosition(cameraPos);
 
+		// E키를 눌러 조명을 키거나 끈다
 		if (m_inputSystem.WasKeyPressed('E'))
 		{
 			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
 			{
 				if (m_powerSwitch.Toggle())
 				{
-					m_scene.SetAllPointLightsEnabled(m_powerSwitch.IsPowerOn());
+					// 시퀀스 목표 설정
+					m_pointLightSequence.Start(m_powerSwitch.IsPowerOn());
 				}
 			}
 		}
 
 		CenterCursorInSceneView();
+
+		m_pointLightSequence.Update(dt);
 	}
 
 	void AppBase::Render()

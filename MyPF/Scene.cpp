@@ -16,6 +16,18 @@ namespace My
 		return m_pointLights.back();
 	}
 
+	bool Scene::SetPointLightEnabled(std::size_t index, bool isEnabled)
+	{
+		if (index >= m_pointLights.size())
+		{
+			return false;
+		}
+
+		m_pointLights[index].isEnabled = isEnabled;
+
+		return true;
+	}
+
 	void Scene::SetAllPointLightsEnabled(bool isEnabled)
 	{
 		for (auto& pointLight : m_pointLights)

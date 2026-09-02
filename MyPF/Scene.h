@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <cstddef>
 #include "GameObject.h"
 #include "PointLight.h"
 
@@ -15,7 +16,9 @@ namespace My
 
 		PointLight&					   CreatePointLight();
 		const std::vector<PointLight>& GetPointLights() const { return m_pointLights; }
+		bool						   SetPointLightEnabled(std::size_t index, bool isEnabled);
 		void						   SetAllPointLightsEnabled(bool isEnabled);
+		std::size_t					   GetPointLightCount() const { return m_pointLights.size(); }
 
 	private:
 		std::vector<std::unique_ptr<GameObject>> m_gameObjects;

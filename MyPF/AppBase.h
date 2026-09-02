@@ -10,6 +10,7 @@
 #include "GraphicsResourceManager.h"
 #include "AssetManager.h"
 #include "PowerSwitch.h"
+#include "PointLightSequence.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -69,9 +70,10 @@ namespace My
 		GameTimer				m_gameTimer;
 		InputSystem				m_inputSystem;
 
-		Scene		m_scene;
-		GameObject* m_selectedObject;
-		PowerSwitch m_powerSwitch;
+		Scene			   m_scene;
+		GameObject*		   m_selectedObject;
+		PowerSwitch		   m_powerSwitch;
+		PointLightSequence m_pointLightSequence;
 
 		Camera m_camera;
 		Camera m_editorCameraSnapshot;

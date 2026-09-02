@@ -117,6 +117,9 @@
     <ClCompile Include="PowerSwitch.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
+    <ClCompile Include="PointLightSequence.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -231,6 +234,9 @@
       <Filter>Scene</Filter>
     </ClInclude>
     <ClInclude Include="PowerSwitch.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="PointLightSequence.h">
       <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>
