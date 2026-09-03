@@ -98,13 +98,13 @@ namespace My
 			return false;
 		}
 
+		m_pointLightSequence.Initialize(m_scene);
+
 		// Init GeryBox Scene
 		if (!InitGreyBoxScene())
 		{
 			return false;
 		}
-
-		m_pointLightSequence.Initialize(m_scene);
 
 		return true;
 	}
@@ -257,6 +257,18 @@ namespace My
 		greyBoxMat->SetAlbedoTexture(greyBoxTex);
 		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 
+		// Neon test material
+		auto neonMat = m_assetManager.CreateMaterial("neonMat");
+
+		if (!neonMat)
+		{
+			return false;
+		}
+
+		neonMat->SetAlbedoTexture(greyBoxTex);
+		neonMat->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
+		neonMat->SetEmissiveColor(Vector3(1.0f, 0.05f, 0.65f));
+
 		// Create Point Light
 		PointLight& pointLight1 = m_scene.CreatePointLight();
 		pointLight1.position = Vector3{ 0.0f, 2.5f, 10.0f };
@@ -265,12 +277,18 @@ namespace My
 		pointLight1.intensity = 2.0f;
 		pointLight1.isEnabled = false;
 
+		std::size_t pointLightEntryIndex = m_scene.GetPointLightCount();
 		PointLight& pointLight2 = m_scene.CreatePointLight();
 		pointLight2.position = Vector3{ -1.2f, 2.3f, 5.0f };
 		pointLight2.range = 4.5f;
 		pointLight2.color = Vector3{ 0.05f, 0.8f, 1.0f };
 		pointLight2.intensity = 2.0f;
 		pointLight2.isEnabled = false;
+
+		if (!m_pointLightSequence.AddSequenceEntry(pointLightEntryIndex, neonMat, 3.0f))
+		{
+			return false;
+		}
 
 		PointLight& pointLight3 = m_scene.CreatePointLight();
 		pointLight3.position = Vector3{ 1.2f, 2.3f, 15.0f };
@@ -340,6 +358,13 @@ namespace My
 		powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
 
 		m_powerSwitch.Initialize(*powerSwitchObject);
+
+		// Neon Test Object
+		auto neonTestObject = &m_scene.CreateGameObject("neonTestObject");
+		neonTestObject->GetTransform().SetPosition(Vector3(-1.95f, 2.4f, 6.0f));
+		neonTestObject->GetTransform().SetScale(Vector3(0.1f, 0.6f, 2.0f));
+		neonTestObject->GetMeshComponent().SetMesh(greyBoxMesh);
+		neonTestObject->GetMeshComponent().SetMaterial(neonMat);
 
 		return true;
 	}

@@ -45,7 +45,9 @@ namespace My
 
 	struct MaterialConstantData
 	{
-		Vector3 baseColor; // 12
-		float	pad;	   // 4
+		Vector3 baseColor;		   // 12
+		float	pad;			   // 4
+		Vector3 emissiveColor;	   // 12
+		float	emissiveIntensity; // 4
 	};
 } // namespace My

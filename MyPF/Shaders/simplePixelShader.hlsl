@@ -17,6 +17,8 @@ cbuffer MaterialConstantData : register(b1)
 {
     float3 baseColor;
     float pad2;
+    float3 emissiveColor;
+    float emissiveIntensity;
 }
 
 struct VS_INPUT
@@ -47,6 +49,7 @@ float4 main(PS_INPUT input) : SV_TARGET
     
     float3 ambientColor = surfaceColor * ambientStrength;
     float3 diffuseColor = surfaceColor * color * intensity * diffuse;
+    float3 emissive = emissiveColor * emissiveIntensity;
     
     float3 pointLightColor = float3(0, 0, 0);
     for (uint i = 0; i < pointLightCount; i++)
@@ -54,7 +57,7 @@ float4 main(PS_INPUT input) : SV_TARGET
         pointLightColor += ComputePointLight(pointLights[i], input.posWorld, normal, surfaceColor);
     }
     
-    float3 finalColor = ambientColor + diffuseColor + pointLightColor;
+    float3 finalColor = ambientColor + diffuseColor + pointLightColor + emissive;
     
     return float4(saturate(finalColor), 1.0f);
 }

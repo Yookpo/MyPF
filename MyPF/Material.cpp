@@ -13,4 +13,14 @@ namespace My
 		m_baseColor = newColor;
 	}
 
+	void Material::SetEmissiveColor(const Vector3& newEmissiveColor)
+	{
+		m_emissiveColor = newEmissiveColor;
+	}
+
+	void Material::SetEmissiveIntensity(float newEmissiveIntensity)
+	{
+		m_emissiveIntensity = newEmissiveIntensity;
+	}
+
 } // namespace My

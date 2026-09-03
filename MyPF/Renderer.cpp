@@ -67,6 +67,8 @@ namespace My
 
 		m_materialConstantData.baseColor = Vector3(1.0f);
 		m_materialConstantData.pad = 0.0f;
+		m_materialConstantData.emissiveColor = Vector3(1.0f);
+		m_materialConstantData.emissiveIntensity = 0.0f;
 		m_materialBufferHandle = m_resourceManager->CreateConstantBuffer(m_materialConstantData);
 
 		if (!m_materialBufferHandle.IsValid())
@@ -235,6 +237,8 @@ namespace My
 
 		// 머터리얼 변환
 		m_materialConstantData.baseColor = drawMat.GetBaseColor();
+		m_materialConstantData.emissiveColor = drawMat.GetEmissiveColor();
+		m_materialConstantData.emissiveIntensity = drawMat.GetEmissiveIntensity();
 		if (!m_resourceManager->UpdateBuffer(m_materialBufferHandle, m_materialConstantData))
 		{
 			return false;
