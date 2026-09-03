@@ -258,16 +258,27 @@ namespace My
 		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 
 		// Neon test material
-		auto neonMat = m_assetManager.CreateMaterial("neonMat");
+		auto neonMat1 = m_assetManager.CreateMaterial("neonMat1");
 
-		if (!neonMat)
+		if (!neonMat1)
 		{
 			return false;
 		}
 
-		neonMat->SetAlbedoTexture(greyBoxTex);
-		neonMat->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
-		neonMat->SetEmissiveColor(Vector3(1.0f, 0.05f, 0.65f));
+		neonMat1->SetAlbedoTexture(greyBoxTex);
+		neonMat1->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
+		neonMat1->SetEmissiveColor(Vector3(1.0f, 0.05f, 0.65f));
+
+		auto neonMat2 = m_assetManager.CreateMaterial("neonMat2");
+
+		if (!neonMat2)
+		{
+			return false;
+		}
+
+		neonMat2->SetAlbedoTexture(greyBoxTex);
+		neonMat2->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
+		neonMat2->SetEmissiveColor(Vector3(1.0f, 0.35f, 0.03f));
 
 		// Create Point Light
 		PointLight& pointLight1 = m_scene.CreatePointLight();
@@ -285,17 +296,23 @@ namespace My
 		pointLight2.intensity = 2.0f;
 		pointLight2.isEnabled = false;
 
-		if (!m_pointLightSequence.AddSequenceEntry(pointLightEntryIndex, neonMat, 3.0f))
+		if (!m_pointLightSequence.AddSequenceEntry(pointLightEntryIndex, neonMat1, 3.0f))
 		{
 			return false;
 		}
 
+		pointLightEntryIndex = m_scene.GetPointLightCount();
 		PointLight& pointLight3 = m_scene.CreatePointLight();
 		pointLight3.position = Vector3{ 1.2f, 2.3f, 15.0f };
 		pointLight3.range = 4.5f;
 		pointLight3.color = Vector3{ 1.0f, 0.05f, 0.55f };
 		pointLight3.intensity = 2.0f;
 		pointLight3.isEnabled = false;
+
+		if (!m_pointLightSequence.AddSequenceEntry(pointLightEntryIndex, neonMat2, 8.0f))
+		{
+			return false;
+		}
 
 		PointLight& pointLight4 = m_scene.CreatePointLight();
 		pointLight4.position = Vector3{ 0.0f, 5.0f, 18.0f };
@@ -360,11 +377,17 @@ namespace My
 		m_powerSwitch.Initialize(*powerSwitchObject);
 
 		// Neon Test Object
-		auto neonTestObject = &m_scene.CreateGameObject("neonTestObject");
+		auto neonTestObject = &m_scene.CreateGameObject("neonTestObject1");
 		neonTestObject->GetTransform().SetPosition(Vector3(-1.95f, 2.4f, 6.0f));
 		neonTestObject->GetTransform().SetScale(Vector3(0.1f, 0.6f, 2.0f));
 		neonTestObject->GetMeshComponent().SetMesh(greyBoxMesh);
-		neonTestObject->GetMeshComponent().SetMaterial(neonMat);
+		neonTestObject->GetMeshComponent().SetMaterial(neonMat1);
+
+		auto neonTestObject1 = &m_scene.CreateGameObject("neonTestObject2");
+		neonTestObject1->GetTransform().SetPosition(Vector3(1.95f, 2.4f, 15.0f));
+		neonTestObject1->GetTransform().SetScale(Vector3(0.1f, 0.8f, 1.46f));
+		neonTestObject1->GetMeshComponent().SetMesh(greyBoxMesh);
+		neonTestObject1->GetMeshComponent().SetMaterial(neonMat2);
 
 		return true;
 	}

@@ -21,7 +21,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 최종 결과물은 범용 엔진 자체가 아니라 `DX11 렌더링 기술 + 확장 가능한 구조 + 짧지만 완결된 플레이 경험`을 보여주는 포트폴리오다.
 
-현재 전체 진행률은 약 60%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작은 완료했다. 1m 단위 Greybox 골목, 컴포지션 기반 PowerSwitch, 스위치 On/Off 시각 변화, 최대 8개의 Point Light 제출과 거리 감쇠, 전원 상태에 따른 순차 점등까지 실행 확인했다. 다음 핵심 작업은 Emissive Material과 네온 간판 표현이다.
+현재 전체 진행률은 약 65%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작은 완료했다. 1m 단위 Greybox 골목, 컴포지션 기반 PowerSwitch, 최대 8개의 Point Light 제출과 거리 감쇠를 구현했다. Material Emissive의 CPU→GPU→HLSL 경로와 Point Light·Emissive Material을 `SequenceEntry`로 묶는 순차 점등도 완료했으며, 독립 Material을 사용하는 네온 두 개의 순차 On/Off를 실행 확인했다. 다음 핵심 작업은 남은 조명의 역할 분류와 실제 네온 배치 정리다.
 
 ## Codex와 사용자의 역할
 
@@ -114,7 +114,7 @@ AppBase
 ├─ InputSystem
 ├─ Camera / EditorCameraSnapshot
 ├─ PowerSwitch --비소유--> Scene 소유 GameObject / Material
-├─ PointLightSequence --비소유--> Scene
+├─ PointLightSequence --비소유--> Scene / 등록된 Material
 ├─ Scene 소유 PointLight[]
 └─ DirectionalLight
 
@@ -132,7 +132,7 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 4. Editor/Play UI를 만들고 Scene View 크기로 Camera Aspect와 Renderer Viewport를 갱신한다.
 5. Play이면 ESC, WASD와 MouseDelta로 Camera를 갱신한다.
 6. E 단발 입력이 들어오면 PowerSwitch가 거리·시선을 검사하고 전원 상태와 스위치 색을 반전한다.
-7. PointLightSequence가 새 목표를 받고, 매 프레임 누적 시간에 따라 Scene의 Point Light를 하나씩 켜거나 끈다.
+7. PointLightSequence가 새 목표를 받고, 매 프레임 누적 시간에 따라 등록된 SequenceEntry의 Point Light와 Emissive Material을 함께 켜거나 역순으로 끈다.
 8. 커서를 Scene View 중앙으로 되돌린다.
 9. AppBase가 Camera, DirectionalLight와 Scene의 Point Light 목록으로 FrameRenderData를 만든다.
 10. Renderer::BeginFrame이 CPU 조명을 GPU 상수 데이터로 변환해 Camera/Light Constant Buffer를 갱신한다.
@@ -175,8 +175,15 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - CPU bool을 GPU `uint32_t`로 변환하고 C++/HLSL 상수 버퍼 레이아웃 정렬
 - `Lighting.hlsli`의 거리 감쇠와 Pixel Shader의 다중 Point Light 누적
 - 서로 다른 색상의 Point Light 4개가 골목을 비추는 실행 결과 확인
-- PointLightSequence가 1.4초 간격으로 생성 순서대로 켜고 역순으로 끄는 연출
+- PointLightSequence가 1.4초 간격으로 등록된 Entry 순서대로 켜고 역순으로 끄는 연출
 - 점등 중 E키 재입력 시 현재 개수에서 목표 방향을 바꾸는 동작 확인
+- Material에 Emissive Color/Intensity를 추가하고 기본 Intensity를 0으로 설정
+- Material Constant Buffer의 C++/HLSL 레이아웃을 32바이트로 맞추고 Renderer가 Emissive 값을 전달
+- Pixel Shader가 방향광·점광원 결과와 별도로 Emissive를 최종 색상에 더함
+- PointLightSequence의 `SequenceEntry`가 Scene Point Light 인덱스, 비소유 Material 포인터와 목표 발광 세기를 보관
+- 시퀀스 목표와 진행 순서를 Scene 전체 조명 수가 아니라 등록된 Entry 목록을 기준으로 변경
+- 각 Entry의 Point Light와 Emissive Material을 함께 켜고, 역순으로 함께 끄도록 연결
+- 서로 다른 Emissive 색과 독립 Material을 가진 네온 두 개를 등록해 순차 On/Off 실행 확인
 
 ## 현재 알려진 문제와 보류 항목
 
@@ -186,7 +193,8 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - ImGui Transform 위치 `-1~1`, Scale `0.1~2` 범위는 골목 배치에 부족하다.
 - AppBase가 시스템 초기화, Greybox 생성, UI, Play 입력, RenderItem 조립과 기능 객체 조율을 함께 담당해 여전히 크다. 실제 변경 압력이 생기는 책임부터 단계적으로 분리한다.
 - PointLightSequence는 자신만 조명 활성 상태를 변경한다는 전제를 사용하므로 다른 코드가 `SetAllPointLightsEnabled`를 호출하면 내부 개수와 실제 상태가 어긋날 수 있다.
-- Point Light 점등 순서는 별도 연출 목록이 아니라 Scene 생성 순서에 의존한다.
+- Point Light 점등 순서는 Scene 생성 순서가 아니라 `SequenceEntry` 등록 순서에 의존한다.
+- SequenceEntry의 Material 포인터는 비소유 참조이므로 등록된 Material은 시퀀스보다 오래 살아야 한다. 현재는 AssetManager가 수명을 보장한다.
 - 시퀀스는 한 프레임에 한 단계만 처리하므로 큰 프레임 지연 후 남은 시간을 즉시 따라잡지는 않는다.
 - Renderer Material 경로는 유효한 Albedo Texture를 전제로 하며 기본 Material/Texture 정책이 없다.
 - GeometryGenerator의 평행 배열은 데이터 불일치 위험이 있다.
@@ -194,9 +202,9 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - GraphicsResourceManager는 append-only이며 개별 삭제, 슬롯 재사용과 generation이 없다.
 - AssetManager key/path 정규화가 없다.
 - ModelLoader는 aiNode Transform/Instance를 반영하지 않는다.
-- Material은 BaseColor/Diffuse만 지원하며 Emissive, Normal, Metallic/Roughness가 없다.
+- Material은 BaseColor/Diffuse/Emissive를 지원하지만 Normal, Metallic/Roughness는 아직 없다.
 - Texture sRGB/Gamma, MipMap과 UV Tiling 정책이 없다.
-- Pixel Shader 마지막 saturate는 HDR/Bloom 전에 HDR 경로로 옮겨야 한다.
+- Pixel Shader 마지막 `saturate` 때문에 1을 넘는 Emissive Intensity는 현재 LDR 화면에서 잘린다. HDR/Bloom 단계에서 HDR Scene Target으로 옮겨야 실제 밝기 차이와 번짐을 표현할 수 있다.
 - ImGui 부분 초기화 실패와 Shutdown 상태 추적은 아직 없다.
 - 일부 한글 주석 인코딩이 깨져 있다.
 - 전면 Epic 명명 마이그레이션은 기능 우선 결정으로 보류했다.
@@ -205,22 +213,22 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 
 ## 바로 다음 우선 작업
 
-다음 기능 책임은 `Emissive Material과 네온 표면 표현`이다.
+다음 기능 책임은 `남은 Point Light의 역할 분류와 실제 네온 배치 정리`다.
 
 목적:
 
-- Point Light가 주변을 비추는 것과 별개로 네온 간판 표면 자체가 빛나는 색을 표현한다.
-- Material의 발광 색과 밝기를 분리해 전원 상태와 연출에서 재사용한다.
-- 이후 HDR Scene Target과 Bloom이 추출할 수 있는 밝은 발광 값을 준비한다.
+- 모든 Point Light를 전원 시퀀스에 무조건 포함하지 않고 네온 연동 조명과 환경 조명으로 구분한다.
+- 네온 한 개마다 독립적으로 제어해야 하는 Material과 주변을 비추는 Point Light의 관계를 명확히 한다.
+- 테스트 네온을 실제 골목 구성에 맞는 간판 배치로 발전시킨다.
 
 진행 방향:
 
-1. Material에 Emissive Color와 Emissive Intensity를 추가하고 기본값을 발광 없음으로 둔다.
-2. MaterialConstantData의 C++/HLSL 레이아웃을 16바이트 경계에 맞춰 확장한다.
-3. Renderer가 Material의 Emissive 값을 GPU 상수 버퍼로 전달한다.
-4. Pixel Shader가 조명 결과에 Emissive를 더한다.
-5. 테스트 네온 오브젝트를 배치해 조명이 없어도 표면이 밝게 보이는지 확인한다.
-6. 전원 상태 및 PointLightSequence와 Emissive 점등을 연결할 책임 경계를 결정한다.
+1. 현재 미등록 상태인 pointLight1과 pointLight4를 네온 연동 조명 또는 환경 조명으로 분류한다.
+2. 같은 네온에서 나오는 빛이라면 Emissive Color와 연결 Point Light Color를 의도적으로 맞춘다.
+3. 네온 연동 조명에는 독립 Material과 GameObject를 만들고 원하는 순서로 SequenceEntry에 등록한다.
+4. 항상 켜둘 환경 조명은 PointLightSequence 밖에서 초기 상태를 명확히 관리한다.
+5. 테스트용 변수 이름과 네온 위치를 정리하고 최종 골목 에셋 배치 전 임시 레이아웃을 확정한다.
+6. 그다음 Shadow Mapping으로 넘어간다.
 
 ## 이후 주요 로드맵
 
@@ -228,8 +236,8 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 2. ✅ 최소 상호작용 기반과 PowerSwitch 책임 분리
 3. ✅ 전원 상태에 따른 스위치 시각 피드백
 4. ✅ 다수 Point Light와 Renderer 제출
-5. 🟡 Emissive Material과 네온 간판
-6. 🟡 전원 장치 상태와 Point Light 순차 점등 완료, Emissive 연동 남음
+5. ✅ Emissive Material과 네온 표면 표현
+6. ✅ 전원 장치 상태와 Point Light·Emissive Material 순차 점등 연동
 7. 실제 골목 에셋 배치와 Scene 편집 보강
 8. Shadow Mapping
 9. Normal/Roughness Material과 젖은 바닥 반사
@@ -258,7 +266,8 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - C++20, HLSL Shader Model 5.0 런타임 컴파일
 - 실행 작업 디렉터리: `MyPF/`
 - Assimp는 데스크톱과 노트북의 사용자 vcpkg 환경에 각각 설치돼 있다.
-- 현재 문서 기준 HEAD: `ca6d15c` — `순차점등시퀀스 적용 완료`
+- 현재 문서 기준 HEAD: `421a58f` — `Entry 기반 점등 소등 구현`
+- 문서 갱신 시 작업 트리에는 두 번째 네온 Material/Object/Entry를 추가한 `MyPF/AppBase.cpp` 변경이 남아 있으며 실행 테스트를 통과했다.
 - 작업 트리의 `MyPF/imgui.ini` 변경은 런타임 UI 배치이므로 기능 commit에서 제외한다.
 
 ## 변경 안전성
