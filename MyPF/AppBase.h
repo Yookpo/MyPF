@@ -4,6 +4,7 @@
 #include "InputSystem.h"
 #include "Scene.h"
 #include "Camera.h"
+#include "FirstPersonCameraController.h"
 #include "DirectionalLight.h"
 #include "PointLight.h"
 #include "GraphicsDevice.h"
@@ -49,9 +50,15 @@ namespace My
 		bool  InitMainWindow();
 		bool  InitGUI();
 		float GetAspectRatio(float sceneViewWidth, float sceneViewHeight) const;
-		void  EnterPlayMode();
-		void  ExitPlayMode();
-		void  CenterCursorInSceneView();
+
+		void EnterPlayMode();
+		void ExitPlayMode();
+
+		void CenterCursorInSceneView();
+		bool IsCursorInSceneView() const;
+		void BeginEditorCameraNavigation();
+		void UpdateEditorCamera(float dt);
+		void EndEditorCameraNavigation();
 
 		bool InitGreyBoxScene();
 
@@ -75,10 +82,10 @@ namespace My
 		PowerSwitch		   m_powerSwitch;
 		PointLightSequence m_pointLightSequence;
 
-		Camera m_camera;
-		Camera m_editorCameraSnapshot;
-		float  m_cameraSpeed;
-		float  m_mouseSensitivity;
+		Camera						m_camera;
+		Camera						m_editorCameraSnapshot;
+		FirstPersonCameraController m_firstPersonCameraController;
+		bool						m_isEditorCameraNavigating{ false };
 
 		DirectionalLight m_directionalLight;
 

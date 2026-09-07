@@ -120,6 +120,9 @@
     <ClCompile Include="PointLightSequence.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
+    <ClCompile Include="FirstPersonCameraController.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -237,6 +240,9 @@
       <Filter>Scene</Filter>
     </ClInclude>
     <ClInclude Include="PointLightSequence.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="FirstPersonCameraController.h">
       <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>

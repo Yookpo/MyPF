@@ -47,6 +47,14 @@ namespace My
 				break;
 			}
 
+			case WM_RBUTTONDOWN:
+				m_isRightMouseButtonDown = true;
+				break;
+
+			case WM_RBUTTONUP:
+				m_isRightMouseButtonDown = false;
+				break;
+
 			case WM_KILLFOCUS:
 				Reset();
 				break;
@@ -109,6 +117,7 @@ namespace My
 		m_keyDown.fill(false);
 		m_keyPressed.fill(false);
 		ResetMouseTracking();
+		m_isRightMouseButtonDown = false;
 	}
 
 } // namespace My

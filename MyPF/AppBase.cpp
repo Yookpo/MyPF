@@ -98,6 +98,7 @@ namespace My
 			return false;
 		}
 
+		m_firstPersonCameraController.Initialize(m_camera, m_inputSystem);
 		m_pointLightSequence.Initialize(m_scene);
 
 		// Init GeryBox Scene
@@ -229,6 +230,77 @@ namespace My
 		m_inputSystem.SetMouseReferencePosition(centerClientX, centerClientY);
 	}
 
+	bool AppBase::IsCursorInSceneView() const
+	{
+		const auto mousePos = ImGui::GetMousePos();
+		float	   sceneViewWidth = m_screenWidth - m_guiWidth;
+
+		if (sceneViewWidth <= 0 || m_screenHeight <= 0)
+		{
+			return false;
+		}
+
+		if (mousePos.x < m_guiWidth || mousePos.x >= m_screenWidth)
+		{
+			return false;
+		}
+
+		if (mousePos.y < 0 || mousePos.y >= m_screenHeight)
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	void AppBase::BeginEditorCameraNavigation()
+	{
+		if (m_isEditorCameraNavigating)
+		{
+			return;
+		}
+
+		m_isEditorCameraNavigating = true;
+		ShowCursor(FALSE);
+		CenterCursorInSceneView();
+	}
+
+	void AppBase::UpdateEditorCamera(float dt)
+	{
+		// 현재 내비게이션 중인데 오른쪽 마우스버튼을 놨다면
+		if (m_isEditorCameraNavigating && !m_inputSystem.IsRightMouseButtonDown())
+		{
+			EndEditorCameraNavigation();
+			return;
+		}
+
+		// 아직 내비게이션 중이 아니라면
+		if (!m_isEditorCameraNavigating)
+		{
+			if (!m_inputSystem.IsRightMouseButtonDown() || !IsCursorInSceneView()
+				|| ImGui::GetIO().WantCaptureMouse)
+			{
+				return;
+			}
+			BeginEditorCameraNavigation();
+		}
+
+		m_firstPersonCameraController.Update(dt);
+		CenterCursorInSceneView();
+	}
+
+	void AppBase::EndEditorCameraNavigation()
+	{
+		if (!m_isEditorCameraNavigating)
+		{
+			return;
+		}
+
+		m_isEditorCameraNavigating = false;
+		ShowCursor(TRUE);
+		m_inputSystem.ResetMouseTracking();
+	}
+
 	bool AppBase::InitGreyBoxScene()
 	{
 		// Setting for Mesh, Material
@@ -278,21 +350,35 @@ namespace My
 
 		neonMat2->SetAlbedoTexture(greyBoxTex);
 		neonMat2->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
-		neonMat2->SetEmissiveColor(Vector3(1.0f, 0.35f, 0.03f));
+		neonMat2->SetEmissiveColor(Vector3(0.37f, 0.86f, 1.00f));
+
+		auto neonMat3 = m_assetManager.CreateMaterial("neonMat3");
+
+		if (!neonMat3)
+		{
+			return false;
+		}
+
+		neonMat3->SetAlbedoTexture(greyBoxTex);
+		neonMat3->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
+		neonMat3->SetEmissiveColor(Vector3(1.0f, 0.35f, 0.03f));
 
 		// Create Point Light
+
+		// 약하게 항상 켜져 있는 환경 보조광
 		PointLight& pointLight1 = m_scene.CreatePointLight();
 		pointLight1.position = Vector3{ 0.0f, 2.5f, 10.0f };
 		pointLight1.range = 6.0f;
 		pointLight1.color = Vector3{ 0.55f, 0.10f, 1.0f };
-		pointLight1.intensity = 2.0f;
-		pointLight1.isEnabled = false;
+		pointLight1.intensity = 1.58f;
+		pointLight1.isEnabled = true;
 
+		// 첫 번째 네온 전용 조명
 		std::size_t pointLightEntryIndex = m_scene.GetPointLightCount();
 		PointLight& pointLight2 = m_scene.CreatePointLight();
 		pointLight2.position = Vector3{ -1.2f, 2.3f, 5.0f };
 		pointLight2.range = 4.5f;
-		pointLight2.color = Vector3{ 0.05f, 0.8f, 1.0f };
+		pointLight2.color = Vector3{ 1.0f, 0.05f, 0.65f };
 		pointLight2.intensity = 2.0f;
 		pointLight2.isEnabled = false;
 
@@ -301,11 +387,12 @@ namespace My
 			return false;
 		}
 
+		// 두 번째 네온 전용 조명
 		pointLightEntryIndex = m_scene.GetPointLightCount();
 		PointLight& pointLight3 = m_scene.CreatePointLight();
 		pointLight3.position = Vector3{ 1.2f, 2.3f, 15.0f };
 		pointLight3.range = 4.5f;
-		pointLight3.color = Vector3{ 1.0f, 0.05f, 0.55f };
+		pointLight3.color = Vector3{ 0.37f, 0.86f, 1.00f };
 		pointLight3.intensity = 2.0f;
 		pointLight3.isEnabled = false;
 
@@ -314,12 +401,19 @@ namespace My
 			return false;
 		}
 
+		// 골목 끝에서 마지막에 켜지는 주요 네온 조명
+		pointLightEntryIndex = m_scene.GetPointLightCount();
 		PointLight& pointLight4 = m_scene.CreatePointLight();
-		pointLight4.position = Vector3{ 0.0f, 5.0f, 18.0f };
+		pointLight4.position = Vector3{ 0.0f, 3.0f, 20.0f };
 		pointLight4.range = 7.5f;
-		pointLight4.color = Vector3{ 0.37f, 0.86f, 1.00f };
+		pointLight4.color = Vector3{ 1.0f, 0.35f, 0.03f };
 		pointLight4.intensity = 5.0f;
 		pointLight4.isEnabled = false;
+
+		if (!m_pointLightSequence.AddSequenceEntry(pointLightEntryIndex, neonMat3, 8.0f))
+		{
+			return false;
+		}
 
 		// Create floor
 		GameObject* floor = &m_scene.CreateGameObject("floor");
@@ -377,23 +471,29 @@ namespace My
 		m_powerSwitch.Initialize(*powerSwitchObject);
 
 		// Neon Test Object
-		auto neonTestObject = &m_scene.CreateGameObject("neonTestObject1");
-		neonTestObject->GetTransform().SetPosition(Vector3(-1.95f, 2.4f, 6.0f));
-		neonTestObject->GetTransform().SetScale(Vector3(0.1f, 0.6f, 2.0f));
-		neonTestObject->GetMeshComponent().SetMesh(greyBoxMesh);
-		neonTestObject->GetMeshComponent().SetMaterial(neonMat1);
+		auto neonTestObject0 = &m_scene.CreateGameObject("neonTestObject0");
+		neonTestObject0->GetTransform().SetPosition(Vector3(-1.95f, 2.4f, 6.0f));
+		neonTestObject0->GetTransform().SetScale(Vector3(0.1f, 0.6f, 2.0f));
+		neonTestObject0->GetMeshComponent().SetMesh(greyBoxMesh);
+		neonTestObject0->GetMeshComponent().SetMaterial(neonMat1);
 
-		auto neonTestObject1 = &m_scene.CreateGameObject("neonTestObject2");
+		auto neonTestObject1 = &m_scene.CreateGameObject("neonTestObject1");
 		neonTestObject1->GetTransform().SetPosition(Vector3(1.95f, 2.4f, 15.0f));
 		neonTestObject1->GetTransform().SetScale(Vector3(0.1f, 0.8f, 1.46f));
 		neonTestObject1->GetMeshComponent().SetMesh(greyBoxMesh);
 		neonTestObject1->GetMeshComponent().SetMaterial(neonMat2);
 
+		auto neonTestObject2 = &m_scene.CreateGameObject("neonTestObject2");
+		neonTestObject2->GetTransform().SetPosition(Vector3(0.0f, 3.0f, 19.95f));
+		neonTestObject2->GetTransform().SetScale(Vector3(0.1f, 0.3f, 1.0f));
+		neonTestObject2->GetMeshComponent().SetMesh(greyBoxMesh);
+		neonTestObject2->GetMeshComponent().SetMaterial(neonMat3);
+
 		return true;
 	}
 
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_cameraSpeed{ 4.0f }, m_mouseSensitivity{ 0.1f }, m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
 	{
 		g_appBase = this;
 	}
@@ -415,8 +515,10 @@ namespace My
 
 	void AppBase::Update(float dt)
 	{
+		// Editor Camera Update
 		if (m_appMode == AppMode::Editor)
 		{
+			UpdateEditorCamera(dt);
 			return;
 		}
 
@@ -427,61 +529,7 @@ namespace My
 			return;
 		}
 
-		MouseDelta delta = m_inputSystem.ConsumeMouseDelta();
-		float	   cameraYaw = m_camera.GetYaw();
-		float	   cameraPitch = m_camera.GetPitch();
-
-		cameraYaw += (delta.deltaX * m_mouseSensitivity);
-		cameraPitch -= (delta.deltaY * m_mouseSensitivity);
-
-		m_camera.SetYawPitch(cameraYaw, cameraPitch);
-
-		Vector3 cameraPos = m_camera.GetPosition();
-		Vector3 cameraForward = m_camera.GetForward();
-		Vector3 cameraUp = m_camera.GetUp();
-		cameraForward.y = 0.0f;
-
-		if (cameraForward.LengthSquared() > 0.00001f)
-		{
-			cameraForward.Normalize();
-		}
-
-		Vector3 cameraRight = cameraUp.Cross(cameraForward);
-		if (cameraRight.LengthSquared() > 0.00001f)
-		{
-			cameraRight.Normalize();
-		}
-
-		Vector3 moveDirection{};
-
-		if (m_inputSystem.IsKeyDown('W'))
-		{
-			moveDirection += cameraForward;
-		}
-
-		if (m_inputSystem.IsKeyDown('S'))
-		{
-			moveDirection -= cameraForward;
-		}
-
-		if (m_inputSystem.IsKeyDown('A'))
-		{
-			moveDirection -= cameraRight;
-		}
-
-		if (m_inputSystem.IsKeyDown('D'))
-		{
-			moveDirection += cameraRight;
-		}
-
-		if (moveDirection.LengthSquared() > 0.00001f)
-		{
-			moveDirection.Normalize();
-		}
-
-		cameraPos += moveDirection * m_cameraSpeed * dt;
-
-		m_camera.SetPosition(cameraPos);
+		m_firstPersonCameraController.Update(dt);
 
 		// E키를 눌러 조명을 키거나 끈다
 		if (m_inputSystem.WasKeyPressed('E'))
@@ -598,12 +646,17 @@ namespace My
 			ImGui::Text("Mode: Play");
 			ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
 
-			if (ImGui::SliderFloat("Camera Speed", &m_cameraSpeed, 0.0f, 10.0f))
+			float cameraSpeed = m_firstPersonCameraController.GetMoveSpeed();
+			float mouseSensitivity = m_firstPersonCameraController.GetMouseSensitivity();
+
+			if (ImGui::SliderFloat("Camera Speed", &cameraSpeed, 0.0f, 10.0f))
 			{
+				m_firstPersonCameraController.SetMoveSpeed(cameraSpeed);
 			}
 
-			if (ImGui::SliderFloat("Mouse Sensitivity", &m_mouseSensitivity, 0.01f, 1.0f))
+			if (ImGui::SliderFloat("Mouse Sensitivity", &mouseSensitivity, 0.01f, 1.0f))
 			{
+				m_firstPersonCameraController.SetMouseSensitivity(mouseSensitivity);
 			}
 
 			if (ImGui::Button("Stop"))
