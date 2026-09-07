@@ -1,25 +1,18 @@
 #include "PointLightSequence.h"
-#include "Scene.h"
+#include "GameObject.h"
 #include "Material.h"
 
 namespace My
 {
-	void PointLightSequence::Initialize(Scene& scene)
+	void PointLightSequence::Initialize()
 	{
-		m_scene = &scene;
 		m_elapsedTime = 0.0f;
 		m_enabledLightCount = m_targetEnabledLightCount = 0;
 		m_pointLightSequenceEntries.clear();
-		m_scene->SetAllPointLightsEnabled(false);
 	}
 
 	void PointLightSequence::Start(bool shouldEnable)
 	{
-		if (!m_scene)
-		{
-			return;
-		}
-
 		m_elapsedTime = 0.0f;
 
 		// 목표 개수 0개로 설정
@@ -35,7 +28,7 @@ namespace My
 
 	void PointLightSequence::Update(float deltaTime)
 	{
-		if (!m_scene || !IsPlaying())
+		if (!IsPlaying())
 		{
 			return;
 		}
@@ -49,30 +42,29 @@ namespace My
 		m_elapsedTime -= m_stepInterval;
 
 		// Entry를 가져옴
-
 		if (m_enabledLightCount < m_targetEnabledLightCount)
 		{
-			const auto& pointLightEntry = m_pointLightSequenceEntries[m_enabledLightCount];
-			if (m_scene->SetPointLightEnabled(pointLightEntry.index, true))
-			{
-				pointLightEntry.emissiveMat->SetEmissiveIntensity(pointLightEntry.emissiveIntensity);
-				m_enabledLightCount += 1;
-			}
+			const auto&			 pointLightEntry = m_pointLightSequenceEntries[m_enabledLightCount];
+			GameObject*			 pointLightObject = pointLightEntry.pointLightObject;
+			PointLightComponent& pointLightComponent = pointLightObject->GetPointLightComponent();
+			pointLightComponent.SetEnabled(true);
+			pointLightEntry.emissiveMat->SetEmissiveIntensity(pointLightEntry.emissiveIntensity);
+			m_enabledLightCount += 1;
 		}
 		else
 		{
-			const auto& pointLightEntry = m_pointLightSequenceEntries[m_enabledLightCount - 1];
-			if (m_scene->SetPointLightEnabled(pointLightEntry.index, false))
-			{
-				pointLightEntry.emissiveMat->SetEmissiveIntensity(0.0f);
-				m_enabledLightCount -= 1;
-			}
+			const auto&			 pointLightEntry = m_pointLightSequenceEntries[m_enabledLightCount - 1];
+			GameObject*			 pointLightObject = pointLightEntry.pointLightObject;
+			PointLightComponent& pointLightComponent = pointLightObject->GetPointLightComponent();
+			pointLightComponent.SetEnabled(false);
+			pointLightEntry.emissiveMat->SetEmissiveIntensity(0);
+			m_enabledLightCount -= 1;
 		}
 	}
 
-	bool PointLightSequence::AddSequenceEntry(std::size_t pointLightIndex, Material* mat, float intensity)
+	bool PointLightSequence::AddSequenceEntry(GameObject& pointLightObject, Material* mat, float intensity)
 	{
-		if (!m_scene || !mat || pointLightIndex >= m_scene->GetPointLightCount() || intensity <= 0.0f)
+		if (!mat || !pointLightObject.HasPointLightComponent() || intensity <= 0.0f)
 		{
 			return false;
 		}
@@ -81,17 +73,14 @@ namespace My
 		for (const auto& sequenceEntry : m_pointLightSequenceEntries)
 		{
 			// 등록 할 포인트라이트가 이미 있다면 패싱
-			if (sequenceEntry.index == pointLightIndex || sequenceEntry.emissiveMat == mat)
+			if (sequenceEntry.pointLightObject == &pointLightObject || sequenceEntry.emissiveMat == mat)
 			{
 				return false;
 			}
 		}
 
-		SequenceEntry entry{ pointLightIndex, mat, intensity };
-		if (!m_scene->SetPointLightEnabled(pointLightIndex, false))
-		{
-			return false;
-		}
+		SequenceEntry entry{ &pointLightObject, mat, intensity };
+		pointLightObject.GetPointLightComponent().SetEnabled(false);
 		mat->SetEmissiveIntensity(0.0f);
 
 		m_pointLightSequenceEntries.emplace_back(entry);

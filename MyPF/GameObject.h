@@ -1,8 +1,9 @@
 ﻿#pragma once
+#include <string>
 #include "Transform.h"
 #include "MeshComponent.h"
 #include "ModelComponent.h"
-#include <string>
+#include "PointLightComponent.h"
 
 namespace My
 {
@@ -23,11 +24,22 @@ namespace My
 		ModelComponent&		  GetModelComponent() { return m_modelComponent; }		 // 수정 가능
 		const ModelComponent& GetModelComponent() const { return m_modelComponent; } // 읽기전용
 
+		PointLightComponent& AddPointLightComponent()
+		{
+			m_hasPointLightComponent = true;
+			return m_pointLightComponent;
+		}
+		PointLightComponent&	   GetPointLightComponent() { return m_pointLightComponent; }		// 수정 가능
+		const PointLightComponent& GetPointLightComponent() const { return m_pointLightComponent; } // 읽기전용
+		bool					   HasPointLightComponent() const { return m_hasPointLightComponent; }
+
 	private:
-		std::string	   m_name;
-		Transform	   m_transform;
-		MeshComponent  m_meshComponent;
-		ModelComponent m_modelComponent;
+		std::string			m_name;
+		Transform			m_transform;
+		MeshComponent		m_meshComponent;
+		ModelComponent		m_modelComponent;
+		PointLightComponent m_pointLightComponent;
+		bool				m_hasPointLightComponent{ false };
 	};
 
 } // namespace My

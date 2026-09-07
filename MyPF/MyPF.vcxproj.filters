@@ -245,6 +245,9 @@
     <ClInclude Include="FirstPersonCameraController.h">
       <Filter>Scene</Filter>
     </ClInclude>
+    <ClInclude Include="PointLightComponent.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\simplePixelShader.hlsl">

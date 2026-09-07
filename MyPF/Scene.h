@@ -14,15 +14,11 @@ namespace My
 		GameObject&										CreateGameObject(const std::string& name);
 		const std::vector<std::unique_ptr<GameObject>>& GetGameObjects() const { return m_gameObjects; }
 
-		PointLight&					   CreatePointLight();
-		const std::vector<PointLight>& GetPointLights() const { return m_pointLights; }
-		bool						   SetPointLightEnabled(std::size_t index, bool isEnabled);
-		void						   SetAllPointLightsEnabled(bool isEnabled);
-		std::size_t					   GetPointLightCount() const { return m_pointLights.size(); }
+		GameObject& CreatePointLightObject(const std::string& name);
+		std::size_t GatherPointLights(PointLight* outPointLights, std::size_t capacity) const;
 
 	private:
 		std::vector<std::unique_ptr<GameObject>> m_gameObjects;
-		std::vector<PointLight>					 m_pointLights;
 	};
 
 } // namespace My

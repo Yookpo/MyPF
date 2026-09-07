@@ -99,7 +99,7 @@ namespace My
 		}
 
 		m_firstPersonCameraController.Initialize(m_camera, m_inputSystem);
-		m_pointLightSequence.Initialize(m_scene);
+		m_pointLightSequence.Initialize();
 
 		// Init GeryBox Scene
 		if (!InitGreyBoxScene())
@@ -366,51 +366,45 @@ namespace My
 		// Create Point Light
 
 		// 약하게 항상 켜져 있는 환경 보조광
-		PointLight& pointLight1 = m_scene.CreatePointLight();
-		pointLight1.position = Vector3{ 0.0f, 2.5f, 10.0f };
-		pointLight1.range = 6.0f;
-		pointLight1.color = Vector3{ 0.55f, 0.10f, 1.0f };
-		pointLight1.intensity = 1.58f;
-		pointLight1.isEnabled = true;
+		GameObject& EnvFillLight = m_scene.CreatePointLightObject("EnvironmentFillLight");
+		EnvFillLight.GetTransform().SetPosition(Vector3{ 0.0f, 2.5f, 10.0f });
+		EnvFillLight.GetPointLightComponent().SetColor(Vector3{ 0.55f, 0.10f, 1.0f });
+		EnvFillLight.GetPointLightComponent().SetRange(6.0f);
+		EnvFillLight.GetPointLightComponent().SetIntensity(1.58f);
+		EnvFillLight.GetPointLightComponent().SetEnabled(true);
 
 		// 첫 번째 네온 전용 조명
-		std::size_t pointLightEntryIndex = m_scene.GetPointLightCount();
-		PointLight& pointLight2 = m_scene.CreatePointLight();
-		pointLight2.position = Vector3{ -1.2f, 2.3f, 5.0f };
-		pointLight2.range = 4.5f;
-		pointLight2.color = Vector3{ 1.0f, 0.05f, 0.65f };
-		pointLight2.intensity = 2.0f;
-		pointLight2.isEnabled = false;
-
-		if (!m_pointLightSequence.AddSequenceEntry(pointLightEntryIndex, neonMat1, 3.0f))
+		GameObject& pinkNeonLight = m_scene.CreatePointLightObject("PinkNeonLight");
+		pinkNeonLight.GetTransform().SetPosition(Vector3{ -1.2f, 2.3f, 5.0f });
+		pinkNeonLight.GetPointLightComponent().SetColor(Vector3{ 1.0f, 0.05f, 0.65f });
+		pinkNeonLight.GetPointLightComponent().SetRange(4.5f);
+		pinkNeonLight.GetPointLightComponent().SetIntensity(2.0f);
+		pinkNeonLight.GetPointLightComponent().SetEnabled(false);
+		if (!m_pointLightSequence.AddSequenceEntry(pinkNeonLight, neonMat1, 3.0f))
 		{
 			return false;
 		}
 
 		// 두 번째 네온 전용 조명
-		pointLightEntryIndex = m_scene.GetPointLightCount();
-		PointLight& pointLight3 = m_scene.CreatePointLight();
-		pointLight3.position = Vector3{ 1.2f, 2.3f, 15.0f };
-		pointLight3.range = 4.5f;
-		pointLight3.color = Vector3{ 0.37f, 0.86f, 1.00f };
-		pointLight3.intensity = 2.0f;
-		pointLight3.isEnabled = false;
-
-		if (!m_pointLightSequence.AddSequenceEntry(pointLightEntryIndex, neonMat2, 8.0f))
+		GameObject& cyanNeonLight = m_scene.CreatePointLightObject("CyanNeonLight");
+		cyanNeonLight.GetTransform().SetPosition(Vector3{ 1.2f, 2.3f, 15.0f });
+		cyanNeonLight.GetPointLightComponent().SetColor(Vector3{ 0.37f, 0.86f, 1.00f });
+		cyanNeonLight.GetPointLightComponent().SetRange(4.5f);
+		cyanNeonLight.GetPointLightComponent().SetIntensity(2.0f);
+		cyanNeonLight.GetPointLightComponent().SetEnabled(false);
+		if (!m_pointLightSequence.AddSequenceEntry(cyanNeonLight, neonMat2, 8.0f))
 		{
 			return false;
 		}
 
 		// 골목 끝에서 마지막에 켜지는 주요 네온 조명
-		pointLightEntryIndex = m_scene.GetPointLightCount();
-		PointLight& pointLight4 = m_scene.CreatePointLight();
-		pointLight4.position = Vector3{ 0.0f, 3.0f, 20.0f };
-		pointLight4.range = 7.5f;
-		pointLight4.color = Vector3{ 1.0f, 0.35f, 0.03f };
-		pointLight4.intensity = 5.0f;
-		pointLight4.isEnabled = false;
-
-		if (!m_pointLightSequence.AddSequenceEntry(pointLightEntryIndex, neonMat3, 8.0f))
+		GameObject& orangeNeonLight = m_scene.CreatePointLightObject("OrangeNeonLight");
+		orangeNeonLight.GetTransform().SetPosition(Vector3{ 0.0f, 3.0f, 20.0f });
+		orangeNeonLight.GetPointLightComponent().SetColor(Vector3{ 1.0f, 0.35f, 0.03f });
+		orangeNeonLight.GetPointLightComponent().SetRange(7.5f);
+		orangeNeonLight.GetPointLightComponent().SetIntensity(5.0f);
+		orangeNeonLight.GetPointLightComponent().SetEnabled(false);
+		if (!m_pointLightSequence.AddSequenceEntry(orangeNeonLight, neonMat3, 5.0f))
 		{
 			return false;
 		}
@@ -556,14 +550,7 @@ namespace My
 		frameRenderData.view = m_camera.GetViewMatrix();
 		frameRenderData.projection = m_camera.GetProjectionMatrix();
 		frameRenderData.directionalLight = m_directionalLight;
-
-		const std::vector<PointLight>& scenePointLights = m_scene.GetPointLights();
-		frameRenderData.pointLightCount = (MaxPointLightCount < scenePointLights.size()) ? MaxPointLightCount : scenePointLights.size();
-
-		for (std::size_t i = 0; i < frameRenderData.pointLightCount; i++)
-		{
-			frameRenderData.pointLights[i] = scenePointLights[i];
-		}
+		frameRenderData.pointLightCount = m_scene.GatherPointLights(frameRenderData.pointLights.data(), frameRenderData.pointLights.size());
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{
@@ -645,19 +632,6 @@ namespace My
 		{
 			ImGui::Text("Mode: Play");
 			ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-			float cameraSpeed = m_firstPersonCameraController.GetMoveSpeed();
-			float mouseSensitivity = m_firstPersonCameraController.GetMouseSensitivity();
-
-			if (ImGui::SliderFloat("Camera Speed", &cameraSpeed, 0.0f, 10.0f))
-			{
-				m_firstPersonCameraController.SetMoveSpeed(cameraSpeed);
-			}
-
-			if (ImGui::SliderFloat("Mouse Sensitivity", &mouseSensitivity, 0.01f, 1.0f))
-			{
-				m_firstPersonCameraController.SetMouseSensitivity(mouseSensitivity);
-			}
 
 			if (ImGui::Button("Stop"))
 			{
@@ -762,23 +736,27 @@ namespace My
 			ImGui::Separator();
 			ImGui::Text("Camera");
 			Vector3 cameraPos = m_camera.GetPosition();
-			if (ImGui::DragFloat3("Camera Move", &cameraPos.x, 0.01f, -10.0f, 10.0f))
+			float	cameraSpeed = m_firstPersonCameraController.GetMoveSpeed();
+			float	mouseSensitivity = m_firstPersonCameraController.GetMouseSensitivity();
+
+			if (ImGui::SliderFloat("Camera Speed", &cameraSpeed, 0.1f, 10.0f))
 			{
-				m_camera.SetPosition(cameraPos);
+				m_firstPersonCameraController.SetMoveSpeed(cameraSpeed);
+			}
+
+			if (ImGui::SliderFloat("Mouse Sensitivity", &mouseSensitivity, 0.01f, 1.0f))
+			{
+				m_firstPersonCameraController.SetMouseSensitivity(mouseSensitivity);
 			}
 
 			float cameraYaw = m_camera.GetYaw();
 			float cameraPitch = m_camera.GetPitch();
+
+			ImGui::Text("Position: X %.2f Y %.2f Z %.2f", cameraPos.x, cameraPos.y, cameraPos.z);
+			ImGui::Text("Rotation: Yaw %.2f Pitch %.2f", cameraYaw, cameraPitch);
+
 			float cameraFov = m_camera.GetFovAngleY();
-
-			bool yawChanged = ImGui::DragFloat("Yaw Slider", &cameraYaw, 0.1f, -180.0f, 180.0f);
-			bool pitchChanged = ImGui::DragFloat("Pitch Slider", &cameraPitch, 0.1f, -89.0f, 89.0f);
-			bool fovChanged = ImGui::SliderFloat("Fov Slider", &cameraFov, 30.0f, 120.0f);
-
-			if (yawChanged || pitchChanged)
-			{
-				m_camera.SetYawPitch(cameraYaw, cameraPitch);
-			}
+			bool  fovChanged = ImGui::SliderFloat("Fov Slider", &cameraFov, 30.0f, 120.0f);
 
 			if (fovChanged)
 			{
@@ -812,8 +790,7 @@ namespace My
 				ImGui::Text("Selected: %s", m_selectedObject->GetName().c_str());
 				MeshComponent& comp = m_selectedObject->GetMeshComponent();
 				Transform&	   tr = m_selectedObject->GetTransform();
-				Material*	   mat = comp.GetMaterial();
-
+				Material* mat = comp.GetMaterial();
 				// 위치 수정
 				Vector3 pos = tr.GetPosition();
 				if (ImGui::DragFloat3("Move", &pos.x, 0.01f, -50.0f, 50.0f))
@@ -831,6 +808,32 @@ namespace My
 				if (ImGui::SliderFloat3("Scaling", &scale.x, 0.01f, 50.0f))
 				{
 					tr.SetScale(scale);
+				}
+
+				if (m_selectedObject->HasPointLightComponent())
+				{
+					PointLightComponent& pl = m_selectedObject->GetPointLightComponent();
+					ImGui::Separator();
+					ImGui::Text("Point Light");
+
+					Vector3 plColor = pl.GetColor();
+					float	plIntensity = pl.GetIntensity();
+					float	plRange = pl.GetRange();
+
+					if (ImGui::ColorEdit3("Color", &plColor.x))
+					{
+						pl.SetColor(plColor);
+					}
+
+					if (ImGui::SliderFloat("Intensity", &plIntensity, 0.0f, 20.0f))
+					{
+						pl.SetIntensity(plIntensity);
+					}
+
+					if (ImGui::SliderFloat("Range", &plRange, 0.1f, 50.0f))
+					{
+						pl.SetRange(plRange);
+					}
 				}
 
 				if (mat)

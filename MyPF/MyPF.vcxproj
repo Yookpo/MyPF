@@ -192,6 +192,7 @@
     <ClInclude Include="ModelData.h" />
     <ClInclude Include="ModelLoader.h" />
     <ClInclude Include="PointLight.h" />
+    <ClInclude Include="PointLightComponent.h" />
     <ClInclude Include="PointLightSequence.h" />
     <ClInclude Include="PowerSwitch.h" />
     <ClInclude Include="Renderer.h" />
