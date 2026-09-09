@@ -1,6 +1,6 @@
 # MyPF 작업 인계
 
-마지막 갱신: 2026-09-03
+마지막 갱신: 2026-09-10
 
 ## 시작 절차
 
@@ -50,9 +50,9 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 - 원격 저장소: https://github.com/Yookpo/MyPF.git
 - 브랜치: main
 - 문서 갱신 기준 HEAD: 421a58f — Entry 기반 점등 소등 구현
-- 문서 갱신 직전 작업 트리: MyPF/AppBase.cpp에 두 번째 네온 Material/Object/Entry 추가 변경이 있으며 실행 테스트 완료
+- 현재 작업 트리: `EditorUI.h/.cpp`를 추가하고 Editor ImGui 패널을 `AppBase`에서 분리한 변경이 있다. 빌드/실행은 아직 요청하지 않았다.
 - imgui.ini는 런타임 UI 배치 파일이므로 기능 commit에서 제외한다.
-- 이번 요청에서 Codex가 수정한 파일: AGENTS.md, MyPF/docs/CODEX_HANDOFF.md
+- 이번 요청에서 Codex가 수정한 파일: AGENTS.md, MyPF/docs/CODEX_HANDOFF.md, AppBase.*, EditorUI.*, MyPF.vcxproj, MyPF.vcxproj.filters
 - 솔루션: MyPF/MyPF.sln
 - 기본 구성: Debug | x64
 - 실행 작업 디렉터리: MyPF/
@@ -81,7 +81,7 @@ fefdb2f E키를 누르면 스위치 On Text로 확인
 - GraphicsDevice와 GraphicsResourceManager는 AssetManager, Renderer, Scene과 AppBase를 모른다.
 - ModelLoader는 GPU 계층을 모르며 Assimp 데이터를 CPU ModelData로 변환한다.
 - AssetManager는 GraphicsResourceManager를 비소유 참조하고 논리 Asset을 소유·캐싱한다.
-- AppBase가 초기화, Greybox 구성, ImGui, Play 입력, 상호작용과 Scene→RenderItem 변환을 조정한다.
+- AppBase가 초기화, Greybox 구성, Play UI, Play 입력, 상호작용과 Scene→RenderItem 변환을 조정하고, `EditorUI`가 Editor ImGui 패널을 담당한다.
 
 ~~~text
 AppBase
@@ -99,7 +99,8 @@ AppBase
 ├─ PowerSwitch --비소유--> Scene 소유 GameObject / Material
 ├─ PointLightSequence --비소유--> Scene / 등록된 Material
 ├─ Scene 소유 PointLight[]
-└─ DirectionalLight
+├─ DirectionalLight
+└─ EditorUI --비소유--> Scene / Camera / CameraController / DirectionalLight / BackgroundColor
 
 AppBase --FrameRenderData--> Renderer::BeginFrame
 AppBase --RenderItem-------> Renderer::DrawRenderItem
@@ -123,6 +124,8 @@ AppBase --RenderItem-------> Renderer::DrawRenderItem
 ### Editor/Play와 입력
 
 - Editor/Play 상태, ImGui Play/Stop
+- `EditorUI`의 환경·Directional Light·Camera·Scene Hierarchy·Inspector 패널 분리
+- 선택 GameObject의 Transform/Point Light/Material 편집 UI
 - InputSystem의 key down state와 누적 MouseDelta
 - WasKeyPressed와 EndFrame을 통한 키 단발 입력
 - deltaTime 기반 WASD 평면 이동과 대각선 정규화
@@ -166,7 +169,7 @@ AppBase --RenderItem-------> Renderer::DrawRenderItem
 1. Win32 메시지를 InputSystem과 AppBase가 처리한다.
 2. Resize와 focus 상실을 처리한다.
 3. GameTimer와 ImGui 프레임을 시작한다.
-4. Editor/Play UI, Camera Aspect와 Scene Viewport를 갱신한다.
+4. Editor 모드에서는 `EditorUI`가 Editor 패널을 만들고, Play 모드에서는 `AppBase::DrawPlayPanel`이 상태 패널을 만든다. 이후 Camera Aspect와 Scene Viewport를 갱신한다.
 5. Play이면 ESC, WASD와 MouseDelta로 Camera를 갱신한다.
 6. E가 이번 프레임에 눌렸다면 PowerSwitch가 거리·시선을 판정하고 전원 상태와 색상을 반전한다.
 7. PointLightSequence가 전원 상태를 목표로 받고 `deltaTime`을 누적해 등록된 Entry의 Point Light와 Emissive Material을 한 단계씩 함께 갱신한다.
@@ -178,7 +181,7 @@ AppBase --RenderItem-------> Renderer::DrawRenderItem
 
 ## 현재 알려진 문제와 보류 항목
 
-- AppBase가 초기화, Greybox 구성, UI, Play 입력, RenderItem 조립과 기능 객체 조율까지 담당해 방대하다. 실제 변경 압력이 확인되는 책임부터 분리한다.
+- AppBase가 초기화, Greybox 구성, Play UI, Play 입력, RenderItem 조립과 기능 객체 조율까지 담당해 여전히 크다. Editor UI는 `EditorUI`로 분리했으며, 실제 변경 압력이 확인되는 책임부터 추가 분리한다.
 - Camera 충돌이 없어 벽과 스위치를 통과할 수 있다.
 - 스위치의 아주 작은 거리 조건은 현재 상호작용 불가능으로 처리한다.
 - 골목 이동 경로는 약 20m로 최종 20~40초 탐색 동선보다 짧다.

@@ -99,6 +99,11 @@ namespace My
 		}
 
 		m_firstPersonCameraController.Initialize(m_camera, m_inputSystem);
+		m_editorUI.Initialize(m_scene,
+			m_camera,
+			m_firstPersonCameraController,
+			m_directionalLight,
+			m_backgroundColor);
 		m_pointLightSequence.Initialize();
 
 		// Init GeryBox Scene
@@ -418,7 +423,7 @@ namespace My
 		floor->GetTransform().SetPosition(Vector3(0.0f, -0.1f, 10.0f));
 		floor->GetTransform().SetScale(Vector3(4.0f, 0.2f, 20.0f));
 
-		m_selectedObject = floor;
+		m_editorUI.SetSelectedObject(floor);
 
 		floor->GetMeshComponent().SetMesh(greyBoxMesh);
 		floor->GetMeshComponent().SetMaterial(greyBoxMat);
@@ -490,7 +495,7 @@ namespace My
 	}
 
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }, m_selectedObject{ nullptr }
+		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }
 	{
 		g_appBase = this;
 	}
@@ -625,232 +630,61 @@ namespace My
 
 	void AppBase::UpdateGui()
 	{
-		// ImGui 로직
-		// 이후 ImGui UI 컨트롤 추가는 ImGui::NewFrame()과 ImGui::Render() 사이인 여기에 위치
-		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-		ImGui::Begin("Control Panel");
-
-		// 현재 Play 모드인가?
-		if (m_appMode == AppMode::Play)
+		if (m_appMode == AppMode::Editor)
 		{
-			ImGui::Text("Mode: Play");
-			ImGui::Text("Average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-
-			if (ImGui::Button("Stop"))
-			{
-				ExitPlayMode();
-			}
-
-			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
-			{
-				ImGui::Text("Interaction available");
-			}
-			else
-			{
-				ImGui::Text("Interaction unavailable");
-			}
-
-			if (m_powerSwitch.IsPowerOn())
-			{
-				ImGui::Text("Power: On");
-			}
-			else
-			{
-				ImGui::Text("Power: Off");
-			}
-
-			// Test
-			if (m_inputSystem.IsKeyDown('W'))
-			{
-				ImGui::Text("W : Down");
-			}
-			else
-			{
-				ImGui::Text("W : Up");
-			}
-			if (m_inputSystem.IsKeyDown('S'))
-			{
-				ImGui::Text("S : Down");
-			}
-			else
-			{
-				ImGui::Text("S : Up");
-			}
-			if (m_inputSystem.IsKeyDown('A'))
-			{
-				ImGui::Text("A : Down");
-			}
-			else
-			{
-				ImGui::Text("A : Up");
-			}
-			if (m_inputSystem.IsKeyDown('D'))
-			{
-				ImGui::Text("D : Down");
-			}
-			else
-			{
-				ImGui::Text("D : Up");
-			}
-		}
-
-		// 현재 Edit 모드인가?
-		else
-		{
-			ImGui::Text("Mode: Editor");
-
-			if (ImGui::Button("Play"))
+			if (m_editorUI.Draw(static_cast<float>(m_screenHeight)))
 			{
 				EnterPlayMode();
 			}
 
-			if (ImGui::ColorEdit4("Control BackColor", m_backgroundColor.data(), 0))
-			{
-			}
-
-			ImGui::Separator();
-			ImGui::Text("Light");
-			Vector3 lightDir = m_directionalLight.direction;
-			if (ImGui::DragFloat3("Light Direction", &lightDir.x, 0.01f, -1.0f, 1.0f))
-			{
-				if (lightDir.LengthSquared() > 0.00001f)
-				{
-					lightDir.Normalize();
-					m_directionalLight.direction = lightDir;
-				}
-			}
-
-			Vector3 lightColor = m_directionalLight.color;
-			if (ImGui::ColorEdit3("Light Color", &lightColor.x))
-			{
-				m_directionalLight.color = lightColor;
-			}
-			float lightIntensity = m_directionalLight.intensity;
-			if (ImGui::SliderFloat("Light Intensity", &lightIntensity, 0.0f, 5.0f))
-			{
-				m_directionalLight.intensity = lightIntensity;
-			}
-			float ambientStrength = m_directionalLight.ambientStrength;
-			if (ImGui::SliderFloat("Ambient Strength", &ambientStrength, 0.0f, 1.0f))
-			{
-				m_directionalLight.ambientStrength = ambientStrength;
-			}
-
-			ImGui::Separator();
-			ImGui::Text("Camera");
-			Vector3 cameraPos = m_camera.GetPosition();
-			float	cameraSpeed = m_firstPersonCameraController.GetMoveSpeed();
-			float	mouseSensitivity = m_firstPersonCameraController.GetMouseSensitivity();
-
-			if (ImGui::SliderFloat("Camera Speed", &cameraSpeed, 0.1f, 10.0f))
-			{
-				m_firstPersonCameraController.SetMoveSpeed(cameraSpeed);
-			}
-
-			if (ImGui::SliderFloat("Mouse Sensitivity", &mouseSensitivity, 0.01f, 1.0f))
-			{
-				m_firstPersonCameraController.SetMouseSensitivity(mouseSensitivity);
-			}
-
-			float cameraYaw = m_camera.GetYaw();
-			float cameraPitch = m_camera.GetPitch();
-
-			ImGui::Text("Position: X %.2f Y %.2f Z %.2f", cameraPos.x, cameraPos.y, cameraPos.z);
-			ImGui::Text("Rotation: Yaw %.2f Pitch %.2f", cameraYaw, cameraPitch);
-
-			float cameraFov = m_camera.GetFovAngleY();
-			bool  fovChanged = ImGui::SliderFloat("Fov Slider", &cameraFov, 30.0f, 120.0f);
-
-			if (fovChanged)
-			{
-				m_camera.SetFovAngleY(cameraFov);
-			}
-
-			ImGui::Separator();
-			ImGui::Text("Scene Objects");
-
-			const auto& sceneObjects = m_scene.GetGameObjects();
-
-			for (const auto& obj : sceneObjects)
-			{
-				GameObject* gameObject = obj.get();
-				const bool	isSelected = (m_selectedObject == gameObject);
-
-				ImGui::PushID(gameObject);
-
-				if (ImGui::Selectable(gameObject->GetName().c_str(), isSelected))
-				{
-					m_selectedObject = gameObject;
-				}
-
-				ImGui::PopID();
-			}
-
-			ImGui::Separator();
-
-			if (m_selectedObject)
-			{
-				ImGui::Text("Selected: %s", m_selectedObject->GetName().c_str());
-				MeshComponent& comp = m_selectedObject->GetMeshComponent();
-				Transform&	   tr = m_selectedObject->GetTransform();
-				Material*	   mat = comp.GetMaterial();
-				// 위치 수정
-				Vector3 pos = tr.GetPosition();
-				if (ImGui::DragFloat3("Move", &pos.x, 0.01f, -50.0f, 50.0f))
-				{
-					tr.SetPosition(pos);
-				}
-				// 회전 수정
-				Vector3 rot = tr.GetRotation();
-				if (ImGui::SliderFloat3("Rotate(Rad)", &rot.x, -3.14f, 3.14f))
-				{
-					tr.SetRotation(rot);
-				}
-				// 스케일 수정
-				Vector3 scale = tr.GetScale();
-				if (ImGui::SliderFloat3("Scaling", &scale.x, 0.01f, 50.0f))
-				{
-					tr.SetScale(scale);
-				}
-
-				if (m_selectedObject->HasPointLightComponent())
-				{
-					PointLightComponent& pl = m_selectedObject->GetPointLightComponent();
-					ImGui::Separator();
-					ImGui::Text("Point Light");
-
-					Vector3 plColor = pl.GetColor();
-					float	plIntensity = pl.GetIntensity();
-					float	plRange = pl.GetRange();
-
-					if (ImGui::ColorEdit3("Color", &plColor.x))
-					{
-						pl.SetColor(plColor);
-					}
-
-					if (ImGui::SliderFloat("Intensity", &plIntensity, 0.0f, 20.0f))
-					{
-						pl.SetIntensity(plIntensity);
-					}
-
-					if (ImGui::SliderFloat("Range", &plRange, 0.1f, 50.0f))
-					{
-						pl.SetRange(plRange);
-					}
-				}
-
-				if (mat)
-				{
-					Vector3 matBaseColor = mat->GetBaseColor();
-					if (ImGui::SliderFloat3("Base Color", &matBaseColor.x, 0.0f, 1.0f))
-					{
-						mat->SetBaseColor(matBaseColor);
-					}
-				}
-			}
+			m_guiWidth = m_editorUI.GetPanelWidth();
+			return;
 		}
 
-		m_guiWidth = ImGui::GetWindowSize().x;
+		DrawPlayPanel();
+	}
+
+	void AppBase::DrawPlayPanel()
+	{
+		constexpr float			   panelWidth = 360.0f;
+		const float				   panelHeight = m_screenHeight > 0 ? static_cast<float>(m_screenHeight) : 1.0f;
+		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
+
+		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
+		ImGui::SetNextWindowSize(ImVec2(panelWidth, panelHeight), ImGuiCond_Always);
+
+		if (ImGui::Begin("Play Panel", nullptr, panelFlags))
+		{
+			m_guiWidth = ImGui::GetWindowSize().x;
+
+			ImGui::TextUnformatted("Play");
+			ImGui::Text("Average %.3f ms/frame (%.1f FPS)",
+				1000.0f / ImGui::GetIO().Framerate,
+				ImGui::GetIO().Framerate);
+
+			if (ImGui::Button("Stop", ImVec2(-1.0f, 0.0f)))
+			{
+				ExitPlayMode();
+			}
+
+			ImGui::Separator();
+			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
+			{
+				ImGui::TextUnformatted("Interaction available");
+			}
+			else
+			{
+				ImGui::TextUnformatted("Interaction unavailable");
+			}
+
+			ImGui::Text("Power: %s", m_powerSwitch.IsPowerOn() ? "On" : "Off");
+
+			ImGui::Separator();
+			ImGui::Text("W: %s", m_inputSystem.IsKeyDown('W') ? "Down" : "Up");
+			ImGui::Text("S: %s", m_inputSystem.IsKeyDown('S') ? "Down" : "Up");
+			ImGui::Text("A: %s", m_inputSystem.IsKeyDown('A') ? "Down" : "Up");
+			ImGui::Text("D: %s", m_inputSystem.IsKeyDown('D') ? "Down" : "Up");
+		}
 
 		ImGui::End();
 	}

@@ -135,6 +135,7 @@
     <ClCompile Include="AssetManager.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="D3D11Utils.cpp" />
+    <ClCompile Include="EditorUI.cpp" />
     <ClCompile Include="FirstPersonCameraController.cpp" />
     <ClCompile Include="GameObject.cpp" />
     <ClCompile Include="GameTimer.cpp" />
@@ -167,6 +168,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="D3D11Utils.h" />
     <ClInclude Include="DirectionalLight.h" />
+    <ClInclude Include="EditorUI.h" />
     <ClInclude Include="FirstPersonCameraController.h" />
     <ClInclude Include="FrameRenderData.h" />
     <ClInclude Include="GameObject.h" />

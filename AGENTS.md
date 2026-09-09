@@ -1,6 +1,6 @@
 # MyPF Codex 작업 지침
 
-마지막 갱신: 2026-09-03
+마지막 갱신: 2026-09-10
 
 ## 프로젝트 목표와 현재 위치
 
@@ -49,7 +49,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 - `Transform`은 GPU/HLSL의 행렬 전치와 Constant Buffer 저장 규칙을 모른다.
 - `GraphicsDevice`와 `GraphicsResourceManager`는 Renderer, AssetManager, Scene과 AppBase를 모른다.
 - `ModelLoader`는 GPU 계층을 모르며 Assimp 데이터를 독립 CPU `ModelData`로 변환한다.
-- `AppBase`가 시스템 초기화, ImGui 편집, Play 입력과 Scene→RenderItem 변환을 조정한다.
+- `AppBase`가 시스템 초기화, Play 입력과 Scene→RenderItem 변환을 조정하고, `EditorUI`가 Editor ImGui 패널을 담당한다.
 - 오브젝트 단위 제출 경계는 `RenderItem`, 프레임 단위 제출 경계는 `FrameRenderData`를 사용한다.
 - 리소스의 실제 소유권과 비소유 참조를 명확히 구분한다.
 - 범용 ECS, 과도한 인터페이스, 사용처가 없는 추상화를 미리 만들지 않는다.
@@ -116,7 +116,8 @@ AppBase
 ├─ PowerSwitch --비소유--> Scene 소유 GameObject / Material
 ├─ PointLightSequence --비소유--> Scene / 등록된 Material
 ├─ Scene 소유 PointLight[]
-└─ DirectionalLight
+├─ DirectionalLight
+└─ EditorUI --비소유--> Scene / Camera / CameraController / DirectionalLight / BackgroundColor
 
 AppBase --FrameRenderData--> Renderer::BeginFrame
 AppBase --RenderItem-------> Renderer::DrawRenderItem
@@ -129,7 +130,7 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 1. Win32 메시지를 InputSystem과 AppBase가 처리한다.
 2. focus를 잃으면 Play를 종료하고 입력 상태를 Reset한다.
 3. GameTimer를 Tick하고 ImGui 프레임을 시작한다.
-4. Editor/Play UI를 만들고 Scene View 크기로 Camera Aspect와 Renderer Viewport를 갱신한다.
+4. Editor 모드에서는 `EditorUI`가 Editor 패널을 만들고, Play 모드에서는 `AppBase::DrawPlayPanel`이 상태 패널을 만든다. 이후 Scene View 크기로 Camera Aspect와 Renderer Viewport를 갱신한다.
 5. Play이면 ESC, WASD와 MouseDelta로 Camera를 갱신한다.
 6. E 단발 입력이 들어오면 PowerSwitch가 거리·시선을 검사하고 전원 상태와 스위치 색을 반전한다.
 7. PointLightSequence가 새 목표를 받고, 매 프레임 누적 시간에 따라 등록된 SequenceEntry의 Point Light와 Emissive Material을 함께 켜거나 역순으로 끈다.
@@ -157,6 +158,8 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - Assimp ModelLoader와 독립 CPU ModelData
 - Zelda FBX, Pikachu OBJ, Dragonite glTF 다중 Mesh/Material/Texture 렌더링
 - Editor/Play 상태와 ImGui Play/Stop
+- `EditorUI`의 환경·Directional Light·Camera·Scene Hierarchy·Inspector 패널 분리
+- 선택 GameObject의 Transform/Point Light/Material 편집 UI
 - InputSystem key state와 MouseDelta
 - deltaTime 기반 WASD 평면 이동과 대각선 정규화
 - 마우스 Yaw/Pitch, 커서 숨김/중앙 복귀
@@ -191,7 +194,7 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - AppBase에 Cube/Triangle 과거 테스트 코드가 주석 블록으로 남아 있다.
 - 카메라 충돌과 플레이어 높이/월드 단위 정책이 없다.
 - ImGui Transform 위치 `-1~1`, Scale `0.1~2` 범위는 골목 배치에 부족하다.
-- AppBase가 시스템 초기화, Greybox 생성, UI, Play 입력, RenderItem 조립과 기능 객체 조율을 함께 담당해 여전히 크다. 실제 변경 압력이 생기는 책임부터 단계적으로 분리한다.
+- AppBase가 시스템 초기화, Greybox 생성, Play UI, Play 입력, RenderItem 조립과 기능 객체 조율을 함께 담당해 여전히 크다. Editor UI는 `EditorUI`로 분리했으며, 실제 변경 압력이 생기는 책임부터 단계적으로 추가 분리한다.
 - PointLightSequence는 자신만 조명 활성 상태를 변경한다는 전제를 사용하므로 다른 코드가 `SetAllPointLightsEnabled`를 호출하면 내부 개수와 실제 상태가 어긋날 수 있다.
 - Point Light 점등 순서는 Scene 생성 순서가 아니라 `SequenceEntry` 등록 순서에 의존한다.
 - SequenceEntry의 Material 포인터는 비소유 참조이므로 등록된 Material은 시퀀스보다 오래 살아야 한다. 현재는 AssetManager가 수명을 보장한다.
@@ -267,7 +270,7 @@ AppBase 멤버 선언과 역순 파괴에 따라 Scene/Renderer가 먼저 소멸
 - 실행 작업 디렉터리: `MyPF/`
 - Assimp는 데스크톱과 노트북의 사용자 vcpkg 환경에 각각 설치돼 있다.
 - 현재 문서 기준 HEAD: `421a58f` — `Entry 기반 점등 소등 구현`
-- 문서 갱신 시 작업 트리에는 두 번째 네온 Material/Object/Entry를 추가한 `MyPF/AppBase.cpp` 변경이 남아 있으며 실행 테스트를 통과했다.
+- 현재 작업 트리에는 `EditorUI.h/.cpp`를 추가하고 Editor ImGui 패널을 `AppBase`에서 분리한 변경이 남아 있다. 빌드/실행은 아직 요청하지 않았다.
 - 작업 트리의 `MyPF/imgui.ini` 변경은 런타임 UI 배치이므로 기능 commit에서 제외한다.
 
 ## 변경 안전성

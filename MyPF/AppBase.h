@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include <array>
+
 #include "Renderer.h"
 #include "GameTimer.h"
 #include "InputSystem.h"
@@ -12,6 +14,7 @@
 #include "AssetManager.h"
 #include "PowerSwitch.h"
 #include "PointLightSequence.h"
+#include "EditorUI.h"
 
 // ImGui 사용에 필요한 헤더파일
 #include "ImGui/imgui.h"
@@ -59,6 +62,7 @@ namespace My
 		void BeginEditorCameraNavigation();
 		void UpdateEditorCamera(float dt);
 		void EndEditorCameraNavigation();
+		void DrawPlayPanel();
 
 		bool InitGreyBoxScene();
 
@@ -78,9 +82,9 @@ namespace My
 		InputSystem				m_inputSystem;
 
 		Scene			   m_scene;
-		GameObject*		   m_selectedObject;
 		PowerSwitch		   m_powerSwitch;
 		PointLightSequence m_pointLightSequence;
+		EditorUI		   m_editorUI;
 
 		Camera						m_camera;
 		Camera						m_editorCameraSnapshot;

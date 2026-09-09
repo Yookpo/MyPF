@@ -69,6 +69,9 @@
     <ClCompile Include="AppBase.cpp">
       <Filter>Application</Filter>
     </ClCompile>
+    <ClCompile Include="EditorUI.cpp">
+      <Filter>Application</Filter>
+    </ClCompile>
     <ClCompile Include="GameTimer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
@@ -172,6 +175,9 @@
     </ClInclude>
     <ClInclude Include="DirectionalLight.h">
       <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorUI.h">
+      <Filter>Application</Filter>
     </ClInclude>
     <ClInclude Include="Renderer.h">
       <Filter>Rendering</Filter>
