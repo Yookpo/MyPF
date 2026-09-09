@@ -48,7 +48,7 @@ namespace My
 			GameObject*			 pointLightObject = pointLightEntry.pointLightObject;
 			PointLightComponent& pointLightComponent = pointLightObject->GetPointLightComponent();
 			pointLightComponent.SetEnabled(true);
-			pointLightEntry.emissiveMat->SetEmissiveIntensity(pointLightEntry.emissiveIntensity);
+			pointLightEntry.emissiveMat->SetEmissiveMultiplier(1.0f);
 			m_enabledLightCount += 1;
 		}
 		else
@@ -57,14 +57,14 @@ namespace My
 			GameObject*			 pointLightObject = pointLightEntry.pointLightObject;
 			PointLightComponent& pointLightComponent = pointLightObject->GetPointLightComponent();
 			pointLightComponent.SetEnabled(false);
-			pointLightEntry.emissiveMat->SetEmissiveIntensity(0);
+			pointLightEntry.emissiveMat->SetEmissiveMultiplier(0.0f);
 			m_enabledLightCount -= 1;
 		}
 	}
 
-	bool PointLightSequence::AddSequenceEntry(GameObject& pointLightObject, Material* mat, float intensity)
+	bool PointLightSequence::AddSequenceEntry(GameObject& pointLightObject, Material* mat)
 	{
-		if (!mat || !pointLightObject.HasPointLightComponent() || intensity <= 0.0f)
+		if (!mat || !pointLightObject.HasPointLightComponent())
 		{
 			return false;
 		}
@@ -79,9 +79,10 @@ namespace My
 			}
 		}
 
-		SequenceEntry entry{ &pointLightObject, mat, intensity };
+		// 새로운 Entry 등록
+		SequenceEntry entry{ &pointLightObject, mat };
 		pointLightObject.GetPointLightComponent().SetEnabled(false);
-		mat->SetEmissiveIntensity(0.0f);
+		mat->SetEmissiveMultiplier(0.0f);
 
 		m_pointLightSequenceEntries.emplace_back(entry);
 

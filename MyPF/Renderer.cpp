@@ -238,7 +238,7 @@ namespace My
 		// 머터리얼 변환
 		m_materialConstantData.baseColor = drawMat.GetBaseColor();
 		m_materialConstantData.emissiveColor = drawMat.GetEmissiveColor();
-		m_materialConstantData.emissiveIntensity = drawMat.GetEmissiveIntensity();
+		m_materialConstantData.emissiveIntensity = drawMat.GetEffectiveEmissiveIntensity();
 		if (!m_resourceManager->UpdateBuffer(m_materialBufferHandle, m_materialConstantData))
 		{
 			return false;

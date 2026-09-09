@@ -13,7 +13,6 @@ namespace My
 		{
 			GameObject* pointLightObject{ nullptr };
 			Material*	emissiveMat{ nullptr };
-			float		emissiveIntensity{ 0.0f };
 		};
 
 	public:
@@ -22,7 +21,7 @@ namespace My
 		void Update(float deltaTime);
 		bool IsPlaying() const { return m_enabledLightCount != m_targetEnabledLightCount; }
 
-		bool AddSequenceEntry(GameObject& pointLightObject, Material* mat, float intensity);
+		bool AddSequenceEntry(GameObject& pointLightObject, Material* mat);
 
 	private:
 		float		m_stepInterval{ 1.4f };			// 점등 간격

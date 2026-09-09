@@ -23,4 +23,9 @@ namespace My
 		m_emissiveIntensity = newEmissiveIntensity;
 	}
 
+	void Material::SetEmissiveMultiplier(float newEmissiveMultiplier)
+	{
+		m_runtimeEmissiveMultiplier = newEmissiveMultiplier;
+	}
+
 } // namespace My

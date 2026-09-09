@@ -340,6 +340,7 @@ namespace My
 		neonMat1->SetAlbedoTexture(greyBoxTex);
 		neonMat1->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
 		neonMat1->SetEmissiveColor(Vector3(1.0f, 0.05f, 0.65f));
+		neonMat1->SetEmissiveIntensity(3.0f);
 
 		auto neonMat2 = m_assetManager.CreateMaterial("neonMat2");
 
@@ -351,6 +352,7 @@ namespace My
 		neonMat2->SetAlbedoTexture(greyBoxTex);
 		neonMat2->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
 		neonMat2->SetEmissiveColor(Vector3(0.37f, 0.86f, 1.00f));
+		neonMat2->SetEmissiveIntensity(8.0f);
 
 		auto neonMat3 = m_assetManager.CreateMaterial("neonMat3");
 
@@ -362,6 +364,7 @@ namespace My
 		neonMat3->SetAlbedoTexture(greyBoxTex);
 		neonMat3->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
 		neonMat3->SetEmissiveColor(Vector3(1.0f, 0.35f, 0.03f));
+		neonMat3->SetEmissiveIntensity(5.f);
 
 		// Create Point Light
 
@@ -380,7 +383,7 @@ namespace My
 		pinkNeonLight.GetPointLightComponent().SetRange(4.5f);
 		pinkNeonLight.GetPointLightComponent().SetIntensity(2.0f);
 		pinkNeonLight.GetPointLightComponent().SetEnabled(false);
-		if (!m_pointLightSequence.AddSequenceEntry(pinkNeonLight, neonMat1, 3.0f))
+		if (!m_pointLightSequence.AddSequenceEntry(pinkNeonLight, neonMat1))
 		{
 			return false;
 		}
@@ -392,7 +395,7 @@ namespace My
 		cyanNeonLight.GetPointLightComponent().SetRange(4.5f);
 		cyanNeonLight.GetPointLightComponent().SetIntensity(2.0f);
 		cyanNeonLight.GetPointLightComponent().SetEnabled(false);
-		if (!m_pointLightSequence.AddSequenceEntry(cyanNeonLight, neonMat2, 8.0f))
+		if (!m_pointLightSequence.AddSequenceEntry(cyanNeonLight, neonMat2))
 		{
 			return false;
 		}
@@ -404,7 +407,7 @@ namespace My
 		orangeNeonLight.GetPointLightComponent().SetRange(7.5f);
 		orangeNeonLight.GetPointLightComponent().SetIntensity(5.0f);
 		orangeNeonLight.GetPointLightComponent().SetEnabled(false);
-		if (!m_pointLightSequence.AddSequenceEntry(orangeNeonLight, neonMat3, 5.0f))
+		if (!m_pointLightSequence.AddSequenceEntry(orangeNeonLight, neonMat3))
 		{
 			return false;
 		}
@@ -790,7 +793,7 @@ namespace My
 				ImGui::Text("Selected: %s", m_selectedObject->GetName().c_str());
 				MeshComponent& comp = m_selectedObject->GetMeshComponent();
 				Transform&	   tr = m_selectedObject->GetTransform();
-				Material* mat = comp.GetMaterial();
+				Material*	   mat = comp.GetMaterial();
 				// 위치 수정
 				Vector3 pos = tr.GetPosition();
 				if (ImGui::DragFloat3("Move", &pos.x, 0.01f, -50.0f, 50.0f))
