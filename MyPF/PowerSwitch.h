@@ -25,7 +25,6 @@ namespace My
 		Vector3		m_powerOnColor;
 
 		float m_interactionRange;
-		float m_interactionFacingThreshold;
 		bool  m_isPowerOn;
 	};
 } // namespace My
