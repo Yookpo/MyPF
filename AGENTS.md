@@ -1,6 +1,6 @@
 # MyPF 작업 지침
 
-마지막 갱신: 2026-09-12
+마지막 갱신: 2026-09-13
 
 이 문서가 MyPF 프로젝트의 단일 진실 원본이다. 사용하는 도구(Claude Code, Codex 등)와 무관하게 적용된다.
 
@@ -122,8 +122,8 @@ AppBase --RenderItem-------> Renderer::DrawRenderItem
 2. `GameTimer::Tick()`으로 deltaTime을 계산한다.
 3. ImGui 프레임을 시작하고 `UpdateGui()`를 호출한다. Editor 모드는 `EditorUI::Draw`, Play 모드는 `AppBase::DrawPlayPanel`.
 4. Scene View 크기로 Camera Aspect와 Renderer Viewport를 갱신한다.
-5. Play 모드면 ESC 확인, `FirstPersonCameraController`가 WASD 이동과 MouseDelta 회전을 적용한다.
-6. `WasKeyPressed('E')`가 참이면 `PowerSwitch`가 거리·시선을 판정하고 전원 상태와 스위치 색을 반전한다.
+5. Editor 모드는 마우스 우클릭을 누르고 있는 동안만 `FirstPersonCameraController`가 WASD 이동과 MouseDelta 회전을 적용한다(`AppBase::UpdateEditorCamera`). Play 모드는 ESC 확인 후 매 프레임 항상 적용한다.
+6. `WasKeyPressed('E')`가 참이면 `PowerSwitch`가 Ray-BoundingBox 교차로 상호작용 가능 여부를 판정하고 전원 상태와 스위치 색을 반전한다.
 7. `PointLightSequence`가 새 목표를 받고, 누적 시간에 따라 등록된 `SequenceEntry`의 Point Light와 Emissive Material을 한 단계씩 함께 켜거나 역순으로 끈다.
 8. 커서를 Scene View 중앙으로 되돌린다.
 9. `AppBase`가 Camera, DirectionalLight, `Scene::GatherPointLights` 결과로 `FrameRenderData`를 만든다.
@@ -135,7 +135,7 @@ AppBase --RenderItem-------> Renderer::DrawRenderItem
 
 새 기능을 안내하기 전에 이 목록을 확인한다. (전체 목록은 CODEX_HANDOFF.md)
 
-- **인코딩**: 일부 파일의 한글 주석이 CP949로 저장돼 깨져 있다. 이는 "기존 스타일"이 아니라 고쳐야 할 버그다. 새로 쓰는 파일은 **UTF-8 with BOM**으로 저장한다.
+- **인코딩**: 과거 일부 파일의 한글 주석이 CP949로 저장돼 깨져 있었으나, 전체 소스를 UTF-8 BOM으로 통일하는 커밋(`5a5f463`)으로 해결됐다. 새로 쓰는 파일도 **UTF-8 with BOM**으로 저장한다.
 - **셰이더 경로**: `L"Shaders\\simpleVertexShader.hlsl"` 상대 경로라 **작업 디렉터리가 `MyPF/`여야** 실행된다. exe를 직접 실행하면 실패한다.
 - **LDR 클리핑**: Pixel Shader 마지막 `saturate` 때문에 1을 넘는 Emissive Intensity가 잘린다. 현재 값 3, 8은 화면에서 구분되지 않는다. HDR Scene Target 단계에서 해결한다.
 - **에러 정책**: `Renderer::DrawRenderItem`은 Albedo Texture가 없으면 `false`를 반환하고, `AppBase::Render`가 이를 받아 `PostQuitMessage(-1)`로 앱을 종료한다. 기본 Material/Texture 정책이 없다.
