@@ -212,12 +212,12 @@ namespace My
 
 	void AppBase::CenterCursorInSceneView()
 	{
-		if (!m_mainWindow || (m_screenWidth - m_guiWidth) <= 0 || m_screenHeight <= 0)
+		if (!m_mainWindow || m_screenWidth <= 0 || m_screenHeight <= 0)
 		{
 			return;
 		}
 
-		float centerClientX = m_guiWidth + (m_screenWidth - m_guiWidth) * 0.5f;
+		float centerClientX = m_screenWidth * 0.5f;
 		float centerClientY = m_screenHeight * 0.5f;
 
 		POINT sceneViewPos{ static_cast<LONG>(centerClientX), static_cast<LONG>(centerClientY) };
@@ -237,20 +237,19 @@ namespace My
 
 	bool AppBase::IsCursorInSceneView() const
 	{
+		if (m_screenWidth <= 0 || m_screenHeight <= 0)
+		{
+			return false;
+		}
+
 		const auto mousePos = ImGui::GetMousePos();
-		float	   sceneViewWidth = m_screenWidth - m_guiWidth;
 
-		if (sceneViewWidth <= 0 || m_screenHeight <= 0)
+		if (mousePos.x < 0.0f || mousePos.x >= m_screenWidth)
 		{
 			return false;
 		}
 
-		if (mousePos.x < m_guiWidth || mousePos.x >= m_screenWidth)
-		{
-			return false;
-		}
-
-		if (mousePos.y < 0 || mousePos.y >= m_screenHeight)
+		if (mousePos.y < 0.0f || mousePos.y >= m_screenHeight)
 		{
 			return false;
 		}
@@ -630,6 +629,17 @@ namespace My
 
 	void AppBase::UpdateGui()
 	{
+		// F1: GUI 표시/숨김
+		if (m_inputSystem.WasKeyPressed(VK_F1) && !ImGui::GetIO().WantCaptureKeyboard)
+		{
+			m_showGuiPanel = !m_showGuiPanel;
+		}
+
+		if (!m_showGuiPanel)
+		{
+			return;
+		}
+
 		if (m_appMode == AppMode::Editor)
 		{
 			if (m_editorUI.Draw(static_cast<float>(m_screenHeight)))
@@ -637,7 +647,6 @@ namespace My
 				EnterPlayMode();
 			}
 
-			m_guiWidth = m_editorUI.GetPanelWidth();
 			return;
 		}
 
@@ -646,44 +655,35 @@ namespace My
 
 	void AppBase::DrawPlayPanel()
 	{
-		constexpr float			   panelWidth = 360.0f;
-		const float				   panelHeight = m_screenHeight > 0 ? static_cast<float>(m_screenHeight) : 1.0f;
-		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
+		constexpr ImGuiWindowFlags panelFlags =
+			ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize
+			| ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing
+			| ImGuiWindowFlags_NoSavedSettings;
 
-		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-		ImGui::SetNextWindowSize(ImVec2(panelWidth, panelHeight), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(12.0f, 12.0f), ImGuiCond_Always);
+		ImGui::SetNextWindowBgAlpha(0.4f);
 
-		if (ImGui::Begin("Play Panel", nullptr, panelFlags))
+		if (ImGui::Begin("Play HUD", nullptr, panelFlags))
 		{
-			m_guiWidth = ImGui::GetWindowSize().x;
-
-			ImGui::TextUnformatted("Play");
-			ImGui::Text("Average %.3f ms/frame (%.1f FPS)",
-				1000.0f / ImGui::GetIO().Framerate,
-				ImGui::GetIO().Framerate);
-
-			if (ImGui::Button("Stop", ImVec2(-1.0f, 0.0f)))
-			{
-				ExitPlayMode();
-			}
+			ImGui::TextUnformatted("PLAY   ESC: Stop   F1: Hide UI");
+			ImGui::Text("%.1f FPS (%.2f ms)",
+				ImGui::GetIO().Framerate,
+				1000.0f / ImGui::GetIO().Framerate);
 
 			ImGui::Separator();
+			ImGui::Text("Power: %s", m_powerSwitch.IsPowerOn() ? "On" : "Off");
 			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
 			{
-				ImGui::TextUnformatted("Interaction available");
+				ImGui::TextUnformatted("[E] Interact");
 			}
-			else
-			{
-				ImGui::TextUnformatted("Interaction unavailable");
-			}
-
-			ImGui::Text("Power: %s", m_powerSwitch.IsPowerOn() ? "On" : "Off");
 
 			ImGui::Separator();
-			ImGui::Text("W: %s", m_inputSystem.IsKeyDown('W') ? "Down" : "Up");
-			ImGui::Text("S: %s", m_inputSystem.IsKeyDown('S') ? "Down" : "Up");
-			ImGui::Text("A: %s", m_inputSystem.IsKeyDown('A') ? "Down" : "Up");
-			ImGui::Text("D: %s", m_inputSystem.IsKeyDown('D') ? "Down" : "Up");
+			ImGui::Text("W%s S%s A%s D%s",
+				m_inputSystem.IsKeyDown('W') ? "*" : "-",
+				m_inputSystem.IsKeyDown('S') ? "*" : "-",
+				m_inputSystem.IsKeyDown('A') ? "*" : "-",
+				m_inputSystem.IsKeyDown('D') ? "*" : "-");
 		}
 
 		ImGui::End();
@@ -716,14 +716,14 @@ namespace My
 
 				ImGui::Render();
 
-				if (m_screenWidth - m_guiWidth > 0 && m_screenHeight > 0)
+				if (m_screenWidth > 0 && m_screenHeight > 0)
 				{
-					float sceneViewWidth = static_cast<float>(m_screenWidth - m_guiWidth);
+					float sceneViewWidth = static_cast<float>(m_screenWidth);
 					float sceneViewHeight = static_cast<float>(m_screenHeight);
 					float sceneViewRatio = this->GetAspectRatio(sceneViewWidth, sceneViewHeight);
 
 					m_camera.SetAspectRatio(sceneViewRatio);
-					m_renderer.SetSceneViewport(m_guiWidth, 0, sceneViewWidth, sceneViewHeight);
+					m_renderer.SetSceneViewport(0.0f, 0.0f, sceneViewWidth, sceneViewHeight);
 				}
 
 				Update(m_gameTimer.GetDeltaTime());

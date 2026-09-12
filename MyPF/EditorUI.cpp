@@ -38,16 +38,15 @@ namespace My
 			return false;
 		}
 
-		const float				   panelHeight = screenHeight > 0.0f ? screenHeight : 1.0f;
-		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
+		const float				   initialHeight = screenHeight > 32.0f ? screenHeight - 32.0f : 688.0f;
+		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_None;
 
-		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-		ImGui::SetNextWindowSize(ImVec2(kEditorPanelWidth, panelHeight), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(16.0f, 16.0f), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(kEditorPanelWidth, initialHeight), ImGuiCond_FirstUseEver);
 
 		bool playRequested = false;
 		if (ImGui::Begin("Editor Panel", nullptr, panelFlags))
 		{
-			m_panelWidth = ImGui::GetWindowSize().x;
 			playRequested = DrawEditorPanel();
 		}
 		ImGui::End();
