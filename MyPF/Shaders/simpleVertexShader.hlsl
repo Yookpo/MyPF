@@ -1,4 +1,4 @@
-cbuffer objectConstantBuffer : register(b0)
+ï»¿cbuffer objectConstantBuffer : register(b0)
 {
     matrix model;
     matrix invTranspose;
@@ -21,7 +21,7 @@ struct VS_INPUT
 struct PS_INPUT
 {
     float4 pos : SV_POSITION;
-    float3 posWorld : TEXCOORD1; // Á¶¸í °è»ê¿ë
+    float3 posWorld : TEXCOORD1; // ì¡°ëª… ê³„ì‚°ìš©
     float3 color : COLOR0;
     float3 normal : NORMAL0;
     float2 uv : TEXCOORD0;
@@ -35,7 +35,7 @@ PS_INPUT main(VS_INPUT input)
     float4 pos = float4(input.pos, 1.0f);
     pos = mul(pos, model);
     
-    output.posWorld = pos.xyz; // ¿ùµå À§Ä¡ µû·Î ÀúÀå
+    output.posWorld = pos.xyz; // ì›”ë“œ ìœ„ì¹˜ ë”°ë¡œ ì €ìž¥
     
     pos = mul(pos, view);
     pos = mul(pos, projection);

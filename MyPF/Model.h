@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <vector>
 #include <utility>
 
@@ -7,7 +7,7 @@ namespace My
 	class Mesh;
 	class Material;
 
-	// ¸ğµ¨À» ±¸¼ºÇÏ´Â ÇÏ³ªÀÇ ·»´õ¸µ ´ÜÀ§
+	// ëª¨ë¸ì„ êµ¬ì„±í•˜ëŠ” í•˜ë‚˜ì˜ ë Œë”ë§ ë‹¨ìœ„
 	struct ModelPart
 	{
 		const Mesh* mesh{ nullptr };

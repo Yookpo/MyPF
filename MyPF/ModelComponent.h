@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 namespace My
 {
@@ -14,6 +14,6 @@ namespace My
 		bool		 HasModel() const { return m_model; }
 
 	private:
-		const Model* m_model; // ¿ÀºêÁ§Æ®°¡ »ç¿ëÇÒ ¸ğµ¨
+		const Model* m_model; // ì˜¤ë¸Œì íŠ¸ê°€ ì‚¬ìš©í•  ëª¨ë¸
 	};
 } // namespace My

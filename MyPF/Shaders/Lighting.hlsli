@@ -1,4 +1,4 @@
-#define NUM_POINT_LIGHTS 8
+ï»¿#define NUM_POINT_LIGHTS 8
 
 struct PointLight
 {
@@ -35,16 +35,16 @@ float3 ComputePointLight(PointLight pointLight, float3 pos, float3 normal, float
     }
     
     float3 lightVec = pointLight.position - pos;
-    // ½¦ÀÌµùÇÒ ÁöÁ¡ºÎÅÍ Á¶¸í±îÁöÀÇ °Å¸® 
+    // ì‰ì´ë”©í•  ì§€ì ë¶€í„° ì¡°ëª…ê¹Œì§€ì˜ ê±°ë¦¬ 
     float d = length(lightVec);
     
-    // ³Ê¹« ¸Ö¸é Á¶¸í Àû¿ë X
+    // ë„ˆë¬´ ë©€ë©´ ì¡°ëª… ì ìš© X
     if (d >= pointLight.range || d <= 0.0001f)
     {
         return float3(0, 0, 0);
     }
 
-    // °Å¸®°¡ 0¿¡ °¡±î¿î °æ¿ì¸¦ ´ëºñÇØ Á¶¸í ¹æÇâ Á¤±ÔÈ­
+    // ê±°ë¦¬ê°€ 0ì— ê°€ê¹Œìš´ ê²½ìš°ë¥¼ ëŒ€ë¹„í•´ ì¡°ëª… ë°©í–¥ ì •ê·œí™”
     lightVec = normalize(lightVec);
     float diffuse = saturate(dot(normal, lightVec));
     float aten = CalcAttenuation(d, pointLight.range);

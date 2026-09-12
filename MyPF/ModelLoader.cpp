@@ -1,7 +1,7 @@
-#include "ModelLoader.h"
+ï»¿#include "ModelLoader.h"
 
 // vcpkg install assimp:x64-windows
-// Preprocessor definitions¿¡ NOMINMAX Ãß°¡
+// Preprocessor definitionsì— NOMINMAX ì¶”ê°€
 #include <assimp\Importer.hpp>
 #include <assimp\postprocess.h>
 #include <assimp\scene.h>
@@ -16,7 +16,7 @@ namespace My
 
 	bool ModelLoader::Load(const std::string& filePath, ModelData& outModelData)
 	{
-		// °°Àº ModelData Àç»ç¿ë ½Ã ÀÌÀü ¸ğµ¨ µ¥ÀÌÅÍ ³²¾ÆÀÖÀ¸¸é ¾ÈµÈ´Ù
+		// ê°™ì€ ModelData ì¬ì‚¬ìš© ì‹œ ì´ì „ ëª¨ë¸ ë°ì´í„° ë‚¨ì•„ìˆìœ¼ë©´ ì•ˆëœë‹¤
 		outModelData.meshes.clear();
 
 		if (filePath.empty())
@@ -26,12 +26,12 @@ namespace My
 
 		Assimp::Importer importer;
 
-		// ¸ğµ¨ ÆÄÀÏ ÀüÃ¼ ºÒ·¯¿À±â
-		// face¸¦ »ï°¢ÇüÀ¸·Î º¯È¯, Left-Handed·Î º¯È¯, NormalÀÌ ¾ø´Â ¸ğµ¨Àº Smooth Normal »ı¼º
+		// ëª¨ë¸ íŒŒì¼ ì „ì²´ ë¶ˆëŸ¬ì˜¤ê¸°
+		// faceë¥¼ ì‚¼ê°í˜•ìœ¼ë¡œ ë³€í™˜, Left-Handedë¡œ ë³€í™˜, Normalì´ ì—†ëŠ” ëª¨ë¸ì€ Smooth Normal ìƒì„±
 		const aiScene* pScene = importer.ReadFile(filePath,
 			aiProcess_Triangulate | aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals);
 
-		// Scene À¯È¿¼º °Ë»ç
+		// Scene ìœ íš¨ì„± ê²€ì‚¬
 		if (!pScene || (pScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) || !pScene->mRootNode)
 		{
 			const auto error = importer.GetErrorString();
@@ -39,16 +39,16 @@ namespace My
 			return false;
 		}
 
-		// Scene¿¡ mesh°¡ ÀÖ´ÂÁö °Ë»ç
+		// Sceneì— meshê°€ ìˆëŠ”ì§€ ê²€ì‚¬
 		if (!pScene->HasMeshes())
 		{
 			return false;
 		}
 
-		// ¸ğµ¨ Æú´õ °è»ê
+		// ëª¨ë¸ í´ë” ê³„ì‚°
 		const std::string modelDirectory = std::filesystem::path(filePath).parent_path().string();
 
-		// ¸ğµ¨¿¡ Æ÷ÇÔµÈ ¸ğµç mesh ¹× material Ã³¸®
+		// ëª¨ë¸ì— í¬í•¨ëœ ëª¨ë“  mesh ë° material ì²˜ë¦¬
 		for (UINT i = 0; i < pScene->mNumMeshes; i++)
 		{
 			ImportedMeshData importedMesh{};
@@ -72,21 +72,21 @@ namespace My
 		return !outModelData.meshes.empty();
 	}
 
-	// GeoMetry º¯È¯
+	// GeoMetry ë³€í™˜
 	bool ModelLoader::ProcessMesh(const aiMesh* sourceMesh, ImportedMeshData& outImportedMesh)
 	{
 		outImportedMesh = ImportedMeshData{};
 
-		// Position/Face/Normal °Ë»ç
+		// Position/Face/Normal ê²€ì‚¬
 		if (!sourceMesh || !sourceMesh->HasPositions() || !sourceMesh->HasFaces() || !sourceMesh->HasNormals())
 		{
 			return false;
 		}
 
-		// Assimp Vertex -> Vertex º¯È¯
+		// Assimp Vertex -> Vertex ë³€í™˜
 		MeshData meshData;
 
-		// uv°¡ ¾ø´Â ¸ğµ¨Àº (0,0) À¸·Î ÃÊ±âÈ­
+		// uvê°€ ì—†ëŠ” ëª¨ë¸ì€ (0,0) ìœ¼ë¡œ ì´ˆê¸°í™”
 		const bool hasTexCoords = sourceMesh->HasTextureCoords(0);
 
 		// Walk through each of the mesh's vertices
@@ -119,7 +119,7 @@ namespace My
 		{
 			const aiFace& face = sourceMesh->mFaces[i];
 
-			// »ï°¢Çü ÆÇº°
+			// ì‚¼ê°í˜• íŒë³„
 			if (face.mNumIndices != 3)
 			{
 				return false;
@@ -162,8 +162,8 @@ namespace My
 			return {};
 		}
 
-		// "*0" °°Àº °æ·Î´Â ¸ğµ¨ ÆÄÀÏ ³»ºÎ¿¡ Æ÷ÇÔµÈ Embedded Texture´Ù.
-		// ÇöÀç Texture ·Î´õ´Â ÆÄÀÏ °æ·Î¸¸ Áö¿øÇÏ¹Ç·Î ÀÌ¹ø¿¡´Â Á¦¿ÜÇÑ´Ù.
+		// "*0" ê°™ì€ ê²½ë¡œëŠ” ëª¨ë¸ íŒŒì¼ ë‚´ë¶€ì— í¬í•¨ëœ Embedded Textureë‹¤.
+		// í˜„ì¬ Texture ë¡œë”ëŠ” íŒŒì¼ ê²½ë¡œë§Œ ì§€ì›í•˜ë¯€ë¡œ ì´ë²ˆì—ëŠ” ì œì™¸í•œë‹¤.
 		if (rawTexturePath.front() == '*')
 		{
 			return {};

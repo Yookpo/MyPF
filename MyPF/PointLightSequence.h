@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <cstddef>
 #include <vector>
 
@@ -24,10 +24,10 @@ namespace My
 		bool AddSequenceEntry(GameObject& pointLightObject, Material* mat);
 
 	private:
-		float		m_stepInterval{ 1.4f };			// Á¡µî °£°İ
-		float		m_elapsedTime{ 0.0f };			// °æ°ú ½Ã°£
-		std::size_t m_enabledLightCount{ 0 };		// ÇöÀç ½ÇÁ¦·Î ÄÑÁø Á¶¸í °³¼ö
-		std::size_t m_targetEnabledLightCount{ 0 }; // ÃÖÁ¾ÀûÀ¸·Î ÄÑÁ®¾ß ÇÏ´Â °³¼ö
+		float		m_stepInterval{ 1.4f };			// ì ë“± ê°„ê²©
+		float		m_elapsedTime{ 0.0f };			// ê²½ê³¼ ì‹œê°„
+		std::size_t m_enabledLightCount{ 0 };		// í˜„ì¬ ì‹¤ì œë¡œ ì¼œì§„ ì¡°ëª… ê°œìˆ˜
+		std::size_t m_targetEnabledLightCount{ 0 }; // ìµœì¢…ì ìœ¼ë¡œ ì¼œì ¸ì•¼ í•˜ëŠ” ê°œìˆ˜
 
 		std::vector<SequenceEntry> m_pointLightSequenceEntries;
 	};

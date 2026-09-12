@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <cstdint>
 #include <limits>
 
@@ -25,7 +25,7 @@ namespace My
 		}
 
 	private:
-		// ¹«È¿ ÀÎµ¦½º »ó¼ö
+		// ë¬´íš¨ ì¸ë±ìŠ¤ ìƒìˆ˜
 		static const uint32_t m_invalidIndex = (std::numeric_limits<uint32_t>::max)();
 		uint32_t			  m_index;
 	};

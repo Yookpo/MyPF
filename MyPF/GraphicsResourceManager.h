@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <d3d11.h>
 #include <wrl.h> // comptr
 #include <cstdint>
@@ -66,8 +66,8 @@ namespace My
 		struct BufferResource
 		{
 			ComPtr<ID3D11Buffer> buffer;
-			uint32_t			 byteWidth = 0;		  // ¹öÆÛ »ı¼º ½Ã Å©±â, °»½ÅÇÒ µ¥ÀÌÅÍ Å©±â°¡ ±âÁ¸ ¹öÆÛ Å©±â¿Í °°Àº Áö °Ë»çÇØ¾ßÇÔ
-			bool				 cpuWritable = false; // ÀÌ ¹öÆÛ´Â CPU¿¡¼­ °»½ÅÀÌ °¡´É?
+			uint32_t			 byteWidth = 0;		  // ë²„í¼ ìƒì„± ì‹œ í¬ê¸°, ê°±ì‹ í•  ë°ì´í„° í¬ê¸°ê°€ ê¸°ì¡´ ë²„í¼ í¬ê¸°ì™€ ê°™ì€ ì§€ ê²€ì‚¬í•´ì•¼í•¨
+			bool				 cpuWritable = false; // ì´ ë²„í¼ëŠ” CPUì—ì„œ ê°±ì‹ ì´ ê°€ëŠ¥?
 		};
 
 		struct TextureResource

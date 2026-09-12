@@ -1,4 +1,4 @@
-#include "GraphicsResourceManager.h"
+ï»¿#include "GraphicsResourceManager.h"
 #include "GraphicsDevice.h"
 #include "D3D11Utils.h"
 #include <utility>
@@ -7,7 +7,7 @@ namespace My
 {
 	bool GraphicsResourceManager::Initialize(GraphicsDevice& graphicsDevice)
 	{
-		// ÀÌ¹Ì ÃÊ±âÈ­°¡ µÆ´Ù¸é
+		// ì´ë¯¸ ì´ˆê¸°í™”ê°€ ëë‹¤ë©´
 		if (m_graphicsDevice)
 		{
 			return false;

@@ -1,4 +1,4 @@
-#include "Lighting.hlsli"
+Ôªø#include "Lighting.hlsli"
 Texture2D albedoTexture : register(t0);
 SamplerState linearSampler : register(s0);
 
@@ -32,7 +32,7 @@ struct VS_INPUT
 struct PS_INPUT
 {
     float4 pos : SV_POSITION;
-    float3 posWorld : TEXCOORD1; // ¡∂∏Ì ∞ËªÍøÎ
+    float3 posWorld : TEXCOORD1; // Ï°∞Î™Ö Í≥ÑÏÇ∞Ïö©
     float3 color : COLOR0;
     float3 normal : NORMAL0;
     float2 uv : TEXCOORD0;
@@ -42,7 +42,7 @@ struct PS_INPUT
 float4 main(PS_INPUT input) : SV_TARGET
 {
     float3 normal = normalize(input.normal);
-    float diffuse = saturate(dot(-direction, normal)); // directional Light¿« diffuseColor
+    float diffuse = saturate(dot(-direction, normal)); // directional LightÏùò diffuseColor
     
     float3 albedo = albedoTexture.Sample(linearSampler, input.uv).rgb;
     float3 surfaceColor = albedo * baseColor;

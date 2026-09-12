@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <directxtk/SimpleMath.h>
 
 namespace My
@@ -35,8 +35,8 @@ namespace My
 		const Texture* m_albedoTexture;
 		Vector3		   m_baseColor;
 		Vector3		   m_emissiveColor;
-		float		   m_emissiveIntensity;			// Editor°¡ ¼³Á¤ÇÏ´Â ¿øº» ¹à±â
-		float		   m_runtimeEmissiveMultiplier; // Sequence°¡ Á¶ÀıÇÏ´Â ÇöÀç Ãâ·Â ¹èÀ²	(0.0 ²¨Áü / 1.0 Á¤»óÃâ·Â)
+		float		   m_emissiveIntensity;			// Editorê°€ ì„¤ì •í•˜ëŠ” ì›ë³¸ ë°ê¸°
+		float		   m_runtimeEmissiveMultiplier; // Sequenceê°€ ì¡°ì ˆí•˜ëŠ” í˜„ì¬ ì¶œë ¥ ë°°ìœ¨	(0.0 êº¼ì§ / 1.0 ì •ìƒì¶œë ¥)
 	};
 
 } // namespace My

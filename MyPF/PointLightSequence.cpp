@@ -1,4 +1,4 @@
-#include "PointLightSequence.h"
+ï»¿#include "PointLightSequence.h"
 #include "GameObject.h"
 #include "Material.h"
 
@@ -15,7 +15,7 @@ namespace My
 	{
 		m_elapsedTime = 0.0f;
 
-		// ¸ñÇ¥ °³¼ö 0°³·Î ¼³Á¤
+		// ëª©í‘œ ê°œìˆ˜ 0ê°œë¡œ ì„¤ì •
 		if (!shouldEnable)
 		{
 			m_targetEnabledLightCount = 0;
@@ -41,7 +41,7 @@ namespace My
 
 		m_elapsedTime -= m_stepInterval;
 
-		// Entry¸¦ °¡Á®¿È
+		// Entryë¥¼ ê°€ì ¸ì˜´
 		if (m_enabledLightCount < m_targetEnabledLightCount)
 		{
 			const auto&			 pointLightEntry = m_pointLightSequenceEntries[m_enabledLightCount];
@@ -69,17 +69,17 @@ namespace My
 			return false;
 		}
 
-		// ±âÁ¸ Entry ¼øÈ¸ Áßº¹ °Ë»ç
+		// ê¸°ì¡´ Entry ìˆœíšŒ ì¤‘ë³µ ê²€ì‚¬
 		for (const auto& sequenceEntry : m_pointLightSequenceEntries)
 		{
-			// µî·Ï ÇÒ Æ÷ÀÎÆ®¶óÀÌÆ®°¡ ÀÌ¹Ì ÀÖ´Ù¸é ÆÐ½Ì
+			// ë“±ë¡ í•  í¬ì¸íŠ¸ë¼ì´íŠ¸ê°€ ì´ë¯¸ ìžˆë‹¤ë©´ íŒ¨ì‹±
 			if (sequenceEntry.pointLightObject == &pointLightObject || sequenceEntry.emissiveMat == mat)
 			{
 				return false;
 			}
 		}
 
-		// »õ·Î¿î Entry µî·Ï
+		// ìƒˆë¡œìš´ Entry ë“±ë¡
 		SequenceEntry entry{ &pointLightObject, mat };
 		pointLightObject.GetPointLightComponent().SetEnabled(false);
 		mat->SetEmissiveMultiplier(0.0f);
