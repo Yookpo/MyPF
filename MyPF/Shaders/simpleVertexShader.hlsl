@@ -1,4 +1,4 @@
-﻿cbuffer objectConstantBuffer : register(b0)
+cbuffer objectConstantBuffer : register(b0)
 {
     matrix model;
     matrix invTranspose;

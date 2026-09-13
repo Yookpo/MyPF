@@ -135,7 +135,8 @@ AppBase --RenderItem-------> Renderer::DrawRenderItem
 
 새 기능을 안내하기 전에 이 목록을 확인한다. (전체 목록은 CODEX_HANDOFF.md)
 
-- **인코딩**: 과거 일부 파일의 한글 주석이 CP949로 저장돼 깨져 있었으나, 전체 소스를 UTF-8 BOM으로 통일하는 커밋(`5a5f463`)으로 해결됐다. 새로 쓰는 파일도 **UTF-8 with BOM**으로 저장한다.
+- **인코딩**: 과거 일부 파일의 한글 주석이 CP949로 저장돼 깨져 있었으나, 전체 소스를 UTF-8 BOM으로 통일하는 커밋(`5a5f463`)으로 해결됐다. 새로 쓰는 `.cpp`/`.h`도 **UTF-8 with BOM**으로 저장한다.
+- **HLSL은 BOM 없는 UTF-8**: `5a5f463`이 `.hlsl`/`.hlsli`까지 UTF-8 BOM으로 바꿔버렸는데, HLSL 컴파일러(`fxc`/`D3DCompiler`)는 UTF-8 BOM을 인식하지 못하고 `error X3000: Illegal character in shader file`로 컴파일이 실패한다(2026-09-13 `fxc.exe`로 직접 재현·확인, `Shaders/*.hlsl`·`*.hlsli`를 BOM 없는 UTF-8로 다시 저장해 해결). `.cpp`/`.h`와 달리 `.hlsl`/`.hlsli`는 **BOM 없는 UTF-8**로 저장한다.
 - **셰이더 경로**: `L"Shaders\\simpleVertexShader.hlsl"` 상대 경로라 **작업 디렉터리가 `MyPF/`여야** 실행된다. exe를 직접 실행하면 실패한다.
 - **LDR 클리핑**: Pixel Shader 마지막 `saturate` 때문에 1을 넘는 Emissive Intensity가 잘린다. 현재 값 3, 8은 화면에서 구분되지 않는다. HDR Scene Target 단계에서 해결한다.
 - **에러 정책**: `Renderer::DrawRenderItem`은 Albedo Texture가 없으면 `false`를 반환하고, `AppBase::Render`가 이를 받아 `PostQuitMessage(-1)`로 앱을 종료한다. 기본 Material/Texture 정책이 없다.

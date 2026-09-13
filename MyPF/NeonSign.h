@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <string>
 #include <directxtk/SimpleMath.h>
 
@@ -12,25 +12,25 @@ namespace My
 	class Mesh;
 	class Texture;
 
-	// ³×¿Â »çÀÎ ÇÏ³ª¸¦ ±¸¼ºÇÏ´Â µ¥ ÇÊ¿äÇÑ ÀÔ·Â µ¥ÀÌÅÍ
-	// color ÇÊµå ÇÏ³ª °øÀ¯
+	// ë„¤ì˜¨ ì‚¬ì¸ í•˜ë‚˜ë¥¼ êµ¬ì„±í•˜ëŠ” ë° í•„ìš”í•œ ì…ë ¥ ë°ì´í„°
+	// color í•„ë“œ í•˜ë‚˜ ê³µìœ 
 	struct NeonSignDesc
 	{
-		std::string name;		   // GameObject/Material ÀÌ¸§¿¡ ¾µ base Key
-		Vector3		glowPosition;  // ¹ß±¤ ¸Ş½¬ÀÇ ¿ùµå À§Ä¡
-		Vector3		glowSCale;	   // ¹ß±¤ ¸Ş½¬ Å©±â
-		Vector3		lightPosition; // Point Light À§Ä¡ (°£ÆÇ°ú °°Àº ÀÚ¸® ¾Æ´Ò ¼öµµ)
+		std::string name;		   // GameObject/Material ì´ë¦„ì— ì“¸ base Key
+		Vector3		glowPosition;  // ë°œê´‘ ë©”ì‰¬ì˜ ì›”ë“œ ìœ„ì¹˜
+		Vector3		glowScale;	   // ë°œê´‘ ë©”ì‰¬ í¬ê¸°
+		Vector3		lightPosition; // Point Light ìœ„ì¹˜ (ê°„íŒê³¼ ê°™ì€ ìë¦¬ ì•„ë‹ ìˆ˜ë„)
 		float		lightRange;
 		float		lightIntensity;
-		Vector3		color; // Emissive Color , Point Light Color °ø¿ë
+		Vector3		color; // Emissive Color , Point Light Color ê³µìš©
 		float		emissiveIntensity;
 	};
 
 	class NeonSignFactory
 	{
 	public:
-		// Desc´ë·Î ¹ß±¤ ¸Ş½¬ GameObject + Point Light GameObject + Material ¸¸µé°í
-		// sequence¿¡ µî·Ï ÇÑ´Ù. ½ÇÆĞ ½Ã false
+		// DescëŒ€ë¡œ ë°œê´‘ ë©”ì‰¬ GameObject + Point Light GameObject + Material ë§Œë“¤ê³ 
+		// sequenceì— ë“±ë¡ í•œë‹¤. ì‹¤íŒ¨ ì‹œ false
 		static bool Create(Scene& scene, AssetManager& assetManager, PointLightSequence& sequence, const Mesh* glowMesh,
 			const Texture* baseTexture, const NeonSignDesc& desc);
 	};

@@ -34,8 +34,8 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `5a5f463` — 소스 인코딩을 UTF-8 BOM으로 통일 (이번 세션은 소스 코드 변경 없음, HEAD 그대로)
-- 현재 작업 트리: 브랜치 `WORK_CLAUDE`. 2026-09-13 문서 동기화로 `AGENTS.md`/`CLAUDE.md`/`MyPF/docs/CODEX_HANDOFF.md`가 커밋되지 않은 상태로 남아 있다. commit/push는 사용자가 요청할 때만 한다.
+- 문서 갱신 기준 HEAD: `1622173` — clangformat 적용 + neonSign팩토리
+- 현재 작업 트리: 브랜치 `WORK_CLAUDE`. `NeonSign.h`(인코딩/오타 수정), `Shaders/simpleVertexShader.hlsl`·`simplePixelShader.hlsl`·`Lighting.hlsli`(BOM 제거), `MyPF.vcxproj`/`.filters`가 커밋되지 않은 상태로 남아 있다. commit/push는 사용자가 요청할 때만 한다.
 - `MyPF/imgui.ini` 변경은 런타임 UI 배치이므로 기능 commit에서 제외한다.
 
 최근 기능 commit:
@@ -333,6 +333,15 @@ public:
 - `AGENTS.md`를 도구 중립적으로 바꾸고 규칙·아키텍처·프레임 흐름만 남겨 압축했다.
 - 완료 기능 목록, 진행률, 로드맵, 작업 기록을 이 문서로 이동해 두 문서의 중복을 제거했다.
 - `CLAUDE.md`가 `@AGENTS.md`를 import하고 MyPF 우선 규칙을 선언하도록 구성했다.
+
+### 2026-09-13 — 셰이더 컴파일 실패 원인 진단: HLSL + UTF-8 BOM ✅
+
+- 완료한 작업: `Renderer::Initialize`가 항상 실패해 앱이 초기화 직후 종료되는 문제를 디버깅했다. `Renderer::Initialize` 안에서도 구체적으로 `D3D11Utils::CreateVertexShaderAndInputLayout`(Vertex Shader 컴파일 단계)에서 `hr = E_FAIL`, `errorBlob` 유효로 확인했고, Windows SDK 번들 `fxc.exe`로 `Shaders/simpleVertexShader.hlsl`을 직접 컴파일해 `error X3000: Illegal character in shader file`을 재현했다. 파일 앞 3바이트(UTF-8 BOM `EF BB BF`)를 제거한 사본으로 같은 파일을 다시 컴파일해 정상 컴파일됨을 확인해 원인을 확정했다.
+- 확인한 결과: 원인은 `5a5f463 소스 인코딩을 UTF-8 BOM으로 통일` 커밋이 `.cpp`/`.h`뿐 아니라 `.hlsl`/`.hlsli`까지 UTF-8 BOM으로 바꿔버린 것. MSVC는 UTF-8 BOM을 허용하지만 HLSL 컴파일러(`fxc`/`D3DCompiler`)는 허용하지 않아, 그 커밋 이후 셰이더 런타임 컴파일이 계속 실패하고 있었다(그동안 실행을 안 해봐서 발견되지 않았던 것으로 보임).
+- 남아 있던 문제와 해결: `Shaders/simpleVertexShader.hlsl`, `simplePixelShader.hlsl`, `Lighting.hlsli` 세 파일을 BOM 없는 UTF-8로 다시 저장해 해결했다(사용자가 직접 수정, 아직 커밋 전).
+- 설계 규칙 갱신: `.hlsl`/`.hlsli`는 UTF-8 BOM 통일 규칙의 예외(BOM 없는 UTF-8)로 `AGENTS.md`/`CLAUDE.md`에 반영했다.
+- 별도로 진행된 작업: 사용자가 `.clang-format`의 `ColumnLimit`을 0→120으로 바꾼 뒤 ImGui를 제외한 사용자 작성 `.h`/`.cpp` 전체에 재포맷을 적용했고, `NeonSignFactory` Step 1 뼈대(`NeonSign.h`/`.cpp`)를 작성해 `MyPF.vcxproj`에 등록했다(`1622173 clangformat 적용 + neonSign팩토리` 커밋). 리뷰에서 발견된 인코딩 문제(CP949)와 `glowSCale` 오타는 이후 수정됐다(아직 커밋 전).
+- 다음에 이어서 할 작업: 셰이더가 이제 정상 컴파일되는지 실제로 빌드·실행해 화면으로 확인한다. 확인되면 §6의 NeonSignFactory Step 2(Pink 네온 교체)로 이어간다.
 
 ### 2026-09-13 — 솔루션 전체 복습, 문서 동기화, NeonSign 설계 합의 ✅ (구현 전)
 

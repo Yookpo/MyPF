@@ -1,4 +1,4 @@
-﻿#include "Lighting.hlsli"
+#include "Lighting.hlsli"
 Texture2D albedoTexture : register(t0);
 SamplerState linearSampler : register(s0);
 

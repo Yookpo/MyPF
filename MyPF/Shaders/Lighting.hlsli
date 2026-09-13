@@ -1,4 +1,4 @@
-﻿#define NUM_POINT_LIGHTS 8
+#define NUM_POINT_LIGHTS 8
 
 struct PointLight
 {

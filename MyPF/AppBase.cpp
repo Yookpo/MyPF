@@ -5,6 +5,7 @@
 #include "FrameRenderData.h"
 #include "Material.h"
 #include "Model.h"
+#include "NeonSign.h"
 
 namespace My
 {
@@ -316,44 +317,51 @@ namespace My
 		greyBoxMat->SetAlbedoTexture(greyBoxTex);
 		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 
-		// Neon test material
-		auto neonMat1 = m_assetManager.CreateMaterial("neonMat1");
+		// Neon test
+		NeonSignDesc desc1{};
+		desc1.name = "PinkNeon";
+		desc1.glowPosition = { -1.95f, 2.4f, 6.0f };
+		desc1.glowScale = { 0.1f, 0.6f, 2.0f };
+		desc1.lightPosition = { -1.2f, 2.3f, 5.0f };
+		desc1.lightRange = 4.5f;
+		desc1.lightIntensity = 2.0f;
+		desc1.color = { 1.0f, 0.05f, 0.65f };
+		desc1.emissiveIntensity = 3.0f;
 
-		if (!neonMat1)
+		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, greyBoxTex, desc1))
 		{
 			return false;
 		}
 
-		neonMat1->SetAlbedoTexture(greyBoxTex);
-		neonMat1->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
-		neonMat1->SetEmissiveColor(Vector3(1.0f, 0.05f, 0.65f));
-		neonMat1->SetEmissiveIntensity(3.0f);
+		NeonSignDesc desc2{};
+		desc2.name = "CyanNeon";
+		desc2.glowPosition = { 1.95f, 2.4f, 15.0f };
+		desc2.glowScale = { 0.1f, 0.8f, 1.46f };
+		desc2.lightPosition = { 1.2f, 2.3f, 15.0f };
+		desc2.lightRange = 4.5f;
+		desc2.lightIntensity = 2.0f;
+		desc2.color = { 0.37f, 0.86f, 1.00f };
+		desc2.emissiveIntensity = 8.0f;
 
-		auto neonMat2 = m_assetManager.CreateMaterial("neonMat2");
-
-		if (!neonMat2)
+		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, greyBoxTex, desc2))
 		{
 			return false;
 		}
 
-		neonMat2->SetAlbedoTexture(greyBoxTex);
-		neonMat2->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
-		neonMat2->SetEmissiveColor(Vector3(0.37f, 0.86f, 1.00f));
-		neonMat2->SetEmissiveIntensity(8.0f);
+		NeonSignDesc desc3{};
+		desc3.name = "OrangeNeon";
+		desc3.glowPosition = { 0.0f, 3.0f, 19.95f };
+		desc3.glowScale = { 0.1f, 0.3f, 1.0f };
+		desc3.lightPosition = { 0.0f, 3.0f, 20.0f };
+		desc3.lightRange = 7.5f;
+		desc3.lightIntensity = 5.0f;
+		desc3.color = { 1.0f, 0.35f, 0.03f };
+		desc3.emissiveIntensity = 5.0f;
 
-		auto neonMat3 = m_assetManager.CreateMaterial("neonMat3");
-
-		if (!neonMat3)
+		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, greyBoxTex, desc3))
 		{
 			return false;
 		}
-
-		neonMat3->SetAlbedoTexture(greyBoxTex);
-		neonMat3->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
-		neonMat3->SetEmissiveColor(Vector3(1.0f, 0.35f, 0.03f));
-		neonMat3->SetEmissiveIntensity(5.f);
-
-		// Create Point Light
 
 		// 약하게 항상 켜져 있는 환경 보조광
 		GameObject& EnvFillLight = m_scene.CreatePointLightObject("EnvironmentFillLight");
@@ -362,42 +370,6 @@ namespace My
 		EnvFillLight.GetPointLightComponent().SetRange(6.0f);
 		EnvFillLight.GetPointLightComponent().SetIntensity(1.58f);
 		EnvFillLight.GetPointLightComponent().SetEnabled(true);
-
-		// 첫 번째 네온 전용 조명
-		GameObject& pinkNeonLight = m_scene.CreatePointLightObject("PinkNeonLight");
-		pinkNeonLight.GetTransform().SetPosition(Vector3{ -1.2f, 2.3f, 5.0f });
-		pinkNeonLight.GetPointLightComponent().SetColor(Vector3{ 1.0f, 0.05f, 0.65f });
-		pinkNeonLight.GetPointLightComponent().SetRange(4.5f);
-		pinkNeonLight.GetPointLightComponent().SetIntensity(2.0f);
-		pinkNeonLight.GetPointLightComponent().SetEnabled(false);
-		if (!m_pointLightSequence.AddSequenceEntry(pinkNeonLight, neonMat1))
-		{
-			return false;
-		}
-
-		// 두 번째 네온 전용 조명
-		GameObject& cyanNeonLight = m_scene.CreatePointLightObject("CyanNeonLight");
-		cyanNeonLight.GetTransform().SetPosition(Vector3{ 1.2f, 2.3f, 15.0f });
-		cyanNeonLight.GetPointLightComponent().SetColor(Vector3{ 0.37f, 0.86f, 1.00f });
-		cyanNeonLight.GetPointLightComponent().SetRange(4.5f);
-		cyanNeonLight.GetPointLightComponent().SetIntensity(2.0f);
-		cyanNeonLight.GetPointLightComponent().SetEnabled(false);
-		if (!m_pointLightSequence.AddSequenceEntry(cyanNeonLight, neonMat2))
-		{
-			return false;
-		}
-
-		// 골목 끝에서 마지막에 켜지는 주요 네온 조명
-		GameObject& orangeNeonLight = m_scene.CreatePointLightObject("OrangeNeonLight");
-		orangeNeonLight.GetTransform().SetPosition(Vector3{ 0.0f, 3.0f, 20.0f });
-		orangeNeonLight.GetPointLightComponent().SetColor(Vector3{ 1.0f, 0.35f, 0.03f });
-		orangeNeonLight.GetPointLightComponent().SetRange(7.5f);
-		orangeNeonLight.GetPointLightComponent().SetIntensity(5.0f);
-		orangeNeonLight.GetPointLightComponent().SetEnabled(false);
-		if (!m_pointLightSequence.AddSequenceEntry(orangeNeonLight, neonMat3))
-		{
-			return false;
-		}
 
 		// Create floor
 		GameObject* floor = &m_scene.CreateGameObject("floor");
@@ -453,25 +425,6 @@ namespace My
 		powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
 
 		m_powerSwitch.Initialize(*powerSwitchObject);
-
-		// Neon Test Object
-		auto neonTestObject0 = &m_scene.CreateGameObject("neonTestObject0");
-		neonTestObject0->GetTransform().SetPosition(Vector3(-1.95f, 2.4f, 6.0f));
-		neonTestObject0->GetTransform().SetScale(Vector3(0.1f, 0.6f, 2.0f));
-		neonTestObject0->GetMeshComponent().SetMesh(greyBoxMesh);
-		neonTestObject0->GetMeshComponent().SetMaterial(neonMat1);
-
-		auto neonTestObject1 = &m_scene.CreateGameObject("neonTestObject1");
-		neonTestObject1->GetTransform().SetPosition(Vector3(1.95f, 2.4f, 15.0f));
-		neonTestObject1->GetTransform().SetScale(Vector3(0.1f, 0.8f, 1.46f));
-		neonTestObject1->GetMeshComponent().SetMesh(greyBoxMesh);
-		neonTestObject1->GetMeshComponent().SetMaterial(neonMat2);
-
-		auto neonTestObject2 = &m_scene.CreateGameObject("neonTestObject2");
-		neonTestObject2->GetTransform().SetPosition(Vector3(0.0f, 3.0f, 19.95f));
-		neonTestObject2->GetTransform().SetScale(Vector3(0.1f, 0.3f, 1.0f));
-		neonTestObject2->GetMeshComponent().SetMesh(greyBoxMesh);
-		neonTestObject2->GetMeshComponent().SetMaterial(neonMat3);
 
 		return true;
 	}
