@@ -21,7 +21,7 @@ namespace My
 		}
 
 		neonMat->SetAlbedoTexture(baseTexture);
-		neonMat->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
+		neonMat->SetBaseColor(desc.color * 0.12f);
 		neonMat->SetEmissiveColor(desc.color);
 		neonMat->SetEmissiveIntensity(desc.emissiveIntensity);
 

@@ -113,7 +113,8 @@ f20e429 CODEX_UPDATE
 - `PointLightSequence`가 1.4초 간격으로 등록된 Entry 순서대로 켜고 역순으로 끔
 - 점등 중 E키 재입력 시 현재 개수에서 목표 방향 전환
 - `SequenceEntry`가 Point Light GameObject와 비소유 Emissive Material 포인터를 묶음
-- 독립 Material과 다른 Emissive 색을 가진 네온 두 개의 순차 On/Off 실행 확인
+- 독립 Material과 다른 Emissive 색을 가진 네온 세 개(Pink/Cyan/Orange)의 순차 On/Off 실행 확인
+- `NeonSignFactory::Create`가 네온 1개(Material + 발광 GameObject + Point Light GameObject + 시퀀스 등록)를 `NeonSignDesc` 하나로 생성하는 절차를 통합해, `InitGreyBoxScene`의 반복 코드를 제거함(Pink/Cyan/Orange 3개 모두 적용 완료, 오브젝트/Material 이름도 `"PinkNeon_Light"`/`"PinkNeon_Glow"`처럼 의미 있는 이름으로 정리됨)
 
 ### Greybox 배치 수치
 
@@ -146,6 +147,16 @@ f20e429 CODEX_UPDATE
 `PowerSwitch`가 몰라야 하는 것: `AppBase`, `InputSystem`, `Camera` 클래스 자체, `Renderer`, ImGui, `Scene`.
 
 `AppBase`에는 E 단발 입력 확인, Camera 위치/전방 전달, 활성화 요청만 남긴다. 범용 ECS나 Component Registry는 아직 만들지 않는다.
+
+### NeonSignFactory
+
+`InitGreyBoxScene`에 네온 1개당 생성 절차(Material 생성 → 발광 GameObject 배치 → Point Light GameObject 생성 → `AddSequenceEntry` 등록)가 Pink/Cyan/Orange 3번 그대로 반복되던 것을 제거하기 위해 도입했다.
+
+- `NeonSignDesc`: 이름, 발광 메쉬 위치/크기, Point Light 위치/범위/세기, 공용 `color`(Emissive Color와 Point Light Color가 항상 같아야 하므로 필드 하나로 공유), Emissive Intensity를 담는 순수 입력 데이터. 런타임 상태 없음.
+- `NeonSignFactory::Create`: `Scene`/`AssetManager`/`PointLightSequence`의 공개 API만 알고 `AppBase`/`Renderer`/`InputSystem`/ImGui는 모른다.
+- 런타임 상태가 없어 인스턴스를 만드는 클래스 대신 **정적 함수**로 구현했다 — 생성 시점 배선만 책임지는 데 인스턴스는 불필요한 추상화라고 판단.
+- `PointLightComponent`에 별도 역할(enum) 태그를 추가하지 않았다 — `PointLightSequence`에 등록됐는지 여부가 이미 "네온 연동 vs 환경 조명" 분류 그 자체이기 때문에, 지금 쓰지 않을 태그를 미리 만들지 않았다.
+- Pink/Cyan/Orange 3개 네온 모두 이 팩토리로 교체 완료. `neonMat1`/`neonTestObject0`처럼 남아 있던 테스트용 이름은 `desc.name` 기반 이름(`"PinkNeon_Mat"`, `"PinkNeon_Light"`, `"PinkNeon_Glow"` 등)으로 자동 정리됐다.
 
 ### PointLightSequence와 SequenceEntry
 
@@ -211,53 +222,13 @@ f20e429 CODEX_UPDATE
 
 ## 6. 바로 다음 작업
 
-**Point Light 역할 분류 재점검 결과와 `NeonSignFactory` 설계 (2026-09-13 갱신, 구현 전)**
+**`NeonSignFactory` 도입 완료 ✅ / 남은 것: 실제 골목 배치 구상**
 
-2026-09-13 재점검에서 확인한 사실: 환경 조명/네온 연동 조명 분류 로직 자체는 `AppBase::InitGreyBoxScene`에 이미 구현돼 있다.
+Point Light 역할 분류(환경 조명 vs 네온 연동 조명)와 `NeonSignFactory` 도입이 모두 끝났다(Step 1~3 완료, 상세는 §4 "NeonSignFactory", §8 참고). `InitGreyBoxScene`의 Pink/Cyan/Orange가 전부 `NeonSignFactory::Create` 호출로 교체됐고, 빌드·실행으로 기존과 동일한 위치·색·점등 순서를 확인했다.
 
-- `EnvFillLight`는 상시 On이고 `PointLightSequence`에 등록되지 않는다 → 환경 조명.
-- `PinkNeonLight`/`CyanNeonLight`/`OrangeNeonLight`는 각각 대응하는 Emissive Material과 색을 맞춰 `PointLightSequence::AddSequenceEntry`에 등록돼 있다 → 네온 연동 조명.
+남은 건 **네온의 실제 배치(위치/크기/방향)를 골목 디자인 관점에서 다시 구상하는 것**뿐이다 — 지금 좌표는 기존 테스트 값을 그대로 옮긴 것이라 최종 디자인이 아니다. 이 부분은 코드 구조 문제가 아니라 창작적 판단이 필요해서, 대화로 레이아웃 방향을 정한 뒤 `NeonSignDesc`의 숫자만 조정하면 된다(`NeonSignFactory` 구조 자체는 바뀌지 않음).
 
-따라서 실제로 남은 일은 테스트용 변수 이름과 네온 위치 정리뿐이다. 다만 `InitGreyBoxScene`에 네온 1개당 생성 절차(Material 생성 → 발광 GameObject 배치 → Point Light GameObject 생성 → `AddSequenceEntry` 등록)가 3번 그대로 반복돼 있어, 이름/배치를 정리하기 전에 이 중복을 줄이는 `NeonSignFactory`를 먼저 도입하기로 했다.
-
-**합의된 설계(초안, 아직 코드로 옮기지 않음):**
-
-```cpp
-struct NeonSignDesc
-{
-    std::string name;
-    Vector3 glowPosition;
-    Vector3 glowScale;
-    Vector3 lightPosition;
-    float   lightRange;
-    float   lightIntensity;
-    Vector3 color;             // Emissive Color / Point Light Color 공용
-    float   emissiveIntensity;
-};
-
-class NeonSignFactory
-{
-public:
-    static bool Create(
-        Scene& scene, AssetManager& assetManager, PointLightSequence& sequence,
-        const Mesh* glowMesh, const Texture* baseTexture, const NeonSignDesc& desc);
-};
-```
-
-설계 근거:
-
-- `Scene`/`AssetManager`/`PointLightSequence`의 공개 API만 알고 `AppBase`/`Renderer`/`InputSystem`/ImGui는 모르게 해서 §3 원칙을 유지한다.
-- 런타임 상태 없이 생성 시점 배선만 책임지므로 정적 함수로 충분하다고 판단했다 — 인스턴스를 만드는 클래스는 불필요한 추상화라 배제했다.
-- `PointLightComponent`에 별도 역할 enum을 추가하지 않기로 했다 — "시퀀스 등록 여부"가 이미 분류 그 자체이므로, 지금 쓰지 않을 태그를 미리 만들지 않는다(범용 ECS/태그 시스템 금지 원칙과 동일한 이유).
-
-**진행 순서 (Step 1도 아직 시작 전):**
-
-1. `NeonSign.h`/`NeonSign.cpp` 뼈대 작성(컴파일만, 아직 호출 없음) ← 다음에 여기부터 이어간다.
-2. Pink 네온 1개만 팩토리 호출로 교체하고 기존과 동일한 위치·색·순서인지 확인한다.
-3. Cyan/Orange도 교체하고 점등 순서(Pink→Cyan→Orange)가 유지되는지 확인한다.
-4. Scene에 등록되는 GameObject 이름과 AssetManager 키를 최종 이름으로 정리하고, 필요하면 위치를 재배치한다.
-
-**참고**: `simplePixelShader.hlsl`의 LDR `saturate` 클리핑이 아직 해결되지 않아, 이 작업을 마쳐도 Emissive Intensity 3과 8의 밝기 차이는 화면에서 구분되지 않는다(§5, HDR 단계에서 해결 예정).
+**참고**: `simplePixelShader.hlsl`의 LDR `saturate` 클리핑이 아직 해결되지 않아, 배치를 조정해도 Emissive Intensity 3/5/8의 밝기 차이는 화면에서 구분되지 않는다(§5, HDR 단계에서 해결 예정). 배치는 위치·구도 위주로 판단하고, 밝기 대비는 HDR 이후 다시 조정한다.
 
 ---
 
@@ -269,7 +240,7 @@ public:
 4. ✅ 다수 Point Light와 Renderer 제출
 5. ✅ Emissive Material과 네온 표면 표현
 6. ✅ 전원 상태와 Point Light·Emissive Material 순차 점등 연동
-7. 남은 조명 역할 분류와 실제 네온 배치 정리 ← 현재
+7. ✅ 조명 역할 분류(`NeonSignFactory`) — 실제 네온 배치 구상 ← 현재
 8. 실제 골목 에셋 배치와 Scene 편집 보강
 9. Shadow Mapping
 10. Normal/Roughness Material과 젖은 바닥 반사
@@ -333,6 +304,14 @@ public:
 - `AGENTS.md`를 도구 중립적으로 바꾸고 규칙·아키텍처·프레임 흐름만 남겨 압축했다.
 - 완료 기능 목록, 진행률, 로드맵, 작업 기록을 이 문서로 이동해 두 문서의 중복을 제거했다.
 - `CLAUDE.md`가 `@AGENTS.md`를 import하고 MyPF 우선 규칙을 선언하도록 구성했다.
+
+### 2026-09-13 — NeonSignFactory 구현 완료 ✅
+
+- 완료한 작업: `NeonSign.h`/`.cpp`에 `NeonSignDesc`(입력 데이터)와 `NeonSignFactory::Create`(정적 팩토리 함수)를 구현했다. Step 1(뼈대) → Step 2(Pink 교체) → Step 3(Cyan/Orange 교체) 순서로 진행했고, 매 단계 코드 리뷰로 확인했다.
+- 확인한 결과: `InitGreyBoxScene`의 네온 1개당 반복 생성 코드(Material/Point Light GameObject/발광 GameObject/시퀀스 등록, 총 30줄 안팎 x 3)가 `NeonSignDesc` 3개 + `NeonSignFactory::Create` 호출 3번으로 정리됐다. 각 desc 값을 원본 리터럴과 대조해 위치·색·범위·세기가 전부 일치함을 확인했고, 옛 이름(`neonMat1`, `pinkNeonLight`, `neonTestObject0` 등) 참조가 코드에 전혀 남아있지 않음을 grep으로 확인했다. 빌드·실행해서 3개 네온이 이전과 동일한 위치·색으로 보이고 Pink→Cyan→Orange 점등 순서가 유지됨을 사용자가 직접 확인했다.
+- 리뷰 중 두 차례 발견·수정된 문제: ① `Scene::CreateGameObject`가 반환하는 `GameObject&`를 `auto`(참조 아님)로 받아 복사본을 수정하던 버그 — 컴파일은 되지만 화면에 아무것도 안 보이는 조용한 실패였다. ② `desc` 필드 중 일부(발광 오브젝트 위치/크기)가 하드코딩으로 남아있던 것. ③ 새 파일 저장 시 인코딩이 CP949로 깨지는 문제가 반복 발생 — 매번 UTF-8 BOM으로 재저장해 해결.
+- 설계 규칙: `NeonSignFactory`가 왜 정적 함수인지, `PointLightComponent`에 역할 enum을 안 만든 이유는 §4 "NeonSignFactory" 참고.
+- 다음에 이어서 할 작업: 실제 골목 디자인 관점에서 네온 위치/크기/방향을 재구상한다(대화로 방향 논의 후 `NeonSignDesc` 숫자만 조정). 그다음은 로드맵 8번(실제 골목 에셋 배치)이나 9번(Shadow Mapping).
 
 ### 2026-09-13 — 셰이더 컴파일 실패 원인 진단: HLSL + UTF-8 BOM ✅
 

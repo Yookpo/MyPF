@@ -307,6 +307,13 @@ namespace My
 			return false;
 		}
 
+		const Texture* neonTex = m_assetManager.LoadTexture("neonFlat.jpg");
+
+		if (!neonTex)
+		{
+			return false;
+		}
+
 		auto greyBoxMat = m_assetManager.CreateMaterial("greyBoxMat");
 
 		if (!greyBoxMat)
@@ -320,45 +327,45 @@ namespace My
 		// Neon test
 		NeonSignDesc desc1{};
 		desc1.name = "PinkNeon";
-		desc1.glowPosition = { -1.95f, 2.4f, 6.0f };
-		desc1.glowScale = { 0.1f, 0.6f, 2.0f };
-		desc1.lightPosition = { -1.2f, 2.3f, 5.0f };
+		desc1.glowPosition = { -1.95f, 2.2f, 6.0f };
+		desc1.glowScale = { 0.1f, 0.7f, 1.2f };
+		desc1.lightPosition = { -1.2f, 2.2f, 6.0f };
 		desc1.lightRange = 4.5f;
 		desc1.lightIntensity = 2.0f;
 		desc1.color = { 1.0f, 0.05f, 0.65f };
 		desc1.emissiveIntensity = 3.0f;
 
-		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, greyBoxTex, desc1))
+		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc1))
 		{
 			return false;
 		}
 
 		NeonSignDesc desc2{};
 		desc2.name = "CyanNeon";
-		desc2.glowPosition = { 1.95f, 2.4f, 15.0f };
-		desc2.glowScale = { 0.1f, 0.8f, 1.46f };
-		desc2.lightPosition = { 1.2f, 2.3f, 15.0f };
+		desc2.glowPosition = { 1.95f, 2.7f, 15.0f };
+		desc2.glowScale = { 0.1f, 0.7f, 1.5f };
+		desc2.lightPosition = { 1.2f, 2.7f, 15.0f };
 		desc2.lightRange = 4.5f;
 		desc2.lightIntensity = 2.0f;
-		desc2.color = { 0.37f, 0.86f, 1.00f };
+		desc2.color = { 0.0f, 0.86f, 1.00f };
 		desc2.emissiveIntensity = 8.0f;
 
-		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, greyBoxTex, desc2))
+		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc2))
 		{
 			return false;
 		}
 
 		NeonSignDesc desc3{};
 		desc3.name = "OrangeNeon";
-		desc3.glowPosition = { 0.0f, 3.0f, 19.95f };
-		desc3.glowScale = { 0.1f, 0.3f, 1.0f };
-		desc3.lightPosition = { 0.0f, 3.0f, 20.0f };
+		desc3.glowPosition = { 0.0f, 2.8f, 19.9f };
+		desc3.glowScale = { 1.4f, 0.5f, 0.1f };
+		desc3.lightPosition = { 0.0f, 2.8f, 19.5f };
 		desc3.lightRange = 7.5f;
 		desc3.lightIntensity = 5.0f;
 		desc3.color = { 1.0f, 0.35f, 0.03f };
 		desc3.emissiveIntensity = 5.0f;
 
-		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, greyBoxTex, desc3))
+		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc3))
 		{
 			return false;
 		}
