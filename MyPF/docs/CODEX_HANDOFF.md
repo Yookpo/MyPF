@@ -115,6 +115,8 @@ f20e429 CODEX_UPDATE
 - `SequenceEntry`가 Point Light GameObject와 비소유 Emissive Material 포인터를 묶음
 - 독립 Material과 다른 Emissive 색을 가진 네온 세 개(Pink/Cyan/Orange)의 순차 On/Off 실행 확인
 - `NeonSignFactory::Create`가 네온 1개(Material + 발광 GameObject + Point Light GameObject + 시퀀스 등록)를 `NeonSignDesc` 하나로 생성하는 절차를 통합해, `InitGreyBoxScene`의 반복 코드를 제거함(Pink/Cyan/Orange 3개 모두 적용 완료, 오브젝트/Material 이름도 `"PinkNeon_Light"`/`"PinkNeon_Glow"`처럼 의미 있는 이름으로 정리됨)
+- 네온 전용 민무늬 텍스처(`neonFlat.jpg`, 64x64 흰색)를 추가해 네온 Material의 Albedo를 `wall.jpg`(벽돌 사진 텍스처)에서 분리함 — `surfaceColor = albedo * baseColor` 계산에서 벽돌 무늬가 섞여 Emissive로 포화되지 않는 채널(G/B)에 얼룩으로 비치던 문제를 해결
+- `NeonSignFactory`가 `BaseColor = desc.color * 0.12f`로 꺼진 상태의 유리관 색조를 자동 계산, Cyan의 Emissive Color를 `(0.37,0.86,1.0)`→`(0.0,0.86,1.0)`로 조정해 파스텔톤 대신 채도 높은 시안으로 변경, 세 네온의 위치/크기를 좌·우·끝벽 실제 배치 감각에 맞게 재조정(Orange는 끝벽에 평평하게 붙도록 방향 자체를 수정)
 
 ### Greybox 배치 수치
 
@@ -157,6 +159,8 @@ f20e429 CODEX_UPDATE
 - 런타임 상태가 없어 인스턴스를 만드는 클래스 대신 **정적 함수**로 구현했다 — 생성 시점 배선만 책임지는 데 인스턴스는 불필요한 추상화라고 판단.
 - `PointLightComponent`에 별도 역할(enum) 태그를 추가하지 않았다 — `PointLightSequence`에 등록됐는지 여부가 이미 "네온 연동 vs 환경 조명" 분류 그 자체이기 때문에, 지금 쓰지 않을 태그를 미리 만들지 않았다.
 - Pink/Cyan/Orange 3개 네온 모두 이 팩토리로 교체 완료. `neonMat1`/`neonTestObject0`처럼 남아 있던 테스트용 이름은 `desc.name` 기반 이름(`"PinkNeon_Mat"`, `"PinkNeon_Light"`, `"PinkNeon_Glow"` 등)으로 자동 정리됐다.
+- `Create` 내부에서 `BaseColor`를 `desc.color * 0.12f`로 계산해, 꺼진 상태에서도 각 네온 고유의 어두운 색조가 비치게 했다(모두 동일한 회색이던 것을 개선).
+- Albedo에 `wall.jpg`(벽돌 텍스처) 대신 전용 `neonFlat.jpg`(흰색 민무늬)를 쓴다 — 네온은 발광이 핵심이라 벽 재질과 텍스처를 공유하면 안 된다는 게 이번에 확인된 설계 원칙이다.
 
 ### PointLightSequence와 SequenceEntry
 
@@ -203,10 +207,10 @@ f20e429 CODEX_UPDATE
 
 ### 씬과 플레이
 
-- Camera 충돌이 없어 벽과 스위치를 통과할 수 있다.
+- Camera 충돌이 없어 벽과 스위치를 통과할 수 있다. `PlayerCollision` 설계 완료, 구현 착수 전(§6 참고).
 - 플레이어 높이와 월드 단위 정책이 명문화돼 있지 않다.
 - 골목 이동 경로가 약 20m로 최종 20~40초 탐색 동선보다 짧다.
-- 실제 골목 에셋, 네온 간판 최종 배치, Scene 저장/Prefab이 없다.
+- 실제 골목 에셋, Scene 저장/Prefab이 없다. 네온 배치·색상은 1차 정리를 마쳤다(2026-09-13, §8 참고).
 - ImGui Transform의 Position `-50~50`, Scale `0.01~50` 범위는 조정 여지가 있다.
 - 활성 Scene은 Greybox 골목이며 외부 모델 파이프라인은 유지하되 현재 장면에 배치하지 않는다.
 
@@ -222,13 +226,25 @@ f20e429 CODEX_UPDATE
 
 ## 6. 바로 다음 작업
 
-**`NeonSignFactory` 도입 완료 ✅ / 남은 것: 실제 골목 배치 구상**
+**`PlayerCollision`(가칭) 설계 합의 완료 — 구현 전. 그다음은 Shadow Mapping.**
 
-Point Light 역할 분류(환경 조명 vs 네온 연동 조명)와 `NeonSignFactory` 도입이 모두 끝났다(Step 1~3 완료, 상세는 §4 "NeonSignFactory", §8 참고). `InitGreyBoxScene`의 Pink/Cyan/Orange가 전부 `NeonSignFactory::Create` 호출로 교체됐고, 빌드·실행으로 기존과 동일한 위치·색·점등 순서를 확인했다.
+로드맵 8번(에셋 배치) vs 9번(Shadow Mapping) 중 어디로 갈지 논의한 결과, **Shadow Mapping을 다음 렌더링 작업으로 확정**했다(이유는 §8 참고). 다만 Shadow Mapping을 시작하기 직전, "Camera 충돌이 없어 벽을 통과한다"는 §5의 알려진 문제를 먼저 잡기로 했다 — 원래 로드맵 13번 항목의 일부(플레이어 충돌)를 앞당기는 것이다.
 
-남은 건 **네온의 실제 배치(위치/크기/방향)를 골목 디자인 관점에서 다시 구상하는 것**뿐이다 — 지금 좌표는 기존 테스트 값을 그대로 옮긴 것이라 최종 디자인이 아니다. 이 부분은 코드 구조 문제가 아니라 창작적 판단이 필요해서, 대화로 레이아웃 방향을 정한 뒤 `NeonSignDesc`의 숫자만 조정하면 된다(`NeonSignFactory` 구조 자체는 바뀌지 않음).
+**합의된 설계(초안, 아직 코드로 옮기지 않음):**
 
-**참고**: `simplePixelShader.hlsl`의 LDR `saturate` 클리핑이 아직 해결되지 않아, 배치를 조정해도 Emissive Intensity 3/5/8의 밝기 차이는 화면에서 구분되지 않는다(§5, HDR 단계에서 해결 예정). 배치는 위치·구도 위주로 판단하고, 밝기 대비는 HDR 이후 다시 조정한다.
+- 새 클래스 `PlayerCollision`: `GameObject`(Transform)만 알고 `Camera`/`InputSystem`/`FirstPersonCameraController`/`Renderer`/ImGui는 모른다. `Vector3 Resolve(const Vector3& desiredPosition) const` — 입력도 출력도 Vector3뿐인 순수 함수형 API.
+- `FirstPersonCameraController`는 손대지 않는다 — 벽의 존재를 몰라야 한다는 §3 원칙 유지. 대신 `AppBase::Update`가 `m_firstPersonCameraController.Update(dt)` 직후 `PlayerCollision::Resolve`를 호출해 `Camera` 위치를 보정한다(`PowerSwitch`/`PointLightSequence`와 같은 조율 위치).
+- 이 씬은 좌/우/끝벽이 정확히 `Floor`의 가장자리와 겹치므로, **"플레이어 위치를 Floor 범위 안으로 clamp"** 하나로 "벽 통과 방지"와 "골목 이탈 방지"를 동시에 해결한다. 별도 처리가 필요한 건 통로 중간의 PowerSwitch 박스(원-사각형 밀어내기)뿐이다.
+- Y축 충돌은 다루지 않는다 — 점프/중력이 없어 카메라 Y가 항상 1.6으로 고정이므로 XZ 평면 충돌로 충분하다고 판단했다.
+
+**진행 순서 (Step 1도 아직 시작 전):**
+
+1. `PlayerCollision.h/.cpp` 골격 + `Floor` 범위로 clamp하는 `Resolve` 구현 (아직 `AppBase`에서 호출 안 함) ← 다음에 여기부터 이어간다.
+2. `AppBase::Update`의 Play 분기에 연결. 완료 조건: 좌우 벽·끝벽·입구 밖으로 못 나감.
+3. PowerSwitch 박스 원-사각형 밀어내기 추가. 완료 조건: PowerSwitch를 통과 못 함.
+4. 이후 Shadow Mapping 착수(별도 설계 가이드 이미 대화로 제공됨 — Depth-only 패스, Shadow Map 텍스처(`GraphicsResourceManager`에 GPU 전용 Depth+SRV 텍스처 생성 기능 추가 필요), 광원 View/Projection, PCF 순).
+
+**참고**: `simplePixelShader.hlsl`의 LDR `saturate` 클리핑은 여전히 미해결이다 — Emissive Intensity 3/5/8의 밝기 차이가 화면에서 구분되지 않는 문제는 HDR Scene Target 단계(로드맵 11번)에서 해결 예정.
 
 ---
 
@@ -240,13 +256,13 @@ Point Light 역할 분류(환경 조명 vs 네온 연동 조명)와 `NeonSignFac
 4. ✅ 다수 Point Light와 Renderer 제출
 5. ✅ Emissive Material과 네온 표면 표현
 6. ✅ 전원 상태와 Point Light·Emissive Material 순차 점등 연동
-7. ✅ 조명 역할 분류(`NeonSignFactory`) — 실제 네온 배치 구상 ← 현재
-8. 실제 골목 에셋 배치와 Scene 편집 보강
-9. Shadow Mapping
+7. ✅ 조명 역할 분류(`NeonSignFactory`), 네온 배치·색상 정리
+8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
+9. Shadow Mapping ← 확정, 착수 직전
 10. Normal/Roughness Material과 젖은 바닥 반사
 11. HDR Scene Target, Bloom과 Tone Mapping
 12. 안개, 비와 색조 보정
-13. 충돌/이동 제한, 디버그 UI와 최적화
+13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 처리 ← 현재, `PlayerCollision` 설계 완료·구현 전)
 14. 라이선스 정리와 1~2분 최종 연출
 
 ---
@@ -312,6 +328,26 @@ Point Light 역할 분류(환경 조명 vs 네온 연동 조명)와 `NeonSignFac
 - 리뷰 중 두 차례 발견·수정된 문제: ① `Scene::CreateGameObject`가 반환하는 `GameObject&`를 `auto`(참조 아님)로 받아 복사본을 수정하던 버그 — 컴파일은 되지만 화면에 아무것도 안 보이는 조용한 실패였다. ② `desc` 필드 중 일부(발광 오브젝트 위치/크기)가 하드코딩으로 남아있던 것. ③ 새 파일 저장 시 인코딩이 CP949로 깨지는 문제가 반복 발생 — 매번 UTF-8 BOM으로 재저장해 해결.
 - 설계 규칙: `NeonSignFactory`가 왜 정적 함수인지, `PointLightComponent`에 역할 enum을 안 만든 이유는 §4 "NeonSignFactory" 참고.
 - 다음에 이어서 할 작업: 실제 골목 디자인 관점에서 네온 위치/크기/방향을 재구상한다(대화로 방향 논의 후 `NeonSignDesc` 숫자만 조정). 그다음은 로드맵 8번(실제 골목 에셋 배치)이나 9번(Shadow Mapping).
+
+### 2026-09-13 — 다음 로드맵 방향 결정 + PlayerCollision 설계 (구현 전)
+
+- 완료한 작업: 코드 변경은 없고, 다음 작업 방향을 정하는 논의를 진행했다. (1) 로드맵 8번(에셋 배치) vs 9번(Shadow Mapping) 중 무엇을 먼저 할지, (2) Unreal식 W/E/R 트랜스폼 기즈모 도입 여부, (3) `AppBase` 비대화 문제를 지금 리팩토링할지, (4) 플레이어-벽 충돌을 어떻게 넣을지 — 이 네 가지를 논의하고 설계까지 마쳤다.
+- 확인한 결과: `git log`/`git status` 기준 HEAD는 `82aae2a`(네온 텍스처·위치 수정)이고 소스 변경 없음. `PlayerCollision` 관련 파일은 아직 생성되지 않았다(`find`로 확인) — 설계 논의만 하고 구현은 시작 전이다.
+- 남아 있는 문제: §5의 "Camera 충돌 없음" 문제가 이번 논의의 핵심 대상이며 아직 미해결. LDR `saturate` 클리핑도 여전히 미해결(HDR 단계 대기).
+- 다음에 이어서 할 작업: `PlayerCollision` Step 1(골격 + Floor 범위 clamp)부터 시작. 완료되면 Step 2(AppBase 연결) → Step 3(PowerSwitch 밀어내기) → Shadow Mapping 순.
+- 중요한 설계 결정과 이유:
+  - **Shadow Mapping을 8번(에셋 배치)보다 먼저 하기로 함**: (a) 취업 목표 포트폴리오 관점에서 렌더링 기술(그림자·HDR 등)이 면접에서 직접 검증 가능한 핵심 스킬이고, 에셋 배치는 "콘텐츠 소싱" 성격이 강해 프로그래밍 역량을 덜 보여준다. (b) 렌더링 코어 기능을 Greybox로 먼저 검증해야, 나중에 실제 에셋을 넣었을 때 문제가 생겨도 "셰이더 버그"와 "에셋 임포트 문제"를 구분해서 디버깅할 수 있다.
+  - **W/E/R 트랜스폼 기즈모 도입을 보류함**: 최종 Play 데모 영상에는 전혀 노출되지 않는 에디터 툴링이라 포트폴리오 임팩트가 낮고, 요구되는 작업량(마우스 피킹 + 오버레이 렌더링 + 축별 드래그 수학)이 이 프로젝트에서 지금까지 한 것 중 가장 크다. 신입 그래픽스/엔진 포지션보다 툴 프로그래머 포지션에 더 맞는 스킬셋이라는 점도 고려했다. 데모 완성 후 시간이 남거나 다음 포폴에서 고려하기로 했다.
+  - **`AppBase` 리팩토링은 지금 하지 않기로 함**: §3 원칙(실제 압력이 확인될 때 구조 확장)대로, Shadow Mapping도 에셋 배치도 `AppBase` 크기 자체가 작업을 막지 않는다고 판단했다. 다만 8번(에셋 배치)을 진행하면 `InitGreyBoxScene`이 더 커져서 `GreyboxSceneBuilder` 같은 분리가 필요해질 가능성이 높다는 점은 기록해둔다.
+  - **`PlayerCollision`을 별도 클래스로 분리하고 `FirstPersonCameraController`에 충돌 지식을 넣지 않기로 함**: §3 계층 원칙(하위 시스템이 Scene을 모름) 유지를 위해 `PowerSwitch`/`PointLightSequence`와 같은 위치(`AppBase`가 조율)에 두기로 했다. Floor와 좌/우/끝벽의 경계가 겹친다는 이 씬의 기하학적 특성을 이용해 "Floor 범위 clamp" 하나로 벽 충돌과 골목 이탈 방지를 동시에 해결하도록 범위를 단순화했다.
+
+### 2026-09-13 — 네온 배치·색상·텍스처 정리 ✅
+
+- 완료한 작업: 대화로 골목 평면 배치를 구상해(좌→우→끝벽 리듬, 점등이 입구 쪽에서 스위치 쪽으로 다가오는 연출 유지) `NeonSignDesc` 3개의 위치/크기를 조정했다. Orange는 끝벽에 평평하게 붙도록 `glowScale`을 X축이 얇은 형태(옆벽 방식)에서 Z축이 얇은 형태(끝벽 방식)로 바꿨다.
+- 확인한 결과: 점등 후 네온 색이 이상해 보인 진짜 원인은 배치가 아니라 **모든 네온 Material이 `wall.jpg`(벽돌 사진 텍스처)를 Albedo로 공유하고 있었던 것**이었다. `surfaceColor = albedo * baseColor`가 `ambient`/`diffuse`/`pointLight` 항에 쓰이는데, Emissive가 채널별로 포화 정도가 달라(예: Pink는 R·B만 포화, G는 안 됨) 포화 안 되는 채널에 벽돌 무늬가 얼룩으로 비쳤다.
+- 해결: 네온 전용 흰색 민무늬 텍스처 `neonFlat.jpg`(64x64)를 새로 만들어 세 네온 Material의 Albedo를 이걸로 교체했다(`wall.jpg`는 floor/wall/switch에서만 계속 사용). `NeonSignFactory::Create`에서 `BaseColor = desc.color * 0.12f`로 계산해 꺼진 상태 색조도 네온마다 다르게 나오게 했고, Cyan의 Emissive Color를 `(0.37,0.86,1.0)`→`(0.0,0.86,1.0)`로 바꿔 채도를 높였다.
+- 설계 규칙: 네온처럼 발광이 핵심인 Material은 벽 재질과 Albedo 텍스처를 공유하면 안 된다는 원칙을 확인했다 — 이후 새 발광 오브젝트를 추가할 때도 `neonFlat.jpg`(또는 같은 성격의 민무늬 텍스처)를 쓴다.
+- 다음에 이어서 할 작업: 로드맵 8번(실제 골목 에셋 배치)과 9번(Shadow Mapping) 중 무엇을 다음으로 할지 결정한다.
 
 ### 2026-09-13 — 셰이더 컴파일 실패 원인 진단: HLSL + UTF-8 BOM ✅
 
