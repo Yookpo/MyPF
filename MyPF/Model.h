@@ -17,10 +17,7 @@ namespace My
 	class Model
 	{
 	public:
-		explicit Model(std::vector<ModelPart> parts)
-			: m_parts(std::move(parts))
-		{
-		}
+		explicit Model(std::vector<ModelPart> parts) : m_parts(std::move(parts)) {}
 
 		Model(const Model&) = delete;
 		Model& operator=(const Model&) = delete;

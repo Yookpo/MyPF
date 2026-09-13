@@ -8,14 +8,13 @@
 namespace My
 {
 
-	bool Renderer::Initialize(GraphicsDevice& graphicsDevice, GraphicsResourceManager& resourceManager,
-		int screenWidth, int screenHeight)
+	bool Renderer::Initialize(
+		GraphicsDevice& graphicsDevice, GraphicsResourceManager& resourceManager, int screenWidth, int screenHeight)
 	{
 		m_graphicsDevice = &graphicsDevice;
 		m_resourceManager = &resourceManager;
 
-		if (!m_graphicsDevice->GetDevice() || !m_graphicsDevice->GetContext()
-			|| screenWidth <= 0 || screenHeight <= 0)
+		if (!m_graphicsDevice->GetDevice() || !m_graphicsDevice->GetContext() || screenWidth <= 0 || screenHeight <= 0)
 		{
 			return false;
 		}
@@ -76,26 +75,19 @@ namespace My
 			return false;
 		}
 
-		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = {
-			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
-				D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4 * 3,
-				D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4 * 3 * 2,
-				D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 4 * 3 * 3,
-				D3D11_INPUT_PER_VERTEX_DATA, 0 }
-		};
+		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+															   D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4 * 3, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4 * 3 * 2, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 4 * 3 * 3, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
 
 		if (!D3D11Utils::CreateVertexShaderAndInputLayout(
-				Device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader,
-				m_inputLayout))
+				Device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader, m_inputLayout))
 		{
 			return false;
 		}
 
-		if (!D3D11Utils::CreatePixelShader(
-				Device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader))
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader))
 		{
 			return false;
 		}
@@ -257,8 +249,7 @@ namespace My
 		ID3D11Buffer* vertexBuffer = m_resourceManager->GetBuffer(vertexBufferHandle);
 		ID3D11Buffer* indexBuffer = m_resourceManager->GetBuffer(indexBufferHandle);
 
-		if (!objectConstantBuffer || !cameraConstantBuffer || !materialConstantBuffer
-			|| !vertexBuffer || !indexBuffer)
+		if (!objectConstantBuffer || !cameraConstantBuffer || !materialConstantBuffer || !vertexBuffer || !indexBuffer)
 		{
 			return false;
 		}
@@ -268,9 +259,7 @@ namespace My
 			cameraConstantBuffer,
 		};
 
-		ID3D11Buffer* pixelConstantBuffers = {
-			materialConstantBuffer
-		};
+		ID3D11Buffer* pixelConstantBuffers = { materialConstantBuffer };
 
 		TextureHandle albedoHandle = albedoTexture->GetTextureHandle();
 		if (!albedoHandle.IsValid())
@@ -399,8 +388,7 @@ namespace My
 		rastDesc.FrontCounterClockwise = false;
 		rastDesc.DepthClipEnable = true; // <- zNear, zFar 확인에 필요
 
-		if (FAILED(Device->CreateRasterizerState(&rastDesc,
-				m_rasterizerState.GetAddressOf())))
+		if (FAILED(Device->CreateRasterizerState(&rastDesc, m_rasterizerState.GetAddressOf())))
 		{
 			OutputDebugStringW(L"CreateRasterizerState() failed");
 			return false;

@@ -7,22 +7,13 @@ namespace My
 	class TextureHandle
 	{
 	public:
-		TextureHandle()
-			: m_index{ m_invalidIndex }
-		{
-		}
+		TextureHandle() : m_index{ m_invalidIndex } {}
 
-		explicit TextureHandle(uint32_t index)
-			: m_index(index)
-		{
-		}
+		explicit TextureHandle(uint32_t index) : m_index(index) {}
 
 		uint32_t GetIndex() const { return m_index; }
 
-		bool IsValid() const
-		{
-			return m_index != m_invalidIndex;
-		}
+		bool IsValid() const { return m_index != m_invalidIndex; }
 
 	private:
 		// 무효 인덱스 상수

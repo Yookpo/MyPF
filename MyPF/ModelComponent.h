@@ -7,8 +7,7 @@ namespace My
 	class ModelComponent
 	{
 	public:
-		ModelComponent()
-			: m_model(nullptr) {}
+		ModelComponent() : m_model(nullptr) {}
 		void		 SetModel(const Model* newModel) { m_model = newModel; }
 		const Model* GetModel() const { return m_model; }
 		bool		 HasModel() const { return m_model; }

@@ -80,7 +80,8 @@ namespace My
 
 		TextureResource tResource{};
 
-		if (!D3D11Utils::CreateTexture(m_graphicsDevice->GetDevice(), filename, tResource.texture, tResource.textureSRV))
+		if (!D3D11Utils::CreateTexture(
+				m_graphicsDevice->GetDevice(), filename, tResource.texture, tResource.textureSRV))
 		{
 			return TextureHandle{};
 		}
@@ -105,7 +106,8 @@ namespace My
 		return CreateImmutableBufferInternal(indices.data(), static_cast<uint32_t>(byte), D3D11_BIND_INDEX_BUFFER);
 	}
 
-	BufferHandle GraphicsResourceManager::CreateImmutableBufferInternal(const void* data, uint32_t byteWidth, UINT bindFlags)
+	BufferHandle GraphicsResourceManager::CreateImmutableBufferInternal(
+		const void* data, uint32_t byteWidth, UINT bindFlags)
 	{
 		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice() || !data || (byteWidth == 0) || (bindFlags == 0))
 		{
@@ -114,7 +116,8 @@ namespace My
 
 		BufferResource newResource;
 
-		if (!D3D11Utils::CreateImmutableBuffer(m_graphicsDevice->GetDevice(), data, byteWidth, bindFlags, newResource.buffer))
+		if (!D3D11Utils::CreateImmutableBuffer(
+				m_graphicsDevice->GetDevice(), data, byteWidth, bindFlags, newResource.buffer))
 		{
 			return BufferHandle{};
 		}
@@ -151,9 +154,11 @@ namespace My
 		return BufferHandle(newIndex);
 	}
 
-	bool GraphicsResourceManager::UpdateBufferInternal(const BufferHandle& bufferHandle, const void* data, uint32_t byteWidth)
+	bool GraphicsResourceManager::UpdateBufferInternal(
+		const BufferHandle& bufferHandle, const void* data, uint32_t byteWidth)
 	{
-		if (!m_graphicsDevice || !m_graphicsDevice->GetContext() || !data || byteWidth == 0 || !bufferHandle.IsValid() || bufferHandle.GetIndex() >= m_buffers.size())
+		if (!m_graphicsDevice || !m_graphicsDevice->GetContext() || !data || byteWidth == 0 || !bufferHandle.IsValid()
+			|| bufferHandle.GetIndex() >= m_buffers.size())
 		{
 			return false;
 		}

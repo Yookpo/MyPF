@@ -7,22 +7,13 @@ namespace My
 	class BufferHandle
 	{
 	public:
-		BufferHandle()
-			: m_index{ m_invalidIndex }
-		{
-		}
+		BufferHandle() : m_index{ m_invalidIndex } {}
 
-		explicit BufferHandle(uint32_t index)
-			: m_index(index)
-		{
-		}
+		explicit BufferHandle(uint32_t index) : m_index(index) {}
 
 		uint32_t GetIndex() const { return m_index; }
 
-		bool IsValid() const
-		{
-			return m_index != m_invalidIndex;
-		}
+		bool IsValid() const { return m_index != m_invalidIndex; }
 
 	private:
 		// 무효 인덱스 상수

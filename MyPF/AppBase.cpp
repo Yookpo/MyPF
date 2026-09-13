@@ -99,11 +99,7 @@ namespace My
 		}
 
 		m_firstPersonCameraController.Initialize(m_camera, m_inputSystem);
-		m_editorUI.Initialize(m_scene,
-			m_camera,
-			m_firstPersonCameraController,
-			m_directionalLight,
-			m_backgroundColor);
+		m_editorUI.Initialize(m_scene, m_camera, m_firstPersonCameraController, m_directionalLight, m_backgroundColor);
 		m_pointLightSequence.Initialize();
 
 		// Init GeryBox Scene
@@ -118,18 +114,8 @@ namespace My
 	bool AppBase::InitMainWindow()
 	{
 		// 창 클래스 등록
-		WNDCLASSEX wc = {
-			sizeof(WNDCLASSEX), CS_CLASSDC,
-			WndProc,
-			0L, 0L,
-			GetModuleHandle(NULL),
-			NULL,
-			LoadCursor(nullptr, IDC_ARROW),
-			NULL,
-			NULL,
-			L"TEST",
-			NULL
-		};
+		WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL,
+			LoadCursor(nullptr, IDC_ARROW), NULL, NULL, L"TEST", NULL };
 
 		if (!RegisterClassEx(&wc))
 		{
@@ -141,9 +127,7 @@ namespace My
 
 		AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, false);
 
-		m_mainWindow = CreateWindow(
-			wc.lpszClassName, L"TEST",
-			WS_OVERLAPPEDWINDOW,
+		m_mainWindow = CreateWindow(wc.lpszClassName, L"TEST", WS_OVERLAPPEDWINDOW,
 			100,				// 윈도우 좌측 상단의 x 좌표
 			100,				// 윈도우 좌측 상단의 y 좌표
 			wr.right - wr.left, // 윈도우 가로 방향 해상도
@@ -281,8 +265,7 @@ namespace My
 		// 아직 내비게이션 중이 아니라면
 		if (!m_isEditorCameraNavigating)
 		{
-			if (!m_inputSystem.IsRightMouseButtonDown() || !IsCursorInSceneView()
-				|| ImGui::GetIO().WantCaptureMouse)
+			if (!m_inputSystem.IsRightMouseButtonDown() || !IsCursorInSceneView() || ImGui::GetIO().WantCaptureMouse)
 			{
 				return;
 			}
@@ -494,7 +477,13 @@ namespace My
 	}
 
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }
+		: m_screenWidth(1280)
+		, m_screenHeight(720)
+		, m_mainWindow(nullptr)
+		, m_appMode{ AppMode::Editor }
+		, m_graphicsDevice{}
+		, m_renderer{}
+		, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }
 	{
 		g_appBase = this;
 	}
@@ -557,7 +546,8 @@ namespace My
 		frameRenderData.view = m_camera.GetViewMatrix();
 		frameRenderData.projection = m_camera.GetProjectionMatrix();
 		frameRenderData.directionalLight = m_directionalLight;
-		frameRenderData.pointLightCount = m_scene.GatherPointLights(frameRenderData.pointLights.data(), frameRenderData.pointLights.size());
+		frameRenderData.pointLightCount =
+			m_scene.GatherPointLights(frameRenderData.pointLights.data(), frameRenderData.pointLights.size());
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{
@@ -586,9 +576,7 @@ namespace My
 				for (size_t i = 0; i < parts.size(); i++)
 				{
 					// 각 Part의 Mesh/Material로 RenderItem 생성
-					RenderItem renderItem{
-						parts[i].mesh, parts[i].material, world
-					};
+					RenderItem renderItem{ parts[i].mesh, parts[i].material, world };
 
 					if (!m_renderer.DrawRenderItem(renderItem))
 					{
@@ -655,11 +643,9 @@ namespace My
 
 	void AppBase::DrawPlayPanel()
 	{
-		constexpr ImGuiWindowFlags panelFlags =
-			ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
-			| ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize
-			| ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoFocusOnAppearing
-			| ImGuiWindowFlags_NoSavedSettings;
+		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoNav
+			| ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings;
 
 		ImGui::SetNextWindowPos(ImVec2(12.0f, 12.0f), ImGuiCond_Always);
 		ImGui::SetNextWindowBgAlpha(0.4f);
@@ -667,9 +653,7 @@ namespace My
 		if (ImGui::Begin("Play HUD", nullptr, panelFlags))
 		{
 			ImGui::TextUnformatted("PLAY   ESC: Stop   F1: Hide UI");
-			ImGui::Text("%.1f FPS (%.2f ms)",
-				ImGui::GetIO().Framerate,
-				1000.0f / ImGui::GetIO().Framerate);
+			ImGui::Text("%.1f FPS (%.2f ms)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
 
 			ImGui::Separator();
 			ImGui::Text("Power: %s", m_powerSwitch.IsPowerOn() ? "On" : "Off");
@@ -679,10 +663,8 @@ namespace My
 			}
 
 			ImGui::Separator();
-			ImGui::Text("W%s S%s A%s D%s",
-				m_inputSystem.IsKeyDown('W') ? "*" : "-",
-				m_inputSystem.IsKeyDown('S') ? "*" : "-",
-				m_inputSystem.IsKeyDown('A') ? "*" : "-",
+			ImGui::Text("W%s S%s A%s D%s", m_inputSystem.IsKeyDown('W') ? "*" : "-",
+				m_inputSystem.IsKeyDown('S') ? "*" : "-", m_inputSystem.IsKeyDown('A') ? "*" : "-",
 				m_inputSystem.IsKeyDown('D') ? "*" : "-");
 		}
 

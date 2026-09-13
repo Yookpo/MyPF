@@ -13,11 +13,8 @@ namespace My
 	class EditorUI
 	{
 	public:
-		void Initialize(Scene&			 scene,
-			Camera&						 camera,
-			FirstPersonCameraController& cameraController,
-			DirectionalLight&			 directionalLight,
-			std::array<float, 4>&		 backgroundColor);
+		void Initialize(Scene& scene, Camera& camera, FirstPersonCameraController& cameraController,
+			DirectionalLight& directionalLight, std::array<float, 4>& backgroundColor);
 
 		bool Draw(float screenHeight);
 

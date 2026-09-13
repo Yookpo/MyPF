@@ -13,8 +13,8 @@ namespace My
 	class Renderer
 	{
 	public:
-		bool Initialize(GraphicsDevice& graphicsDevice, GraphicsResourceManager& resourceManager,
-			int screenWidth, int screenHeight);
+		bool Initialize(GraphicsDevice& graphicsDevice, GraphicsResourceManager& resourceManager, int screenWidth,
+			int screenHeight);
 
 		bool BeginFrame(const FrameRenderData&, const std::array<float, 4>&);
 		bool EndFrame();

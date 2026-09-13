@@ -14,11 +14,7 @@ namespace My
 		const float radYaw = DirectX::XMConvertToRadians(m_yaw);
 		const float radPitch = DirectX::XMConvertToRadians(m_pitch);
 
-		Vector3 newForward = {
-			cos(radPitch) * sin(radYaw),
-			sin(radPitch),
-			cos(radPitch) * cos(radYaw)
-		};
+		Vector3 newForward = { cos(radPitch) * sin(radYaw), sin(radPitch), cos(radPitch) * cos(radYaw) };
 		m_forward = newForward;
 		m_forward.Normalize();
 	}
@@ -56,8 +52,7 @@ namespace My
 
 		if (m_usePerspectiveProjection)
 		{
-			return XMMatrixPerspectiveFovLH(
-				XMConvertToRadians(m_fovAngleY), m_aspectRatio, m_nearZ, m_farZ);
+			return XMMatrixPerspectiveFovLH(XMConvertToRadians(m_fovAngleY), m_aspectRatio, m_nearZ, m_farZ);
 		}
 		else
 		{

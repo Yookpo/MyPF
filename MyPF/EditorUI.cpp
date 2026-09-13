@@ -18,11 +18,8 @@ namespace My
 		constexpr float kEditorPanelWidth = 360.0f;
 	}
 
-	void EditorUI::Initialize(Scene& scene,
-		Camera&						 camera,
-		FirstPersonCameraController& cameraController,
-		DirectionalLight&			 directionalLight,
-		std::array<float, 4>&		 backgroundColor)
+	void EditorUI::Initialize(Scene& scene, Camera& camera, FirstPersonCameraController& cameraController,
+		DirectionalLight& directionalLight, std::array<float, 4>& backgroundColor)
 	{
 		m_scene = &scene;
 		m_camera = &camera;
@@ -33,7 +30,8 @@ namespace My
 
 	bool EditorUI::Draw(float screenHeight)
 	{
-		if (m_scene == nullptr || m_camera == nullptr || m_cameraController == nullptr || m_directionalLight == nullptr || m_backgroundColor == nullptr)
+		if (m_scene == nullptr || m_camera == nullptr || m_cameraController == nullptr || m_directionalLight == nullptr
+			|| m_backgroundColor == nullptr)
 		{
 			return false;
 		}
@@ -92,7 +90,8 @@ namespace My
 		}
 
 		Vector3 lightDirection = m_directionalLight->direction;
-		if (ImGui::DragFloat3("Direction", &lightDirection.x, 0.01f, -1.0f, 1.0f) && lightDirection.LengthSquared() > 0.00001f)
+		if (ImGui::DragFloat3("Direction", &lightDirection.x, 0.01f, -1.0f, 1.0f)
+			&& lightDirection.LengthSquared() > 0.00001f)
 		{
 			lightDirection.Normalize();
 			m_directionalLight->direction = lightDirection;

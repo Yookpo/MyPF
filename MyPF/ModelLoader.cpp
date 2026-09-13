@@ -28,8 +28,8 @@ namespace My
 
 		// 모델 파일 전체 불러오기
 		// face를 삼각형으로 변환, Left-Handed로 변환, Normal이 없는 모델은 Smooth Normal 생성
-		const aiScene* pScene = importer.ReadFile(filePath,
-			aiProcess_Triangulate | aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals);
+		const aiScene* pScene = importer.ReadFile(
+			filePath, aiProcess_Triangulate | aiProcess_ConvertToLeftHanded | aiProcess_GenSmoothNormals);
 
 		// Scene 유효성 검사
 		if (!pScene || (pScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE) || !pScene->mRootNode)
@@ -173,8 +173,7 @@ namespace My
 
 		if (resolvedPath.is_relative())
 		{
-			resolvedPath =
-				std::filesystem::path(modelDirectory) / resolvedPath;
+			resolvedPath = std::filesystem::path(modelDirectory) / resolvedPath;
 		}
 
 		return resolvedPath.lexically_normal().string();

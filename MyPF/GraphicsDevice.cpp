@@ -109,13 +109,11 @@ namespace My
 		sd.SampleDesc.Count = 1; // No use MSAA
 		sd.SampleDesc.Quality = 0;
 
-		if (FAILED(D3D11CreateDeviceAndSwapChain(
-				0, // Default adapter
+		if (FAILED(D3D11CreateDeviceAndSwapChain(0, // Default adapter
 				D3D_DRIVER_TYPE_HARDWARE,
 				0, // No software device
-				createDeviceFlags, featureLevels, 1, D3D11_SDK_VERSION, &sd,
-				m_swapChain.GetAddressOf(), m_device.GetAddressOf(), &featureLevel,
-				m_context.GetAddressOf())))
+				createDeviceFlags, featureLevels, 1, D3D11_SDK_VERSION, &sd, m_swapChain.GetAddressOf(),
+				m_device.GetAddressOf(), &featureLevel, m_context.GetAddressOf())))
 		{
 			OutputDebugStringW(L"D3D11CreateDeviceAndSwapChain() failed");
 			return false;
@@ -142,8 +140,7 @@ namespace My
 
 		if (backBuffer)
 		{
-			if (FAILED(m_device->CreateRenderTargetView(
-					backBuffer.Get(), nullptr, m_renderTargetView.GetAddressOf())))
+			if (FAILED(m_device->CreateRenderTargetView(backBuffer.Get(), nullptr, m_renderTargetView.GetAddressOf())))
 			{
 				OutputDebugStringW(L"CreateRTV() failed");
 				return false;

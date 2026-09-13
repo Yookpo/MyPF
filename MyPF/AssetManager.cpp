@@ -9,10 +9,7 @@
 
 namespace My
 {
-	AssetManager::AssetManager()
-		: m_resourceManager{ nullptr }
-	{
-	}
+	AssetManager::AssetManager() : m_resourceManager{ nullptr } {}
 
 	AssetManager::~AssetManager() = default;
 

@@ -11,7 +11,13 @@ namespace My
 	{
 	public:
 		Material()
-			: m_albedoTexture(nullptr), m_baseColor{ 1.0f }, m_emissiveColor{ 1.0f }, m_emissiveIntensity{ 0.0f }, m_runtimeEmissiveMultiplier{ 1.0f } {}
+			: m_albedoTexture(nullptr)
+			, m_baseColor{ 1.0f }
+			, m_emissiveColor{ 1.0f }
+			, m_emissiveIntensity{ 0.0f }
+			, m_runtimeEmissiveMultiplier{ 1.0f }
+		{
+		}
 		Material(const Material&) = delete;
 		Material& operator=(const Material&) = delete;
 
