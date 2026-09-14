@@ -154,6 +154,8 @@
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
+    <ClCompile Include="NeonSign.cpp" />
+    <ClCompile Include="PlayerCollision.cpp" />
     <ClCompile Include="PointLightSequence.cpp" />
     <ClCompile Include="PowerSwitch.cpp" />
     <ClCompile Include="Renderer.cpp" />
@@ -166,6 +168,7 @@
     <ClInclude Include="AssetManager.h" />
     <ClInclude Include="BufferHandle.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="BoxCollisionComponent.h" />
     <ClInclude Include="D3D11Utils.h" />
     <ClInclude Include="DirectionalLight.h" />
     <ClInclude Include="EditorUI.h" />
@@ -193,6 +196,8 @@
     <ClInclude Include="ModelComponent.h" />
     <ClInclude Include="ModelData.h" />
     <ClInclude Include="ModelLoader.h" />
+    <ClInclude Include="NeonSign.h" />
+    <ClInclude Include="PlayerCollision.h" />
     <ClInclude Include="PointLight.h" />
     <ClInclude Include="PointLightComponent.h" />
     <ClInclude Include="PointLightSequence.h" />

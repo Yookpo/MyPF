@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <directxtk/SimpleMath.h>
 #include <cstddef>
 
@@ -10,10 +10,10 @@ namespace My
 
 	struct PointLight
 	{
-		Vector3 position = Vector3(0.0f, 0.0f, 0.0f); // Á¡±¤ÀÇ À§Ä¡
-		float	range = 2.0f;						  // Á¡±¤ÀÇ ¹üÀ§
-		Vector3 color = Vector3(1.0f);				  // Á¡±¤ÀÇ RGB »ö»ó
-		float	intensity = 1.0f;					  // Á¡±¤ÀÇ ¼¼±â
-		bool	isEnabled = false;					  // Á¡µî ¿©ºÎ
+		Vector3 position = Vector3(0.0f, 0.0f, 0.0f); // ì ê´‘ì˜ ìœ„ì¹˜
+		float	range = 2.0f;						  // ì ê´‘ì˜ ë²”ìœ„
+		Vector3 color = Vector3(1.0f);				  // ì ê´‘ì˜ RGB ìƒ‰ìƒ
+		float	intensity = 1.0f;					  // ì ê´‘ì˜ ì„¸ê¸°
+		bool	isEnabled = false;					  // ì ë“± ì—¬ë¶€
 	};
 } // namespace My

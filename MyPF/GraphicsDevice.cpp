@@ -1,4 +1,4 @@
-#include "GraphicsDevice.h"
+ï»¿#include "GraphicsDevice.h"
 
 namespace My
 {
@@ -24,7 +24,7 @@ namespace My
 
 	bool GraphicsDevice::Resize(int screenWidth, int screenHeight)
 	{
-		// Ã¢ ÃÖ¼ÒÈ­ »óÅÂÀÌ¹Ç·Î ÀÛ¾÷ ¾øÀÌ ³Ñ¾î°¡±â
+		// ì°½ ìµœì†Œí™” ìƒíƒœì´ë¯€ë¡œ ì‘ì—… ì—†ì´ ë„˜ì–´ê°€ê¸°
 		if (screenWidth <= 0 || screenHeight <= 0)
 		{
 			return true;
@@ -36,15 +36,15 @@ namespace My
 			return false;
 		}
 
-		// ÇöÀç RTV/DSV ¿¬°á ÇØÁ¦
+		// í˜„ì¬ RTV/DSV ì—°ê²° í•´ì œ
 		m_context->OMSetRenderTargets(0, nullptr, nullptr);
 		m_renderTargetView.Reset();
 		m_depthStencilView.Reset();
 		m_depthTexture.Reset();
 
-		HRESULT hr = m_swapChain->ResizeBuffers(0, // ÇöÀç °³¼ö À¯Áö
-			screenWidth, screenHeight,			   // ÇØ»óµµ º¯°æ
-			DXGI_FORMAT_UNKNOWN,				   // ÇöÀç Æ÷¸Ë À¯Áö
+		HRESULT hr = m_swapChain->ResizeBuffers(0, // í˜„ì¬ ê°œìˆ˜ ìœ ì§€
+			screenWidth, screenHeight,			   // í•´ìƒë„ ë³€ê²½
+			DXGI_FORMAT_UNKNOWN,				   // í˜„ì¬ í¬ë§· ìœ ì§€
 			DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
 		if (FAILED(hr))
 		{
@@ -81,7 +81,7 @@ namespace My
 
 	bool GraphicsDevice::InitDirect3D(HWND mainWindow, int screenWidth, int screenHeight)
 	{
-		// m_device, m_context »ı¼º
+		// m_device, m_context ìƒì„±
 		UINT createDeviceFlags = 0;
 #if defined(DEBUG) || defined(_DEBUG)
 		createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -89,7 +89,7 @@ namespace My
 		const D3D_FEATURE_LEVEL featureLevels[2] = { D3D_FEATURE_LEVEL_11_0 };
 		D3D_FEATURE_LEVEL		featureLevel;
 
-		// swapchain »ı¼º
+		// swapchain ìƒì„±
 		DXGI_SWAP_CHAIN_DESC sd;
 		ZeroMemory(&sd, sizeof(sd));
 
@@ -109,13 +109,11 @@ namespace My
 		sd.SampleDesc.Count = 1; // No use MSAA
 		sd.SampleDesc.Quality = 0;
 
-		if (FAILED(D3D11CreateDeviceAndSwapChain(
-				0, // Default adapter
+		if (FAILED(D3D11CreateDeviceAndSwapChain(0, // Default adapter
 				D3D_DRIVER_TYPE_HARDWARE,
 				0, // No software device
-				createDeviceFlags, featureLevels, 1, D3D11_SDK_VERSION, &sd,
-				m_swapChain.GetAddressOf(), m_device.GetAddressOf(), &featureLevel,
-				m_context.GetAddressOf())))
+				createDeviceFlags, featureLevels, 1, D3D11_SDK_VERSION, &sd, m_swapChain.GetAddressOf(),
+				m_device.GetAddressOf(), &featureLevel, m_context.GetAddressOf())))
 		{
 			OutputDebugStringW(L"D3D11CreateDeviceAndSwapChain() failed");
 			return false;
@@ -142,8 +140,7 @@ namespace My
 
 		if (backBuffer)
 		{
-			if (FAILED(m_device->CreateRenderTargetView(
-					backBuffer.Get(), nullptr, m_renderTargetView.GetAddressOf())))
+			if (FAILED(m_device->CreateRenderTargetView(backBuffer.Get(), nullptr, m_renderTargetView.GetAddressOf())))
 			{
 				OutputDebugStringW(L"CreateRTV() failed");
 				return false;

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <directxtk/SimpleMath.h>
 
 namespace My
@@ -11,7 +11,16 @@ namespace My
 	{
 	public:
 		Material()
-			: m_albedoTexture(nullptr), m_baseColor{ 1.0f }, m_emissiveColor{ 1.0f }, m_emissiveIntensity{ 0.0f }, m_runtimeEmissiveMultiplier{ 1.0f } {}
+			: m_albedoTexture(nullptr)
+			, m_baseColor{ 1.0f }
+			, m_emissiveColor{ 1.0f }
+			, m_emissiveIntensity{ 0.0f }
+			, m_runtimeEmissiveMultiplier{ 1.0f }
+			, m_rimColor{ 1.0f }
+			, m_rimIntensity{ 0.0f }
+			, m_rimPower{ 3.0f }
+		{
+		}
 		Material(const Material&) = delete;
 		Material& operator=(const Material&) = delete;
 
@@ -24,8 +33,17 @@ namespace My
 		void		   SetEmissiveColor(const Vector3&);
 		const Vector3& GetEmissiveColor() const { return m_emissiveColor; }
 
+		void		   SetRimColor(const Vector3&);
+		const Vector3& GetRimColor() const { return m_rimColor; }
+
 		void  SetEmissiveIntensity(float);
 		float GetEmissiveIntensity() const { return m_emissiveIntensity; }
+
+		void  SetRimIntensity(float);
+		float GetRimIntensity() const { return m_rimIntensity; }
+
+		void  SetRimPower(float);
+		float GetRimPower() const { return m_rimPower; }
 
 		void  SetEmissiveMultiplier(float);
 		float GetEmissiveMultiplier() const { return m_runtimeEmissiveMultiplier; }
@@ -35,8 +53,11 @@ namespace My
 		const Texture* m_albedoTexture;
 		Vector3		   m_baseColor;
 		Vector3		   m_emissiveColor;
-		float		   m_emissiveIntensity;			// Editor°¡ ¼³Á¤ÇÏ´Â ¿øº» ¹à±â
-		float		   m_runtimeEmissiveMultiplier; // Sequence°¡ Á¶ÀıÇÏ´Â ÇöÀç Ãâ·Â ¹èÀ²	(0.0 ²¨Áü / 1.0 Á¤»óÃâ·Â)
+		float		   m_emissiveIntensity;			// Editorê°€ ì„¤ì •í•˜ëŠ” ì›ë³¸ ë°ê¸°
+		float		   m_runtimeEmissiveMultiplier; // Sequenceê°€ ì¡°ì ˆí•˜ëŠ” í˜„ì¬ ì¶œë ¥ ë°°ìœ¨	(0.0 êº¼ì§ / 1.0 ì •ìƒì¶œë ¥)
+		Vector3		   m_rimColor;
+		float		   m_rimIntensity;
+		float		   m_rimPower;
 	};
 
 } // namespace My

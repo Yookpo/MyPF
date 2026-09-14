@@ -13,16 +13,12 @@ namespace My
 	class EditorUI
 	{
 	public:
-		void Initialize(Scene&			 scene,
-			Camera&						 camera,
-			FirstPersonCameraController& cameraController,
-			DirectionalLight&			 directionalLight,
-			std::array<float, 4>&		 backgroundColor);
+		void Initialize(Scene& scene, Camera& camera, FirstPersonCameraController& cameraController,
+			DirectionalLight& directionalLight, std::array<float, 4>& backgroundColor);
 
 		bool Draw(float screenHeight);
 
-		void  SetSelectedObject(GameObject* selectedObject) { m_selectedObject = selectedObject; }
-		float GetPanelWidth() const { return m_panelWidth; }
+		void SetSelectedObject(GameObject* selectedObject) { m_selectedObject = selectedObject; }
 
 	private:
 		bool DrawEditorPanel();
@@ -43,6 +39,5 @@ namespace My
 		DirectionalLight*			 m_directionalLight{ nullptr };
 		std::array<float, 4>*		 m_backgroundColor{ nullptr };
 		GameObject*					 m_selectedObject{ nullptr };
-		float						 m_panelWidth{ 360.0f };
 	};
 } // namespace My

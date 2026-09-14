@@ -8,8 +8,7 @@ namespace My
 	class MeshComponent
 	{
 	public:
-		MeshComponent()
-			: m_mesh(nullptr), m_material(nullptr) {}
+		MeshComponent() : m_mesh(nullptr), m_material(nullptr) {}
 		void		SetMesh(const Mesh* newMesh) { m_mesh = newMesh; }
 		const Mesh* GetMesh() const { return m_mesh; }
 		bool		HasMesh() const { return m_mesh; }

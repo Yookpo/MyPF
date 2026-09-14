@@ -16,8 +16,10 @@ namespace My
 
 	struct CameraConstantData
 	{
-		Matrix view;
-		Matrix projection;
+		Matrix	view;
+		Matrix	projection;
+		Vector3 cameraPosition;
+		float	pad;
 	};
 
 	struct PointLightConstantData
@@ -49,5 +51,9 @@ namespace My
 		float	pad;			   // 4
 		Vector3 emissiveColor;	   // 12
 		float	emissiveIntensity; // 4
+		Vector3 rimColor;		   // 12
+		float	rimIntensity;	   // 4
+		float	rimPower;		   // 4
+		Vector3 pad2;			   // 12	-> 64
 	};
 } // namespace My

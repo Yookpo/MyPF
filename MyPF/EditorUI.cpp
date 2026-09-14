@@ -18,11 +18,8 @@ namespace My
 		constexpr float kEditorPanelWidth = 360.0f;
 	}
 
-	void EditorUI::Initialize(Scene& scene,
-		Camera&						 camera,
-		FirstPersonCameraController& cameraController,
-		DirectionalLight&			 directionalLight,
-		std::array<float, 4>&		 backgroundColor)
+	void EditorUI::Initialize(Scene& scene, Camera& camera, FirstPersonCameraController& cameraController,
+		DirectionalLight& directionalLight, std::array<float, 4>& backgroundColor)
 	{
 		m_scene = &scene;
 		m_camera = &camera;
@@ -33,21 +30,21 @@ namespace My
 
 	bool EditorUI::Draw(float screenHeight)
 	{
-		if (m_scene == nullptr || m_camera == nullptr || m_cameraController == nullptr || m_directionalLight == nullptr || m_backgroundColor == nullptr)
+		if (m_scene == nullptr || m_camera == nullptr || m_cameraController == nullptr || m_directionalLight == nullptr
+			|| m_backgroundColor == nullptr)
 		{
 			return false;
 		}
 
-		const float				   panelHeight = screenHeight > 0.0f ? screenHeight : 1.0f;
-		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
+		const float				   initialHeight = screenHeight > 32.0f ? screenHeight - 32.0f : 688.0f;
+		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_None;
 
-		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-		ImGui::SetNextWindowSize(ImVec2(kEditorPanelWidth, panelHeight), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(16.0f, 16.0f), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(kEditorPanelWidth, initialHeight), ImGuiCond_FirstUseEver);
 
 		bool playRequested = false;
 		if (ImGui::Begin("Editor Panel", nullptr, panelFlags))
 		{
-			m_panelWidth = ImGui::GetWindowSize().x;
 			playRequested = DrawEditorPanel();
 		}
 		ImGui::End();
@@ -93,7 +90,8 @@ namespace My
 		}
 
 		Vector3 lightDirection = m_directionalLight->direction;
-		if (ImGui::DragFloat3("Direction", &lightDirection.x, 0.01f, -1.0f, 1.0f) && lightDirection.LengthSquared() > 0.00001f)
+		if (ImGui::DragFloat3("Direction", &lightDirection.x, 0.01f, -1.0f, 1.0f)
+			&& lightDirection.LengthSquared() > 0.00001f)
 		{
 			lightDirection.Normalize();
 			m_directionalLight->direction = lightDirection;
@@ -270,6 +268,24 @@ namespace My
 		if (ImGui::SliderFloat("Emissive Intensity", &emissiveIntensity, 0.0f, 20.0f))
 		{
 			material->SetEmissiveIntensity(emissiveIntensity);
+		}
+
+		Vector3 rimColor = material->GetRimColor();
+		if (ImGui::ColorEdit3("Rim Color", &rimColor.x))
+		{
+			material->SetRimColor(rimColor);
+		}
+
+		float rimIntensity = material->GetRimIntensity();
+		if (ImGui::SliderFloat("Rim Intensity", &rimIntensity, 0.0f, 10.0f))
+		{
+			material->SetRimIntensity(rimIntensity);
+		}
+
+		float rimPower = material->GetRimPower();
+		if (ImGui::SliderFloat("Rim Power", &rimPower, 0.5f, 10.0f))
+		{
+			material->SetRimPower(rimPower);
 		}
 	}
 } // namespace My

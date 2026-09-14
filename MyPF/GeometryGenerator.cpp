@@ -41,9 +41,7 @@ namespace My
 
 			meshData.vertices.push_back(v);
 		}
-		meshData.indices = {
-			0, 1, 2
-		};
+		meshData.indices = { 0, 1, 2 };
 
 		return meshData;
 	}

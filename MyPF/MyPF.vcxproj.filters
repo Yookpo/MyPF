@@ -126,6 +126,12 @@
     <ClCompile Include="FirstPersonCameraController.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
+    <ClCompile Include="NeonSign.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerCollision.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -252,6 +258,15 @@
       <Filter>Scene</Filter>
     </ClInclude>
     <ClInclude Include="PointLightComponent.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="BoxCollisionComponent.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="NeonSign.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerCollision.h">
       <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>

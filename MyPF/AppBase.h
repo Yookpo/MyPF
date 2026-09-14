@@ -67,10 +67,10 @@ namespace My
 		bool InitGreyBoxScene();
 
 	public:
-		HWND  m_mainWindow;
-		int	  m_screenWidth; // 렌더링할 최종 화면의 해상도
-		int	  m_screenHeight;
-		float m_guiWidth = 0;
+		HWND m_mainWindow;
+		int	 m_screenWidth; // 렌더링할 최종 화면의 해상도
+		int	 m_screenHeight;
+		bool m_showGuiPanel{ true };
 
 		AppMode m_appMode;
 

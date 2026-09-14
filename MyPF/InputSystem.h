@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <array>
 #include <Windows.h>
 
@@ -26,16 +26,16 @@ namespace My
 		void	   Reset();
 
 	private:
-		std::array<bool, 256> m_keyDown{};	  // Áö¼Ó »óÅÂ
-		std::array<bool, 256> m_keyPressed{}; // ÇÑ ÇÁ·¹ÀÓ »óÅÂ
+		std::array<bool, 256> m_keyDown{};	  // ì§€ì† ìƒíƒœ
+		std::array<bool, 256> m_keyPressed{}; // í•œ í”„ë ˆì„ ìƒíƒœ
 
-		// UI, Picking, ¸¶¿ì½º À§Ä¡
+		// UI, Picking, ë§ˆìš°ìŠ¤ ìœ„ì¹˜
 		int	 m_mouseX{ 0 };
 		int	 m_mouseY{ 0 };
 		bool m_hasMousePosition{ false };
 		bool m_isRightMouseButtonDown{ false };
 
-		// Ä«¸Ş¶ó È¸Àü
+		// ì¹´ë©”ë¼ íšŒì „
 		MouseDelta m_mouseDelta;
 	};
 

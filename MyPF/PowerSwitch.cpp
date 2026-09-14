@@ -9,7 +9,11 @@ namespace My
 	using namespace DirectX::SimpleMath;
 
 	PowerSwitch::PowerSwitch()
-		: m_gameObject{ nullptr }, m_powerOffColor{ 0.35f, 0.05f, 0.05f }, m_powerOnColor{ 0.15f, 0.8f, 0.25f }, m_interactionRange{ 2.0f }, m_isPowerOn{ false }
+		: m_gameObject{ nullptr }
+		, m_powerOffColor{ 0.35f, 0.05f, 0.05f }
+		, m_powerOnColor{ 0.15f, 0.8f, 0.25f }
+		, m_interactionRange{ 2.0f }
+		, m_isPowerOn{ false }
 	{
 	}
 	void PowerSwitch::Initialize(GameObject& gameObject)

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <d3d11.h>
 #include <wrl.h> // comptr
 #include <cstdint>
@@ -27,8 +27,7 @@ namespace My
 
 		TextureHandle CreateTexture(const std::string& filename);
 
-		template <typename T_VERTEX>
-		BufferHandle CreateVertexBuffer(const std::vector<T_VERTEX>& vertices)
+		template <typename T_VERTEX> BufferHandle CreateVertexBuffer(const std::vector<T_VERTEX>& vertices)
 		{
 			const uint32_t maxValue = (std::numeric_limits<uint32_t>::max)();
 
@@ -39,25 +38,22 @@ namespace My
 
 			auto byte = sizeof(T_VERTEX) * vertices.size();
 
-			return CreateImmutableBufferInternal(vertices.data(), static_cast<uint32_t>(byte), D3D11_BIND_VERTEX_BUFFER);
+			return CreateImmutableBufferInternal(
+				vertices.data(), static_cast<uint32_t>(byte), D3D11_BIND_VERTEX_BUFFER);
 		}
 
 		BufferHandle CreateIndexBuffer(const std::vector<uint32_t>& indices);
 
-		template <typename T_CONSTANT>
-		BufferHandle CreateConstantBuffer(const T_CONSTANT& initialData)
+		template <typename T_CONSTANT> BufferHandle CreateConstantBuffer(const T_CONSTANT& initialData)
 		{
-			static_assert((sizeof(T_CONSTANT) % 16) == 0,
-				"Constant Buffer size must be 16-byte aligned");
+			static_assert((sizeof(T_CONSTANT) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
 
 			return CreateConstantBufferInternal(&initialData, static_cast<uint32_t>(sizeof(T_CONSTANT)));
 		}
 
-		template <typename T_DATA>
-		bool UpdateBuffer(const BufferHandle& bufferHandle, const T_DATA& bufferData)
+		template <typename T_DATA> bool UpdateBuffer(const BufferHandle& bufferHandle, const T_DATA& bufferData)
 		{
-			static_assert((sizeof(T_DATA) % 16) == 0,
-				"Constant Buffer size must be 16-byte aligned");
+			static_assert((sizeof(T_DATA) % 16) == 0, "Constant Buffer size must be 16-byte aligned");
 
 			return UpdateBufferInternal(bufferHandle, &bufferData, static_cast<uint32_t>(sizeof(T_DATA)));
 		}
@@ -66,8 +62,8 @@ namespace My
 		struct BufferResource
 		{
 			ComPtr<ID3D11Buffer> buffer;
-			uint32_t			 byteWidth = 0;		  // ¹öÆÛ »ı¼º ½Ã Å©±â, °»½ÅÇÒ µ¥ÀÌÅÍ Å©±â°¡ ±âÁ¸ ¹öÆÛ Å©±â¿Í °°Àº Áö °Ë»çÇØ¾ßÇÔ
-			bool				 cpuWritable = false; // ÀÌ ¹öÆÛ´Â CPU¿¡¼­ °»½ÅÀÌ °¡´É?
+			uint32_t byteWidth = 0;		  // ë²„í¼ ìƒì„± ì‹œ í¬ê¸°, ê°±ì‹ í•  ë°ì´í„° í¬ê¸°ê°€ ê¸°ì¡´ ë²„í¼ í¬ê¸°ì™€ ê°™ì€ ì§€ ê²€ì‚¬í•´ì•¼í•¨
+			bool	 cpuWritable = false; // ì´ ë²„í¼ëŠ” CPUì—ì„œ ê°±ì‹ ì´ ê°€ëŠ¥?
 		};
 
 		struct TextureResource

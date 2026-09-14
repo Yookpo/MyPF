@@ -1,4 +1,4 @@
-#include "InputSystem.h"
+ï»¿#include "InputSystem.h"
 #include <windowsx.h>
 
 namespace My
@@ -8,7 +8,7 @@ namespace My
 		Reset();
 	}
 
-	// ½ÇÁ¦ Å° »óÅÂ ÀúÀå
+	// ì‹¤ì œ í‚¤ ìƒíƒœ ì €ì¥
 	void InputSystem::ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam)
 	{
 		switch (msg)
@@ -109,9 +109,9 @@ namespace My
 		m_hasMousePosition = false;
 	}
 
-	// Window°¡ Æ÷Ä¿½º¸¦ ÀÒ¾úÀ» ¶§
-	// Editor¿¡¼­ Play·Î ÀüÈ¯µÉ ¶§
-	// Play¿¡¼­ StopÀ¸·Î µ¹¾Æ¿Ã ¶§
+	// Windowê°€ í¬ì»¤ìŠ¤ë¥¼ ìƒì—ˆì„ ë•Œ
+	// Editorì—ì„œ Playë¡œ ì „í™˜ë  ë•Œ
+	// Playì—ì„œ Stopìœ¼ë¡œ ëŒì•„ì˜¬ ë•Œ
 	void InputSystem::Reset()
 	{
 		m_keyDown.fill(false);

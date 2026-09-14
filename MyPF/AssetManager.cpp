@@ -1,4 +1,4 @@
-#include "AssetManager.h"
+ï»¿#include "AssetManager.h"
 #include "GraphicsResourceManager.h"
 #include "Texture.h"
 #include "Mesh.h"
@@ -9,10 +9,7 @@
 
 namespace My
 {
-	AssetManager::AssetManager()
-		: m_resourceManager{ nullptr }
-	{
-	}
+	AssetManager::AssetManager() : m_resourceManager{ nullptr } {}
 
 	AssetManager::~AssetManager() = default;
 
@@ -35,7 +32,7 @@ namespace My
 			return nullptr;
 		}
 
-		// Ä³½Ã °Ë»ö -> Ä³½Ã È÷Æ®½Ã ±âÁ¸ Texture ¹İÈ¯
+		// ìºì‹œ ê²€ìƒ‰ -> ìºì‹œ íˆíŠ¸ì‹œ ê¸°ì¡´ Texture ë°˜í™˜
 		auto iter = m_textures.find(path);
 		if (iter != m_textures.end())
 		{
@@ -62,7 +59,7 @@ namespace My
 			return nullptr;
 		}
 
-		// Ä³½Ã °Ë»ö -> Ä³½Ã È÷Æ®½Ã ±âÁ¸ mesh ¹İÈ¯
+		// ìºì‹œ ê²€ìƒ‰ -> ìºì‹œ íˆíŠ¸ì‹œ ê¸°ì¡´ mesh ë°˜í™˜
 		auto iter = m_meshes.find(meshName);
 		if (iter != m_meshes.end())
 		{
@@ -89,7 +86,7 @@ namespace My
 			return nullptr;
 		}
 
-		// Ä³½Ã °Ë»ö -> Ä³½Ã È÷Æ®½Ã ±âÁ¸ Material ¹İÈ¯
+		// ìºì‹œ ê²€ìƒ‰ -> ìºì‹œ íˆíŠ¸ì‹œ ê¸°ì¡´ Material ë°˜í™˜
 		auto iter = m_materials.find(key);
 		if (iter != m_materials.end())
 		{
@@ -111,7 +108,7 @@ namespace My
 			return nullptr;
 		}
 
-		// Ä³½Ã °Ë»ö -> Ä³½Ã È÷Æ®½Ã ±âÁ¸ model ¹İÈ¯
+		// ìºì‹œ ê²€ìƒ‰ -> ìºì‹œ íˆíŠ¸ì‹œ ê¸°ì¡´ model ë°˜í™˜
 		auto iter = m_models.find(filePath);
 		if (iter != m_models.end())
 		{

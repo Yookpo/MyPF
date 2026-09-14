@@ -1,18 +1,18 @@
-#pragma once
+ï»¿#pragma once
 #include "MeshData.h"
 #include <vector>
 #include <string>
 
 namespace My
 {
-	// AssimpÀÇ Mesh ÇÏ³ª, Áï SubMesh ÇÏ³ª¸¦ Ç¥Çö
+	// Assimpì˜ Mesh í•˜ë‚˜, ì¦‰ SubMesh í•˜ë‚˜ë¥¼ í‘œí˜„
 	struct ImportedMeshData
 	{
 		MeshData	meshData;
 		std::string albedoTexturePath;
 	};
 
-	// ¿©·¯ subMesh º¸°ü
+	// ì—¬ëŸ¬ subMesh ë³´ê´€
 	struct ModelData
 	{
 		std::vector<ImportedMeshData> meshes;

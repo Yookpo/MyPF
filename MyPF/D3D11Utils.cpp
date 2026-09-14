@@ -108,7 +108,9 @@ namespace My
 
 		return true;
 	}
-	bool D3D11Utils::CreateVertexShaderAndInputLayout(ID3D11Device* device, const wstring& fileName, const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader, ComPtr<ID3D11InputLayout>& m_inputLayout)
+	bool D3D11Utils::CreateVertexShaderAndInputLayout(ID3D11Device* device, const wstring& fileName,
+		const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader,
+		ComPtr<ID3D11InputLayout>& m_inputLayout)
 	{
 		ComPtr<ID3DBlob> shaderBlob;
 		ComPtr<ID3DBlob> errorBlob;
@@ -118,8 +120,8 @@ namespace My
 		compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
-		HRESULT hr = D3DCompileFromFile(
-			fileName.c_str(), 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0", compileFlags, 0, &shaderBlob, &errorBlob);
+		HRESULT hr = D3DCompileFromFile(fileName.c_str(), 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0",
+			compileFlags, 0, &shaderBlob, &errorBlob);
 
 		CheckResult(hr, errorBlob.Get());
 
@@ -129,8 +131,8 @@ namespace My
 			return false;
 		}
 
-		if (FAILED(device->CreateVertexShader(shaderBlob->GetBufferPointer(),
-				shaderBlob->GetBufferSize(), NULL, &m_vertexShader)))
+		if (FAILED(device->CreateVertexShader(
+				shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), NULL, &m_vertexShader)))
 		{
 			OutputDebugStringW(L"CreateVertexShader() failed");
 			return false;
@@ -145,7 +147,8 @@ namespace My
 
 		return true;
 	}
-	bool D3D11Utils::CreatePixelShader(ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader)
+	bool D3D11Utils::CreatePixelShader(
+		ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader)
 	{
 		ComPtr<ID3DBlob> shaderBlob;
 		ComPtr<ID3DBlob> errorBlob;
@@ -154,8 +157,8 @@ namespace My
 #if defined(DEBUG) || defined(_DEBUG)
 		compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
-		HRESULT hr = D3DCompileFromFile(
-			fileName.c_str(), 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0", compileFlags, 0, &shaderBlob, &errorBlob);
+		HRESULT hr = D3DCompileFromFile(fileName.c_str(), 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "ps_5_0",
+			compileFlags, 0, &shaderBlob, &errorBlob);
 
 		CheckResult(hr, errorBlob.Get());
 
@@ -165,8 +168,8 @@ namespace My
 			return false;
 		}
 
-		if (FAILED(device->CreatePixelShader(shaderBlob->GetBufferPointer(),
-				shaderBlob->GetBufferSize(), NULL, &m_pixelShader)))
+		if (FAILED(device->CreatePixelShader(
+				shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), NULL, &m_pixelShader)))
 		{
 			OutputDebugStringW(L"CreatePixelShader() failed");
 			return false;
@@ -175,7 +178,8 @@ namespace My
 		return true;
 	}
 
-	bool D3D11Utils::CreateImmutableBuffer(ID3D11Device* device, const void* data, uint32_t byteWidth, UINT bindFlags, ComPtr<ID3D11Buffer>& buffer)
+	bool D3D11Utils::CreateImmutableBuffer(
+		ID3D11Device* device, const void* data, uint32_t byteWidth, UINT bindFlags, ComPtr<ID3D11Buffer>& buffer)
 	{
 		if (!device || !data || byteWidth == 0 || bindFlags == 0)
 		{
@@ -193,22 +197,19 @@ namespace My
 		D3D11_SUBRESOURCE_DATA initialData{};
 		initialData.pSysMem = data;
 
-		const HRESULT hr = device->CreateBuffer(
-			&bufferDesc,
-			&initialData,
-			buffer.ReleaseAndGetAddressOf());
+		const HRESULT hr = device->CreateBuffer(&bufferDesc, &initialData, buffer.ReleaseAndGetAddressOf());
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(
-				L"D3D11Utils::CreateImmutableBuffer() failed");
+			OutputDebugStringW(L"D3D11Utils::CreateImmutableBuffer() failed");
 			return false;
 		}
 
 		return true;
 	}
 
-	bool D3D11Utils::CreateIndexBuffer(ID3D11Device* device, const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer)
+	bool D3D11Utils::CreateIndexBuffer(
+		ID3D11Device* device, const vector<uint32_t>& indices, ComPtr<ID3D11Buffer>& indexBuffer)
 	{
 		const uint32_t maxValue = (std::numeric_limits<uint32_t>::max)();
 
@@ -222,7 +223,8 @@ namespace My
 		return CreateImmutableBuffer(device, indices.data(), byteWidth, D3D11_BIND_INDEX_BUFFER, indexBuffer);
 	}
 
-	bool D3D11Utils::CreateConstantBuffer(ID3D11Device* device, const void* data, uint32_t byteWidth, ComPtr<ID3D11Buffer>& constantBuffer)
+	bool D3D11Utils::CreateConstantBuffer(
+		ID3D11Device* device, const void* data, uint32_t byteWidth, ComPtr<ID3D11Buffer>& constantBuffer)
 	{
 		if (!device || !data || byteWidth == 0 || byteWidth % 16 != 0)
 		{
@@ -240,22 +242,19 @@ namespace My
 		D3D11_SUBRESOURCE_DATA initialData{};
 		initialData.pSysMem = data;
 
-		const HRESULT hr = device->CreateBuffer(
-			&bufferDesc,
-			&initialData,
-			constantBuffer.ReleaseAndGetAddressOf());
+		const HRESULT hr = device->CreateBuffer(&bufferDesc, &initialData, constantBuffer.ReleaseAndGetAddressOf());
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(
-				L"D3D11Utils::CreateConstantBuffer() failed");
+			OutputDebugStringW(L"D3D11Utils::CreateConstantBuffer() failed");
 			return false;
 		}
 
 		return true;
 	}
 
-	bool D3D11Utils::UpdateBuffer(ID3D11DeviceContext* context, const void* data, uint32_t byteWidth, ID3D11Buffer* buffer)
+	bool D3D11Utils::UpdateBuffer(
+		ID3D11DeviceContext* context, const void* data, uint32_t byteWidth, ID3D11Buffer* buffer)
 	{
 		if (!context || !data || byteWidth == 0 || !buffer)
 		{
@@ -264,12 +263,7 @@ namespace My
 
 		D3D11_MAPPED_SUBRESOURCE mappedResource{};
 
-		const HRESULT hr = context->Map(
-			buffer,
-			0,
-			D3D11_MAP_WRITE_DISCARD,
-			0,
-			&mappedResource);
+		const HRESULT hr = context->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
 
 		if (FAILED(hr))
 		{
@@ -284,8 +278,8 @@ namespace My
 		return true;
 	}
 
-	bool D3D11Utils::CreateTexture(ID3D11Device* device, const std::string& filename,
-		ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11ShaderResourceView>& textureResourceView)
+	bool D3D11Utils::CreateTexture(ID3D11Device* device, const std::string& filename, ComPtr<ID3D11Texture2D>& texture,
+		ComPtr<ID3D11ShaderResourceView>& textureResourceView)
 	{
 		int width, height, channels;
 

@@ -5,6 +5,8 @@
 #include "FrameRenderData.h"
 #include "Material.h"
 #include "Model.h"
+#include "NeonSign.h"
+#include "PlayerCollision.h"
 
 namespace My
 {
@@ -99,11 +101,7 @@ namespace My
 		}
 
 		m_firstPersonCameraController.Initialize(m_camera, m_inputSystem);
-		m_editorUI.Initialize(m_scene,
-			m_camera,
-			m_firstPersonCameraController,
-			m_directionalLight,
-			m_backgroundColor);
+		m_editorUI.Initialize(m_scene, m_camera, m_firstPersonCameraController, m_directionalLight, m_backgroundColor);
 		m_pointLightSequence.Initialize();
 
 		// Init GeryBox Scene
@@ -118,18 +116,8 @@ namespace My
 	bool AppBase::InitMainWindow()
 	{
 		// 창 클래스 등록
-		WNDCLASSEX wc = {
-			sizeof(WNDCLASSEX), CS_CLASSDC,
-			WndProc,
-			0L, 0L,
-			GetModuleHandle(NULL),
-			NULL,
-			LoadCursor(nullptr, IDC_ARROW),
-			NULL,
-			NULL,
-			L"TEST",
-			NULL
-		};
+		WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL,
+			LoadCursor(nullptr, IDC_ARROW), NULL, NULL, L"TEST", NULL };
 
 		if (!RegisterClassEx(&wc))
 		{
@@ -141,9 +129,7 @@ namespace My
 
 		AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, false);
 
-		m_mainWindow = CreateWindow(
-			wc.lpszClassName, L"TEST",
-			WS_OVERLAPPEDWINDOW,
+		m_mainWindow = CreateWindow(wc.lpszClassName, L"TEST", WS_OVERLAPPEDWINDOW,
 			100,				// 윈도우 좌측 상단의 x 좌표
 			100,				// 윈도우 좌측 상단의 y 좌표
 			wr.right - wr.left, // 윈도우 가로 방향 해상도
@@ -212,12 +198,12 @@ namespace My
 
 	void AppBase::CenterCursorInSceneView()
 	{
-		if (!m_mainWindow || (m_screenWidth - m_guiWidth) <= 0 || m_screenHeight <= 0)
+		if (!m_mainWindow || m_screenWidth <= 0 || m_screenHeight <= 0)
 		{
 			return;
 		}
 
-		float centerClientX = m_guiWidth + (m_screenWidth - m_guiWidth) * 0.5f;
+		float centerClientX = m_screenWidth * 0.5f;
 		float centerClientY = m_screenHeight * 0.5f;
 
 		POINT sceneViewPos{ static_cast<LONG>(centerClientX), static_cast<LONG>(centerClientY) };
@@ -237,20 +223,19 @@ namespace My
 
 	bool AppBase::IsCursorInSceneView() const
 	{
+		if (m_screenWidth <= 0 || m_screenHeight <= 0)
+		{
+			return false;
+		}
+
 		const auto mousePos = ImGui::GetMousePos();
-		float	   sceneViewWidth = m_screenWidth - m_guiWidth;
 
-		if (sceneViewWidth <= 0 || m_screenHeight <= 0)
+		if (mousePos.x < 0.0f || mousePos.x >= m_screenWidth)
 		{
 			return false;
 		}
 
-		if (mousePos.x < m_guiWidth || mousePos.x >= m_screenWidth)
-		{
-			return false;
-		}
-
-		if (mousePos.y < 0 || mousePos.y >= m_screenHeight)
+		if (mousePos.y < 0.0f || mousePos.y >= m_screenHeight)
 		{
 			return false;
 		}
@@ -282,8 +267,7 @@ namespace My
 		// 아직 내비게이션 중이 아니라면
 		if (!m_isEditorCameraNavigating)
 		{
-			if (!m_inputSystem.IsRightMouseButtonDown() || !IsCursorInSceneView()
-				|| ImGui::GetIO().WantCaptureMouse)
+			if (!m_inputSystem.IsRightMouseButtonDown() || !IsCursorInSceneView() || ImGui::GetIO().WantCaptureMouse)
 			{
 				return;
 			}
@@ -308,6 +292,9 @@ namespace My
 
 	bool AppBase::InitGreyBoxScene()
 	{
+		// Set Camera Pos
+		m_camera.SetPosition(Vector3(0.0f, 1.6f, 0.0f));
+
 		// Setting for Mesh, Material
 		MeshData greyBoxData = GeometryGenerator::MakeCube();
 		auto	 greyBoxMesh = m_assetManager.CreateMesh("greybox", greyBoxData);
@@ -324,6 +311,13 @@ namespace My
 			return false;
 		}
 
+		const Texture* neonTex = m_assetManager.LoadTexture("neonFlat.jpg");
+
+		if (!neonTex)
+		{
+			return false;
+		}
+
 		auto greyBoxMat = m_assetManager.CreateMaterial("greyBoxMat");
 
 		if (!greyBoxMat)
@@ -334,44 +328,51 @@ namespace My
 		greyBoxMat->SetAlbedoTexture(greyBoxTex);
 		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
 
-		// Neon test material
-		auto neonMat1 = m_assetManager.CreateMaterial("neonMat1");
+		// Neon test
+		NeonSignDesc desc1{};
+		desc1.name = "PinkNeon";
+		desc1.glowPosition = { -1.95f, 2.2f, 6.0f };
+		desc1.glowScale = { 0.1f, 0.7f, 1.2f };
+		desc1.lightPosition = { -1.2f, 2.2f, 6.0f };
+		desc1.lightRange = 4.5f;
+		desc1.lightIntensity = 2.0f;
+		desc1.color = { 1.0f, 0.05f, 0.65f };
+		desc1.emissiveIntensity = 3.0f;
 
-		if (!neonMat1)
+		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc1))
 		{
 			return false;
 		}
 
-		neonMat1->SetAlbedoTexture(greyBoxTex);
-		neonMat1->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
-		neonMat1->SetEmissiveColor(Vector3(1.0f, 0.05f, 0.65f));
-		neonMat1->SetEmissiveIntensity(3.0f);
+		NeonSignDesc desc2{};
+		desc2.name = "CyanNeon";
+		desc2.glowPosition = { 1.95f, 2.7f, 15.0f };
+		desc2.glowScale = { 0.1f, 0.7f, 1.5f };
+		desc2.lightPosition = { 1.2f, 2.7f, 15.0f };
+		desc2.lightRange = 4.5f;
+		desc2.lightIntensity = 2.0f;
+		desc2.color = { 0.0f, 0.86f, 1.00f };
+		desc2.emissiveIntensity = 8.0f;
 
-		auto neonMat2 = m_assetManager.CreateMaterial("neonMat2");
-
-		if (!neonMat2)
+		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc2))
 		{
 			return false;
 		}
 
-		neonMat2->SetAlbedoTexture(greyBoxTex);
-		neonMat2->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
-		neonMat2->SetEmissiveColor(Vector3(0.37f, 0.86f, 1.00f));
-		neonMat2->SetEmissiveIntensity(8.0f);
+		NeonSignDesc desc3{};
+		desc3.name = "OrangeNeon";
+		desc3.glowPosition = { 0.0f, 2.8f, 19.9f };
+		desc3.glowScale = { 1.4f, 0.5f, 0.1f };
+		desc3.lightPosition = { 0.0f, 2.8f, 19.5f };
+		desc3.lightRange = 7.5f;
+		desc3.lightIntensity = 5.0f;
+		desc3.color = { 1.0f, 0.35f, 0.03f };
+		desc3.emissiveIntensity = 5.0f;
 
-		auto neonMat3 = m_assetManager.CreateMaterial("neonMat3");
-
-		if (!neonMat3)
+		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc3))
 		{
 			return false;
 		}
-
-		neonMat3->SetAlbedoTexture(greyBoxTex);
-		neonMat3->SetBaseColor(Vector3(0.1f, 0.1f, 0.1f));
-		neonMat3->SetEmissiveColor(Vector3(1.0f, 0.35f, 0.03f));
-		neonMat3->SetEmissiveIntensity(5.f);
-
-		// Create Point Light
 
 		// 약하게 항상 켜져 있는 환경 보조광
 		GameObject& EnvFillLight = m_scene.CreatePointLightObject("EnvironmentFillLight");
@@ -380,42 +381,6 @@ namespace My
 		EnvFillLight.GetPointLightComponent().SetRange(6.0f);
 		EnvFillLight.GetPointLightComponent().SetIntensity(1.58f);
 		EnvFillLight.GetPointLightComponent().SetEnabled(true);
-
-		// 첫 번째 네온 전용 조명
-		GameObject& pinkNeonLight = m_scene.CreatePointLightObject("PinkNeonLight");
-		pinkNeonLight.GetTransform().SetPosition(Vector3{ -1.2f, 2.3f, 5.0f });
-		pinkNeonLight.GetPointLightComponent().SetColor(Vector3{ 1.0f, 0.05f, 0.65f });
-		pinkNeonLight.GetPointLightComponent().SetRange(4.5f);
-		pinkNeonLight.GetPointLightComponent().SetIntensity(2.0f);
-		pinkNeonLight.GetPointLightComponent().SetEnabled(false);
-		if (!m_pointLightSequence.AddSequenceEntry(pinkNeonLight, neonMat1))
-		{
-			return false;
-		}
-
-		// 두 번째 네온 전용 조명
-		GameObject& cyanNeonLight = m_scene.CreatePointLightObject("CyanNeonLight");
-		cyanNeonLight.GetTransform().SetPosition(Vector3{ 1.2f, 2.3f, 15.0f });
-		cyanNeonLight.GetPointLightComponent().SetColor(Vector3{ 0.37f, 0.86f, 1.00f });
-		cyanNeonLight.GetPointLightComponent().SetRange(4.5f);
-		cyanNeonLight.GetPointLightComponent().SetIntensity(2.0f);
-		cyanNeonLight.GetPointLightComponent().SetEnabled(false);
-		if (!m_pointLightSequence.AddSequenceEntry(cyanNeonLight, neonMat2))
-		{
-			return false;
-		}
-
-		// 골목 끝에서 마지막에 켜지는 주요 네온 조명
-		GameObject& orangeNeonLight = m_scene.CreatePointLightObject("OrangeNeonLight");
-		orangeNeonLight.GetTransform().SetPosition(Vector3{ 0.0f, 3.0f, 20.0f });
-		orangeNeonLight.GetPointLightComponent().SetColor(Vector3{ 1.0f, 0.35f, 0.03f });
-		orangeNeonLight.GetPointLightComponent().SetRange(7.5f);
-		orangeNeonLight.GetPointLightComponent().SetIntensity(5.0f);
-		orangeNeonLight.GetPointLightComponent().SetEnabled(false);
-		if (!m_pointLightSequence.AddSequenceEntry(orangeNeonLight, neonMat3))
-		{
-			return false;
-		}
 
 		// Create floor
 		GameObject* floor = &m_scene.CreateGameObject("floor");
@@ -429,6 +394,7 @@ namespace My
 		floor->GetMeshComponent().SetMaterial(greyBoxMat);
 
 		// Create Wall
+		GameObject* startWall = &m_scene.CreateGameObject("startWall"); // 시작 지점 -> 뒤로 벗어나지 못하게 막음
 		GameObject* leftWall = &m_scene.CreateGameObject("leftWall");
 		GameObject* rightWall = &m_scene.CreateGameObject("rightWall");
 		GameObject* endWall = &m_scene.CreateGameObject("endWall");
@@ -436,10 +402,12 @@ namespace My
 		leftWall->GetTransform().SetScale(Vector3(0.2f, 4.0f, 20.0f));
 		rightWall->GetTransform().SetScale(Vector3(0.2f, 4.0f, 20.0f));
 		endWall->GetTransform().SetScale(Vector3(4.0f, 4.0f, 0.2f));
+		startWall->GetTransform().SetScale(Vector3(4.0f, 4.0f, 0.2f));
 
 		leftWall->GetTransform().SetPosition(Vector3(-2.1f, 2.0f, 10.0f));
 		rightWall->GetTransform().SetPosition(Vector3(2.1f, 2.0f, 10.0f));
 		endWall->GetTransform().SetPosition(Vector3(0.0f, 2.0f, 20.1f));
+		startWall->GetTransform().SetPosition(Vector3(0.0f, 2.0f, -0.1f));
 
 		leftWall->GetMeshComponent().SetMesh(greyBoxMesh);
 		rightWall->GetMeshComponent().SetMesh(greyBoxMesh);
@@ -449,8 +417,10 @@ namespace My
 		rightWall->GetMeshComponent().SetMaterial(greyBoxMat);
 		endWall->GetMeshComponent().SetMaterial(greyBoxMat);
 
-		// Set Camera Pos
-		m_camera.SetPosition(Vector3(0.0f, 1.6f, 0.0f));
+		leftWall->AddBoxCollisionComponent();
+		rightWall->AddBoxCollisionComponent();
+		endWall->AddBoxCollisionComponent();
+		startWall->AddBoxCollisionComponent();
 
 		// Create Power Switch
 		auto powerSwitchObject = &m_scene.CreateGameObject("powerSwitch");
@@ -459,6 +429,9 @@ namespace My
 
 		// Switch Mat
 		auto powerSwitchMat = m_assetManager.CreateMaterial("powerSwitchMat");
+		powerSwitchMat->SetRimColor(Vector3(0.3f, 0.9f, 1.0f));
+		powerSwitchMat->SetRimIntensity(2.5f);
+		powerSwitchMat->SetRimPower(4.0f);
 
 		if (!powerSwitchMat)
 		{
@@ -469,33 +442,21 @@ namespace My
 
 		powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
 		powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
+		powerSwitchObject->AddBoxCollisionComponent();
 
 		m_powerSwitch.Initialize(*powerSwitchObject);
-
-		// Neon Test Object
-		auto neonTestObject0 = &m_scene.CreateGameObject("neonTestObject0");
-		neonTestObject0->GetTransform().SetPosition(Vector3(-1.95f, 2.4f, 6.0f));
-		neonTestObject0->GetTransform().SetScale(Vector3(0.1f, 0.6f, 2.0f));
-		neonTestObject0->GetMeshComponent().SetMesh(greyBoxMesh);
-		neonTestObject0->GetMeshComponent().SetMaterial(neonMat1);
-
-		auto neonTestObject1 = &m_scene.CreateGameObject("neonTestObject1");
-		neonTestObject1->GetTransform().SetPosition(Vector3(1.95f, 2.4f, 15.0f));
-		neonTestObject1->GetTransform().SetScale(Vector3(0.1f, 0.8f, 1.46f));
-		neonTestObject1->GetMeshComponent().SetMesh(greyBoxMesh);
-		neonTestObject1->GetMeshComponent().SetMaterial(neonMat2);
-
-		auto neonTestObject2 = &m_scene.CreateGameObject("neonTestObject2");
-		neonTestObject2->GetTransform().SetPosition(Vector3(0.0f, 3.0f, 19.95f));
-		neonTestObject2->GetTransform().SetScale(Vector3(0.1f, 0.3f, 1.0f));
-		neonTestObject2->GetMeshComponent().SetMesh(greyBoxMesh);
-		neonTestObject2->GetMeshComponent().SetMaterial(neonMat3);
 
 		return true;
 	}
 
 	AppBase::AppBase()
-		: m_screenWidth(1280), m_screenHeight(720), m_mainWindow(nullptr), m_appMode{ AppMode::Editor }, m_graphicsDevice{}, m_renderer{}, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }
+		: m_screenWidth(1280)
+		, m_screenHeight(720)
+		, m_mainWindow(nullptr)
+		, m_appMode{ AppMode::Editor }
+		, m_graphicsDevice{}
+		, m_renderer{}
+		, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }
 	{
 		g_appBase = this;
 	}
@@ -533,6 +494,9 @@ namespace My
 
 		m_firstPersonCameraController.Update(dt);
 
+		Vector3 resolvedPos = PlayerCollision::Resolve(m_camera.GetPosition(), m_scene.GatherBoxColliders(), 0.3f);
+		m_camera.SetPosition(resolvedPos);
+
 		// E키를 눌러 조명을 키거나 끈다
 		if (m_inputSystem.WasKeyPressed('E'))
 		{
@@ -558,7 +522,9 @@ namespace My
 		frameRenderData.view = m_camera.GetViewMatrix();
 		frameRenderData.projection = m_camera.GetProjectionMatrix();
 		frameRenderData.directionalLight = m_directionalLight;
-		frameRenderData.pointLightCount = m_scene.GatherPointLights(frameRenderData.pointLights.data(), frameRenderData.pointLights.size());
+		frameRenderData.pointLightCount =
+			m_scene.GatherPointLights(frameRenderData.pointLights.data(), frameRenderData.pointLights.size());
+		frameRenderData.cameraPosition = m_camera.GetPosition();
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{
@@ -587,9 +553,7 @@ namespace My
 				for (size_t i = 0; i < parts.size(); i++)
 				{
 					// 각 Part의 Mesh/Material로 RenderItem 생성
-					RenderItem renderItem{
-						parts[i].mesh, parts[i].material, world
-					};
+					RenderItem renderItem{ parts[i].mesh, parts[i].material, world };
 
 					if (!m_renderer.DrawRenderItem(renderItem))
 					{
@@ -630,6 +594,17 @@ namespace My
 
 	void AppBase::UpdateGui()
 	{
+		// F1: GUI 표시/숨김
+		if (m_inputSystem.WasKeyPressed(VK_F1) && !ImGui::GetIO().WantCaptureKeyboard)
+		{
+			m_showGuiPanel = !m_showGuiPanel;
+		}
+
+		if (!m_showGuiPanel)
+		{
+			return;
+		}
+
 		if (m_appMode == AppMode::Editor)
 		{
 			if (m_editorUI.Draw(static_cast<float>(m_screenHeight)))
@@ -637,7 +612,6 @@ namespace My
 				EnterPlayMode();
 			}
 
-			m_guiWidth = m_editorUI.GetPanelWidth();
 			return;
 		}
 
@@ -646,44 +620,29 @@ namespace My
 
 	void AppBase::DrawPlayPanel()
 	{
-		constexpr float			   panelWidth = 360.0f;
-		const float				   panelHeight = m_screenHeight > 0 ? static_cast<float>(m_screenHeight) : 1.0f;
-		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoTitleBar;
+		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize
+			| ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoNav
+			| ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoSavedSettings;
 
-		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
-		ImGui::SetNextWindowSize(ImVec2(panelWidth, panelHeight), ImGuiCond_Always);
+		ImGui::SetNextWindowPos(ImVec2(12.0f, 12.0f), ImGuiCond_Always);
+		ImGui::SetNextWindowBgAlpha(0.4f);
 
-		if (ImGui::Begin("Play Panel", nullptr, panelFlags))
+		if (ImGui::Begin("Play HUD", nullptr, panelFlags))
 		{
-			m_guiWidth = ImGui::GetWindowSize().x;
-
-			ImGui::TextUnformatted("Play");
-			ImGui::Text("Average %.3f ms/frame (%.1f FPS)",
-				1000.0f / ImGui::GetIO().Framerate,
-				ImGui::GetIO().Framerate);
-
-			if (ImGui::Button("Stop", ImVec2(-1.0f, 0.0f)))
-			{
-				ExitPlayMode();
-			}
+			ImGui::TextUnformatted("PLAY   ESC: Stop   F1: Hide UI");
+			ImGui::Text("%.1f FPS (%.2f ms)", ImGui::GetIO().Framerate, 1000.0f / ImGui::GetIO().Framerate);
 
 			ImGui::Separator();
+			ImGui::Text("Power: %s", m_powerSwitch.IsPowerOn() ? "On" : "Off");
 			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
 			{
-				ImGui::TextUnformatted("Interaction available");
+				ImGui::TextUnformatted("[E] Interact");
 			}
-			else
-			{
-				ImGui::TextUnformatted("Interaction unavailable");
-			}
-
-			ImGui::Text("Power: %s", m_powerSwitch.IsPowerOn() ? "On" : "Off");
 
 			ImGui::Separator();
-			ImGui::Text("W: %s", m_inputSystem.IsKeyDown('W') ? "Down" : "Up");
-			ImGui::Text("S: %s", m_inputSystem.IsKeyDown('S') ? "Down" : "Up");
-			ImGui::Text("A: %s", m_inputSystem.IsKeyDown('A') ? "Down" : "Up");
-			ImGui::Text("D: %s", m_inputSystem.IsKeyDown('D') ? "Down" : "Up");
+			ImGui::Text("W%s S%s A%s D%s", m_inputSystem.IsKeyDown('W') ? "*" : "-",
+				m_inputSystem.IsKeyDown('S') ? "*" : "-", m_inputSystem.IsKeyDown('A') ? "*" : "-",
+				m_inputSystem.IsKeyDown('D') ? "*" : "-");
 		}
 
 		ImGui::End();
@@ -716,14 +675,14 @@ namespace My
 
 				ImGui::Render();
 
-				if (m_screenWidth - m_guiWidth > 0 && m_screenHeight > 0)
+				if (m_screenWidth > 0 && m_screenHeight > 0)
 				{
-					float sceneViewWidth = static_cast<float>(m_screenWidth - m_guiWidth);
+					float sceneViewWidth = static_cast<float>(m_screenWidth);
 					float sceneViewHeight = static_cast<float>(m_screenHeight);
 					float sceneViewRatio = this->GetAspectRatio(sceneViewWidth, sceneViewHeight);
 
 					m_camera.SetAspectRatio(sceneViewRatio);
-					m_renderer.SetSceneViewport(m_guiWidth, 0, sceneViewWidth, sceneViewHeight);
+					m_renderer.SetSceneViewport(0.0f, 0.0f, sceneViewWidth, sceneViewHeight);
 				}
 
 				Update(m_gameTimer.GetDeltaTime());

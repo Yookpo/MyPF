@@ -54,4 +54,27 @@ namespace My
 		return gatheredLightCount;
 	}
 
+	std::vector<DirectX::BoundingBox> Scene::GatherBoxColliders() const
+	{
+		// Scene의 GameObjects를 순회하며
+		// HasBoxCollisionComponent()가 true인 것만
+		// BoundingBox(Vector3(0),Vector3(0.5))를 GetWorldMatrix()로 변환해서 벡터에 담기
+		std::vector<DirectX::BoundingBox> boxColliders;
+
+		for (const auto& gameObject : m_gameObjects)
+		{
+			if (!gameObject->HasBoxCollisionComponent())
+			{
+				continue;
+			}
+
+			DirectX::BoundingBox box(Vector3(0.0f), Vector3(0.5f));
+			box.Transform(box, gameObject->GetTransform().GetWorldMatrix());
+
+			boxColliders.push_back(box);
+		}
+
+		return boxColliders;
+	}
+
 } // namespace My
