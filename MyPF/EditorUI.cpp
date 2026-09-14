@@ -269,5 +269,23 @@ namespace My
 		{
 			material->SetEmissiveIntensity(emissiveIntensity);
 		}
+
+		Vector3 rimColor = material->GetRimColor();
+		if (ImGui::ColorEdit3("Rim Color", &rimColor.x))
+		{
+			material->SetRimColor(rimColor);
+		}
+
+		float rimIntensity = material->GetRimIntensity();
+		if (ImGui::SliderFloat("Rim Intensity", &rimIntensity, 0.0f, 10.0f))
+		{
+			material->SetRimIntensity(rimIntensity);
+		}
+
+		float rimPower = material->GetRimPower();
+		if (ImGui::SliderFloat("Rim Power", &rimPower, 0.5f, 10.0f))
+		{
+			material->SetRimPower(rimPower);
+		}
 	}
 } // namespace My

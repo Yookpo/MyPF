@@ -8,6 +8,7 @@ cbuffer cameraConstantBuffer : register(b1)
 {
     matrix view;
     matrix projection;
+    float3 cameraPosition;
 }
 
 struct VS_INPUT

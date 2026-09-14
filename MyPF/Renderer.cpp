@@ -36,6 +36,7 @@ namespace My
 		// Create Buffer Handle
 		m_cameraConstantData.view = Matrix();
 		m_cameraConstantData.projection = Matrix();
+		m_cameraConstantData.cameraPosition = Vector3(0.0f);
 		m_cameraBufferHandle = m_resourceManager->CreateConstantBuffer(m_cameraConstantData);
 
 		if (!m_cameraBufferHandle.IsValid())
@@ -68,6 +69,9 @@ namespace My
 		m_materialConstantData.pad = 0.0f;
 		m_materialConstantData.emissiveColor = Vector3(1.0f);
 		m_materialConstantData.emissiveIntensity = 0.0f;
+		m_materialConstantData.rimColor = Vector3(1.0f);
+		m_materialConstantData.rimIntensity = 0.0f;
+		m_materialConstantData.rimIntensity = 3.0f;
 		m_materialBufferHandle = m_resourceManager->CreateConstantBuffer(m_materialConstantData);
 
 		if (!m_materialBufferHandle.IsValid())
@@ -139,6 +143,7 @@ namespace My
 		m_cameraConstantData.view = m_cameraConstantData.view.Transpose();
 		m_cameraConstantData.projection = frameRenderData.projection;
 		m_cameraConstantData.projection = m_cameraConstantData.projection.Transpose();
+		m_cameraConstantData.cameraPosition = frameRenderData.cameraPosition;
 
 		if (!m_resourceManager->UpdateBuffer(m_cameraBufferHandle, m_cameraConstantData))
 		{
@@ -231,6 +236,9 @@ namespace My
 		m_materialConstantData.baseColor = drawMat.GetBaseColor();
 		m_materialConstantData.emissiveColor = drawMat.GetEmissiveColor();
 		m_materialConstantData.emissiveIntensity = drawMat.GetEffectiveEmissiveIntensity();
+		m_materialConstantData.rimColor = drawMat.GetRimColor();
+		m_materialConstantData.rimIntensity = drawMat.GetRimIntensity();
+		m_materialConstantData.rimPower = drawMat.GetRimPower();
 		if (!m_resourceManager->UpdateBuffer(m_materialBufferHandle, m_materialConstantData))
 		{
 			return false;
@@ -259,7 +267,7 @@ namespace My
 			cameraConstantBuffer,
 		};
 
-		ID3D11Buffer* pixelConstantBuffers = { materialConstantBuffer };
+		ID3D11Buffer* pixelConstantBuffers[2] = { materialConstantBuffer, cameraConstantBuffer };
 
 		TextureHandle albedoHandle = albedoTexture->GetTextureHandle();
 		if (!albedoHandle.IsValid())
@@ -285,7 +293,7 @@ namespace My
 		Context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
 		Context->PSSetShaderResources(0, 1, &albedoSRV);
-		Context->PSSetConstantBuffers(1, 1, &pixelConstantBuffers);
+		Context->PSSetConstantBuffers(1, 2, pixelConstantBuffers); // PS의 b0=Light, b1=Material, b2=Camera
 		Context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
 		Context->DrawIndexed(drawMesh.GetIndexCount(), 0, 0);

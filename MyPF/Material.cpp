@@ -18,9 +18,24 @@ namespace My
 		m_emissiveColor = newEmissiveColor;
 	}
 
+	void Material::SetRimColor(const Vector3& newRimColor)
+	{
+		m_rimColor = newRimColor;
+	}
+
 	void Material::SetEmissiveIntensity(float newEmissiveIntensity)
 	{
 		m_emissiveIntensity = newEmissiveIntensity;
+	}
+
+	void Material::SetRimIntensity(float newRimIntensity)
+	{
+		m_rimIntensity = newRimIntensity;
+	}
+
+	void Material::SetRimPower(float newRimPower)
+	{
+		m_rimPower = newRimPower;
 	}
 
 	void Material::SetEmissiveMultiplier(float newEmissiveMultiplier)

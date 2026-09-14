@@ -16,6 +16,9 @@ namespace My
 			, m_emissiveColor{ 1.0f }
 			, m_emissiveIntensity{ 0.0f }
 			, m_runtimeEmissiveMultiplier{ 1.0f }
+			, m_rimColor{ 1.0f }
+			, m_rimIntensity{ 0.0f }
+			, m_rimPower{ 3.0f }
 		{
 		}
 		Material(const Material&) = delete;
@@ -30,8 +33,17 @@ namespace My
 		void		   SetEmissiveColor(const Vector3&);
 		const Vector3& GetEmissiveColor() const { return m_emissiveColor; }
 
+		void		   SetRimColor(const Vector3&);
+		const Vector3& GetRimColor() const { return m_rimColor; }
+
 		void  SetEmissiveIntensity(float);
 		float GetEmissiveIntensity() const { return m_emissiveIntensity; }
+
+		void  SetRimIntensity(float);
+		float GetRimIntensity() const { return m_rimIntensity; }
+
+		void  SetRimPower(float);
+		float GetRimPower() const { return m_rimPower; }
 
 		void  SetEmissiveMultiplier(float);
 		float GetEmissiveMultiplier() const { return m_runtimeEmissiveMultiplier; }
@@ -43,6 +55,9 @@ namespace My
 		Vector3		   m_emissiveColor;
 		float		   m_emissiveIntensity;			// Editor가 설정하는 원본 밝기
 		float		   m_runtimeEmissiveMultiplier; // Sequence가 조절하는 현재 출력 배율	(0.0 꺼짐 / 1.0 정상출력)
+		Vector3		   m_rimColor;
+		float		   m_rimIntensity;
+		float		   m_rimPower;
 	};
 
 } // namespace My

@@ -429,6 +429,9 @@ namespace My
 
 		// Switch Mat
 		auto powerSwitchMat = m_assetManager.CreateMaterial("powerSwitchMat");
+		powerSwitchMat->SetRimColor(Vector3(0.3f, 0.9f, 1.0f));
+		powerSwitchMat->SetRimIntensity(2.5f);
+		powerSwitchMat->SetRimPower(4.0f);
 
 		if (!powerSwitchMat)
 		{
@@ -521,6 +524,7 @@ namespace My
 		frameRenderData.directionalLight = m_directionalLight;
 		frameRenderData.pointLightCount =
 			m_scene.GatherPointLights(frameRenderData.pointLights.data(), frameRenderData.pointLights.size());
+		frameRenderData.cameraPosition = m_camera.GetPosition();
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{
