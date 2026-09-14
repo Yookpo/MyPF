@@ -1,6 +1,6 @@
 # MyPF 진행 기록 및 작업 인계
 
-마지막 갱신: 2026-09-13
+마지막 갱신: 2026-09-14
 
 노트북과 데스크톱에서 Git으로 공유하는 MyPF의 실제 구현 상태와 다음 작업을 기록한다.
 
@@ -34,23 +34,19 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `1622173` — clangformat 적용 + neonSign팩토리
-- 현재 작업 트리: 브랜치 `WORK_CLAUDE`. `NeonSign.h`(인코딩/오타 수정), `Shaders/simpleVertexShader.hlsl`·`simplePixelShader.hlsl`·`Lighting.hlsli`(BOM 제거), `MyPF.vcxproj`/`.filters`가 커밋되지 않은 상태로 남아 있다. commit/push는 사용자가 요청할 때만 한다.
-- `MyPF/imgui.ini` 변경은 런타임 UI 배치이므로 기능 commit에서 제외한다.
+- 문서 갱신 기준 HEAD: `9eb727d` — imgui.ini 추적안하기
+- 현재 작업 트리: 브랜치 `WORK_CLAUDE`, `git status` 기준 clean. commit/push는 사용자가 요청할 때만 한다.
+- `MyPF/imgui.ini`와 `MyPF/ImGui/imgui.ini`는 `.gitignore`에 등록하고 `git rm --cached`로 인덱스에서 제거했다(로컬 파일은 유지) — 이제부터는 변경돼도 `git status`에 아예 안 잡힌다(2026-09-14).
 
 최근 기능 commit:
 
 ```text
-5a5f463 소스 인코딩을 UTF-8 BOM으로 통일
-c526ebd ImGui 수정
-ba24811 Init
-001722a Ray 도입
-75aa8d9 Editor UI 도입
-3d4a428 Runtime Multiplier 도입
-4e2610e 포인트라이트를 컴포넌트로 리팩토링
-2d26b75 Editor 모드에서 우클릭하면 카메라 이동
-f20e429 CODEX_UPDATE
-421a58f Entry 기반 점등 소등 구현
+9eb727d imgui.ini 추적안하기
+74e0c46 BoxCollisionComponent + PlayerCollision 충돌 시스템 구현
+be2cdf5 Update CODEX_HANDOFF.md
+82aae2a 네온 텍스처 및 위치 수정
+641657f NeonSign Factory 완성
+1622173 clangformat 적용 + neonSign팩토리
 ```
 
 ---
@@ -162,6 +158,17 @@ f20e429 CODEX_UPDATE
 - `Create` 내부에서 `BaseColor`를 `desc.color * 0.12f`로 계산해, 꺼진 상태에서도 각 네온 고유의 어두운 색조가 비치게 했다(모두 동일한 회색이던 것을 개선).
 - Albedo에 `wall.jpg`(벽돌 텍스처) 대신 전용 `neonFlat.jpg`(흰색 민무늬)를 쓴다 — 네온은 발광이 핵심이라 벽 재질과 텍스처를 공유하면 안 된다는 게 이번에 확인된 설계 원칙이다.
 
+### BoxCollisionComponent와 PlayerCollision
+
+플레이어(카메라)가 벽·스위치를 통과하는 문제를 해결하기 위해 도입했다. 처음에는 `PlayerCollision`이 `Floor`/`PowerSwitch` GameObject를 직접 참조하는 방식으로 설계했으나, "Unreal처럼 컴포넌트로 만드는 게 낫지 않나"는 논의 끝에 이 프로젝트에 이미 있는 `PointLightComponent` 패턴(Has 플래그 + `Scene::Gather*`)을 재사용하는 방향으로 바꿨다.
+
+- `GameObject`가 `PointLightComponent`와 완전히 같은 패턴으로 `BoxCollisionComponent`를 선택적으로 가진다(`AddBoxCollisionComponent`/`GetBoxCollisionComponent`/`HasBoxCollisionComponent`). `BoxCollisionComponent` 자체는 필드 없는 마커 클래스다 — 충돌 모양은 항상 `Transform`(Cube 기준)에서 유도되므로 별도 데이터가 필요 없다.
+- `Scene::GatherBoxColliders()`가 `GatherPointLights`와 같은 위치의 책임으로, 플래그가 켜진 오브젝트만 `PowerSwitch::CanInteract`와 동일한 방식(`BoundingBox(Vector3(0),Vector3(0.5))`를 `WorldMatrix`로 변환)으로 모은다. `GatherPointLights`와 달리 GPU Constant Buffer 제약이 없어서 고정 배열이 아니라 `std::vector<DirectX::BoundingBox>`를 그냥 반환한다.
+- **이름을 `GatherColliders`가 아니라 `GatherBoxColliders`로, `CollisionComponent`가 아니라 `BoxCollisionComponent`로 정직하게 지었다** — 지금은 씬에 Cube 모양(`GeometryGenerator::MakeCube`)뿐이라 Box만 지원하지만, 나중에 실제 에셋(로드맵 8번)이 들어와 다른 모양이 필요해지면 `SphereCollisionComponent`/`GatherSphereColliders`를 **나란히 추가**하면 된다 — 기존 이름을 바꾸거나 호출부를 고칠 필요가 없다. Unreal도 `UBoxComponent`/`USphereComponent`를 하나의 다형 클래스가 아니라 형제 클래스로 분리해 놓은 것과 같은 방향이다.
+- **`Floor`는 충돌체에서 제외했다** — 이 시스템은 XZ 평면만 다루는데(Y는 항상 1.6 고정, 점프/중력 없음), `Floor`의 XZ 풋프린트가 걸을 수 있는 영역 전체와 정확히 일치해서 "장애물"로 취급하면 플레이어가 항상 그 박스 안에 있는 깨진 경우(거리 0, 방향 미정의)가 된다. `Floor`는 Y축(수직 지지) 개념이라 지금 만든 XZ 전용 벽 충돌과는 다른 문제 — 나중에 중력을 넣을 때 별도 로직(예: 바닥 높이 비교)으로 처리할 대상이다.
+- `PlayerCollision::Resolve`/`PushOutOfBox`는 상태가 없어서(더 이상 `Floor`/`PowerSwitch`를 직접 참조하지 않음) `NeonSignFactory`와 같은 이유로 정적 함수로 구현했다. 원-박스 최근접점(clamp) → 거리 계산 → `radius`보다 가까우면 정규화한 방향으로 밀어내는 3단계로, 콜라이더 목록을 순서대로 누적 적용한다.
+- 좌/우/끝벽 + 입구를 막는 새 `startWall`(Mesh/Material 없이 Transform+`BoxCollisionComponent`만 있는 보이지 않는 벽) + `PowerSwitch`, 총 5개 오브젝트가 충돌체로 등록돼 있다.
+
 ### PointLightSequence와 SequenceEntry
 
 - `AppBase`가 값으로 소유하고 Scene 오브젝트를 비소유 참조한다.
@@ -207,7 +214,6 @@ f20e429 CODEX_UPDATE
 
 ### 씬과 플레이
 
-- Camera 충돌이 없어 벽과 스위치를 통과할 수 있다. `PlayerCollision` 설계 완료, 구현 착수 전(§6 참고).
 - 플레이어 높이와 월드 단위 정책이 명문화돼 있지 않다.
 - 골목 이동 경로가 약 20m로 최종 20~40초 탐색 동선보다 짧다.
 - 실제 골목 에셋, Scene 저장/Prefab이 없다. 네온 배치·색상은 1차 정리를 마쳤다(2026-09-13, §8 참고).
@@ -226,23 +232,20 @@ f20e429 CODEX_UPDATE
 
 ## 6. 바로 다음 작업
 
-**`PlayerCollision`(가칭) 설계 합의 완료 — 구현 전. 그다음은 Shadow Mapping.**
+**플레이어-벽 충돌 완료 ✅ — 다음은 Shadow Mapping.**
 
-로드맵 8번(에셋 배치) vs 9번(Shadow Mapping) 중 어디로 갈지 논의한 결과, **Shadow Mapping을 다음 렌더링 작업으로 확정**했다(이유는 §8 참고). 다만 Shadow Mapping을 시작하기 직전, "Camera 충돌이 없어 벽을 통과한다"는 §5의 알려진 문제를 먼저 잡기로 했다 — 원래 로드맵 13번 항목의 일부(플레이어 충돌)를 앞당기는 것이다.
+`BoxCollisionComponent` + `Scene::GatherBoxColliders` + `PlayerCollision::Resolve`를 전부 구현하고 `AppBase::Update`(Play 분기)에 연결해, 빌드·실행으로 좌/우/끝벽·입구·PowerSwitch를 통과할 수 없고 트인 공간은 평소처럼 움직인다는 것을 사용자가 직접 확인했다. 설계 배경과 이유는 §4 "BoxCollisionComponent와 PlayerCollision" 참고.
 
-**합의된 설계(초안, 아직 코드로 옮기지 않음):**
+**다음 작업 — Shadow Mapping (로드맵 9번)**
 
-- 새 클래스 `PlayerCollision`: `GameObject`(Transform)만 알고 `Camera`/`InputSystem`/`FirstPersonCameraController`/`Renderer`/ImGui는 모른다. `Vector3 Resolve(const Vector3& desiredPosition) const` — 입력도 출력도 Vector3뿐인 순수 함수형 API.
-- `FirstPersonCameraController`는 손대지 않는다 — 벽의 존재를 몰라야 한다는 §3 원칙 유지. 대신 `AppBase::Update`가 `m_firstPersonCameraController.Update(dt)` 직후 `PlayerCollision::Resolve`를 호출해 `Camera` 위치를 보정한다(`PowerSwitch`/`PointLightSequence`와 같은 조율 위치).
-- 이 씬은 좌/우/끝벽이 정확히 `Floor`의 가장자리와 겹치므로, **"플레이어 위치를 Floor 범위 안으로 clamp"** 하나로 "벽 통과 방지"와 "골목 이탈 방지"를 동시에 해결한다. 별도 처리가 필요한 건 통로 중간의 PowerSwitch 박스(원-사각형 밀어내기)뿐이다.
-- Y축 충돌은 다루지 않는다 — 점프/중력이 없어 카메라 Y가 항상 1.6으로 고정이므로 XZ 평면 충돌로 충분하다고 판단했다.
+이미 대화로 설계 가이드까지 나온 상태다(구현 전):
 
-**진행 순서 (Step 1도 아직 시작 전):**
-
-1. `PlayerCollision.h/.cpp` 골격 + `Floor` 범위로 clamp하는 `Resolve` 구현 (아직 `AppBase`에서 호출 안 함) ← 다음에 여기부터 이어간다.
-2. `AppBase::Update`의 Play 분기에 연결. 완료 조건: 좌우 벽·끝벽·입구 밖으로 못 나감.
-3. PowerSwitch 박스 원-사각형 밀어내기 추가. 완료 조건: PowerSwitch를 통과 못 함.
-4. 이후 Shadow Mapping 착수(별도 설계 가이드 이미 대화로 제공됨 — Depth-only 패스, Shadow Map 텍스처(`GraphicsResourceManager`에 GPU 전용 Depth+SRV 텍스처 생성 기능 추가 필요), 광원 View/Projection, PCF 순).
+1. `GraphicsResourceManager`에 GPU 전용 Depth+SRV 겸용 텍스처 생성 기능 추가(`DXGI_FORMAT_R32_TYPELESS`로 만들어 DSV는 `D32_FLOAT`, SRV는 `R32_FLOAT`) — 지금은 파일 로드 텍스처만 지원해서 이 기능이 없다.
+2. Directional Light 시점 View/Projection(Orthographic) 계산 — Point Light 그림자는 Cube Map이 필요해 훨씬 복잡하므로 이번엔 제외.
+3. Depth-only Shadow Pass 셰이더로 Shadow Map에 렌더(RenderDoc/Graphics Debugger로 캡처해서 확인 — 화면엔 안 보이는 단계).
+4. 메인 패스 Pixel Shader에서 Shadow Map 샘플링 + 그림자 판정(여기서 처음 화면에 그림자가 보임).
+5. Shadow Acne/Peter Panning 보정(Depth Bias).
+6. PCF(`SamplerComparisonState`+`SampleCmp`)로 그림자 경계 부드럽게.
 
 **참고**: `simplePixelShader.hlsl`의 LDR `saturate` 클리핑은 여전히 미해결이다 — Emissive Intensity 3/5/8의 밝기 차이가 화면에서 구분되지 않는 문제는 HDR Scene Target 단계(로드맵 11번)에서 해결 예정.
 
@@ -258,11 +261,11 @@ f20e429 CODEX_UPDATE
 6. ✅ 전원 상태와 Point Light·Emissive Material 순차 점등 연동
 7. ✅ 조명 역할 분류(`NeonSignFactory`), 네온 배치·색상 정리
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
-9. Shadow Mapping ← 확정, 착수 직전
+9. Shadow Mapping ← 현재
 10. Normal/Roughness Material과 젖은 바닥 반사
 11. HDR Scene Target, Bloom과 Tone Mapping
 12. 안개, 비와 색조 보정
-13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 처리 ← 현재, `PlayerCollision` 설계 완료·구현 전)
+13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류)
 14. 라이선스 정리와 1~2분 최종 연출
 
 ---
@@ -321,6 +324,19 @@ f20e429 CODEX_UPDATE
 - 완료 기능 목록, 진행률, 로드맵, 작업 기록을 이 문서로 이동해 두 문서의 중복을 제거했다.
 - `CLAUDE.md`가 `@AGENTS.md`를 import하고 MyPF 우선 규칙을 선언하도록 구성했다.
 
+### 2026-09-14 — 플레이어-벽 충돌 구현 완료 ✅
+
+- 완료한 작업: `BoxCollisionComponent`(빈 마커, `GameObject`에 `PointLightComponent`와 같은 Has 패턴으로 추가), `Scene::GatherBoxColliders()`(`GatherPointLights`와 같은 위치의 책임, `std::vector<DirectX::BoundingBox>` 반환), `PlayerCollision::Resolve`/`PushOutOfBox`(원-박스 최근접점 계산 후 밀어내기, 정적 함수)를 구현했다. `InitGreyBoxScene`에서 좌/우/끝벽 + 새로 만든 입구 벽(`startWall`, Mesh 없이 충돌만) + `PowerSwitch`에 `AddBoxCollisionComponent()`를 호출해 총 5개를 충돌체로 등록했고, `AppBase::Update`(Play 분기)에서 `FirstPersonCameraController::Update` 직후 `PlayerCollision::Resolve` 결과로 `Camera` 위치를 보정하도록 연결했다.
+- 확인한 결과: 매 단계 코드 리뷰로 확인했고, 실제로 두 차례 버그를 잡았다 — ① `PushOutOfBox`에서 최근접점 Y를 `0.0f`로 고정해 `diff.y`에 카메라 높이(1.6)가 그대로 남는 바람에 `diffLength`가 항상 `radius`보다 커져서 충돌 판정이 절대 안 걸리던 버그(`0.0f` → `position.y`로 수정), ② `Resolve`가 루프만 있고 `PushOutOfBox` 호출과 `return`이 없어 미완성 상태였던 것. 빌드·실행해서 좌/우/끝벽·입구·PowerSwitch를 통과할 수 없고 트인 공간은 평소처럼 움직인다는 것을 사용자가 직접 확인했다.
+- 남아 있는 문제: `Floor`는 걷는 영역과 충돌체가 XZ에서 겹치는 특성상 의도적으로 충돌체 목록에서 제외했다(§4 참고) — 나중에 중력/점프가 생기면 별도의 Y축 전용 로직이 필요하다. `simplePixelShader.hlsl`의 LDR `saturate` 클리핑은 여전히 미해결(HDR 단계 대기).
+- 다음에 이어서 할 작업: 로드맵 9번 Shadow Mapping 착수(§6 참고, 설계 가이드는 이미 대화로 제공됨).
+- 중요한 설계 결정과 이유:
+  - **`PlayerCollision`이 `GameObject`를 직접 참조하던 원래 설계를 버리고 `BoxCollisionComponent` + `Scene::GatherBoxColliders` 컴포넌트 패턴으로 바꿈**: 사용자가 "Unreal처럼 컴포넌트로 만드는 게 낫지 않나"라고 제안했고, 이 프로젝트에 이미 있는 `PointLightComponent`(Has 플래그 + `Scene::Gather*`) 패턴을 재사용하는 것이라 §3 원칙(범용 추상화를 미리 안 만든다)에 어긋나지 않는다고 판단해 채택했다. 부수 효과로 "Floor 범위로 clamp"라는 특수 케이스가 사라지고, 벽 4개+스위치를 전부 동일한 원-박스 로직으로 처리하는 더 단순한 구조가 됐다.
+  - **`BoundingBox`만 지원하고 `BoundingSphere` 등은 지금 만들지 않음**: 사용자가 "다양한 모양의 Mesh가 있을 텐데"라고 물었으나, 현재 씬에는 Cube뿐이고 실제로 다른 모양이 필요한 시점이 아니라서(로드맵 8번은 보류 중) §3 원칙대로 지금은 만들지 않기로 했다. 대신 `GatherColliders`가 아니라 `GatherBoxColliders`, `CollisionComponent`가 아니라 `BoxCollisionComponent`로 **정직하게 이름 지어서**, 나중에 `SphereCollisionComponent`/`GatherSphereColliders`를 형제로 추가할 때 기존 이름을 바꾸거나 호출부를 고칠 필요가 없게 했다(Unreal의 `UBoxComponent`/`USphereComponent`가 형제 클래스인 것과 같은 방향).
+  - **`Floor`를 충돌체에서 제외함**: 이 시스템은 XZ 평면만 다루는데 `Floor`의 XZ 풋프린트가 걸을 수 있는 영역 전체와 일치해서, 장애물로 취급하면 플레이어가 항상 그 박스 안에 있는 깨진 경우(거리 0, 방향 미정의)가 된다. `Floor`는 "수직으로 받쳐주는" Y축 개념이라 지금의 XZ 전용 벽 충돌과는 다른 문제라는 걸 확인했다.
+  - **`PlayerCollision`을 정적 함수로 구현**: `Floor`/`PowerSwitch` 참조를 없애면서 완전히 무상태가 돼, `NeonSignFactory`와 같은 이유로 인스턴스 없이 정적 함수로 충분하다고 판단했다.
+  - **`MyPF/imgui.ini`, `MyPF/ImGui/imgui.ini` 두 파일을 `.gitignore`에 등록하고 `git rm --cached`로 인덱스에서 제거함**: 전자는 원래도 `.gitignore`에 있었지만 이미 추적 중이던 파일이라 규칙이 무효했다(추가만 막을 뿐 기존 추적은 안 끊음). 후자는 ImGui 벤더 폴더 안에 있던 스트레이 파일(작업 디렉터리가 잘못 잡혔을 때 생긴 것으로 추정)로, 이번에 발견해서 같이 정리했다. 둘 다 로컬 파일은 삭제하지 않고 인덱스에서만 뺐다.
+
 ### 2026-09-13 — NeonSignFactory 구현 완료 ✅
 
 - 완료한 작업: `NeonSign.h`/`.cpp`에 `NeonSignDesc`(입력 데이터)와 `NeonSignFactory::Create`(정적 팩토리 함수)를 구현했다. Step 1(뼈대) → Step 2(Pink 교체) → Step 3(Cyan/Orange 교체) 순서로 진행했고, 매 단계 코드 리뷰로 확인했다.
@@ -370,7 +386,7 @@ f20e429 CODEX_UPDATE
 
 ## 9. 다른 PC에서 확인할 체크리스트
 
-- `git pull` 후 HEAD가 최소 `5a5f463`인지 확인한다.
+- `git pull` 후 HEAD가 최소 `9eb727d`인지 확인한다.
 - `AGENTS.md`와 이 문서의 마지막 갱신일이 같은지 확인한다.
 - `git status`에서 사용자 변경과 로컬 `MyPF/imgui.ini` 변경을 구분한다.
 - `GeometryGenerator::MakeCube`가 1m 단위인지 확인한다.
