@@ -34,19 +34,19 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `9eb727d` — imgui.ini 추적안하기
+- 문서 갱신 기준 HEAD: `2835951` — RimLight 기능 추가
 - 현재 작업 트리: 브랜치 `WORK_CLAUDE`, `git status` 기준 clean. commit/push는 사용자가 요청할 때만 한다.
 - `MyPF/imgui.ini`와 `MyPF/ImGui/imgui.ini`는 `.gitignore`에 등록하고 `git rm --cached`로 인덱스에서 제거했다(로컬 파일은 유지) — 이제부터는 변경돼도 `git status`에 아예 안 잡힌다(2026-09-14).
 
 최근 기능 commit:
 
 ```text
+2835951 RimLight 기능 추가
+f329bc1 Update CODEX_HANDOFF.md
 9eb727d imgui.ini 추적안하기
 74e0c46 BoxCollisionComponent + PlayerCollision 충돌 시스템 구현
 be2cdf5 Update CODEX_HANDOFF.md
 82aae2a 네온 텍스처 및 위치 수정
-641657f NeonSign Factory 완성
-1622173 clangformat 적용 + neonSign팩토리
 ```
 
 ---
@@ -95,6 +95,7 @@ be2cdf5 Update CODEX_HANDOFF.md
 - Material의 Emissive Color / Intensity 추가, 기본 Intensity 0
 - 32바이트 Material Constant Buffer의 C++/HLSL 일치와 `Renderer` 전달
 - Pixel Shader가 조명 결과와 별도로 Emissive를 최종 색에 더함
+- Rim Lighting: `Material`에 `rimColor`/`rimIntensity`(기본 0)/`rimPower` 추가, Pixel Shader가 처음으로 카메라 월드 위치를 받아(`CameraConstantData`→`register(b2)`) `pow(1-saturate(dot(normal,viewDir)), rimPower)` 기반 가장자리 발광을 `finalColor`에 가산. ImGui Material Inspector에 Rim 슬라이더 3종 추가. 설계 배경은 §4 "Rim Lighting과 카메라 위치 전달" 참고
 
 ### Greybox 골목과 상호작용
 
@@ -180,6 +181,14 @@ be2cdf5 Update CODEX_HANDOFF.md
 - 진행 도중 목표가 바뀌면 현재 켜진 개수에서 방향을 전환한다.
 - Material의 `m_emissiveIntensity`(에디터 값)와 `m_runtimeEmissiveMultiplier`(시퀀스 값)를 분리해, 시퀀스가 꺼도 에디터 설정값이 파괴되지 않는다.
 
+### Rim Lighting과 카메라 위치 전달
+
+그래픽스 강의에서 배운 Rim Lighting을 기존 조명·Material 파이프라인 위에 얹는 형태로 구현했다.
+
+- **Rim 데이터는 새 컴포넌트가 아니라 `Material`의 필드로 저장한다**(`rimColor`/`rimIntensity`/`rimPower`, 기본 `rimIntensity = 0`). Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`를 들고 있는 `Material`의 책임 범위에 속한다고 판단했고, 기본값을 0으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별 opt-in" 패턴을 그대로 재사용했다 — `BoxCollisionComponent` 같은 Has 플래그 컴포넌트가 필요 없다.
+- **Pixel Shader가 처음으로 카메라 월드 위치를 받도록 Constant Buffer 경로를 새로 텄다.** 기존에는 `view`/`projection`을 Vertex Shader만 알았다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 픽셀별 월드 위치 기준으로 Pixel Shader에서 계산해야 해서, `CameraConstantData`에 `cameraPosition`(+정렬용 `pad`, 총 144바이트)을 추가하고 같은 버퍼를 `simplePixelShader.hlsl`의 `register(b2)`에도 바인딩했다.
+- `Renderer::DrawRenderItem`의 Pixel Shader Constant Buffer 바인딩(`PSSetConstantBuffers(1, 2, { materialConstantBuffer, cameraConstantBuffer })`)은 기존 Vertex Shader 바인딩(`VSSetConstantBuffers(0, 2, ...)`)과 동일한 형태를 그대로 따라, 셰이더 슬롯 규칙(PS의 b0=Light, b1=Material, b2=Camera)을 일관되게 유지했다.
+
 ---
 
 ## 5. 현재 알려진 문제와 보류 항목
@@ -232,13 +241,17 @@ be2cdf5 Update CODEX_HANDOFF.md
 
 ## 6. 바로 다음 작업
 
-**플레이어-벽 충돌 완료 ✅ — 다음은 Shadow Mapping.**
+**Rim Lighting 완료 ✅ — 다음은 HDR Scene Target + Bloom + Tone Mapping (로드맵 11번, Shadow Mapping보다 먼저).**
 
-`BoxCollisionComponent` + `Scene::GatherBoxColliders` + `PlayerCollision::Resolve`를 전부 구현하고 `AppBase::Update`(Play 분기)에 연결해, 빌드·실행으로 좌/우/끝벽·입구·PowerSwitch를 통과할 수 없고 트인 공간은 평소처럼 움직인다는 것을 사용자가 직접 확인했다. 설계 배경과 이유는 §4 "BoxCollisionComponent와 PlayerCollision" 참고.
+`Material`에 Rim Color/Intensity/Power를 추가하고 Pixel Shader가 처음으로 카메라 월드 위치를 받도록 Constant Buffer 경로를 새로 터서 Rim 발광을 구현했다. PowerSwitch Material에 테스트 값을 적용해 화면 가장자리가 시야각에 따라 밝아지는 것을 빌드·실행으로 확인했다. 설계 배경과 이유는 §4 "Rim Lighting과 카메라 위치 전달" 참고.
 
-**다음 작업 — Shadow Mapping (로드맵 9번)**
+**진행 순서 변경**: 그래픽스 강의(홍정모)에서 Rim, Cube Mapping, Environment Mapping, IBL+CMFT, Fresnel, Bloom을 배운 시점에 맞춰, 기존 로드맵의 9→10→11 순서 대신 **Rim(완료) → 11번(HDR+Bloom) → 10번(Normal/Roughness+Fresnel+Cube Mapping+IBL, 묶어서 진행) → 9번(Shadow Mapping)** 순으로 진행하기로 했다. 이유는 §8 "Rim Lighting 구현 완료" 설계 결정 참고. Shadow Mapping은 다른 항목에 의존하지 않아 뒤로 미뤄도 손해가 없다.
 
-이미 대화로 설계 가이드까지 나온 상태다(구현 전):
+**다음 작업 — HDR Scene Target + Bloom + Tone Mapping (로드맵 11번)**
+
+아직 설계 가이드를 시작하지 않았다(다음 세션에서 왜 필요한가/배경 개념부터 안내 예정). 핵심 동기: `simplePixelShader.hlsl`의 최종 `saturate`가 1을 넘는 색을 그대로 잘라버려서, 지금까지 넣은 Emissive Intensity(3/5/8)와 Rim Intensity 차이가 화면에서 전혀 구분되지 않는다 — HDR Scene Target(부동소수점 렌더 타깃) + Tone Mapping으로 이 클리핑 자체를 없애고, Bloom으로 밝은 픽셀(네온/Rim)이 주변으로 번지는 효과까지 더하는 것이 목표다.
+
+**참고 — Shadow Mapping (로드맵 9번, 순서상 마지막으로 미룸)**: 이미 대화로 설계 가이드까지 나온 상태이니 재개 시 아래 순서로 이어가면 된다.
 
 1. `GraphicsResourceManager`에 GPU 전용 Depth+SRV 겸용 텍스처 생성 기능 추가(`DXGI_FORMAT_R32_TYPELESS`로 만들어 DSV는 `D32_FLOAT`, SRV는 `R32_FLOAT`) — 지금은 파일 로드 텍스처만 지원해서 이 기능이 없다.
 2. Directional Light 시점 View/Projection(Orthographic) 계산 — Point Light 그림자는 Cube Map이 필요해 훨씬 복잡하므로 이번엔 제외.
@@ -246,8 +259,6 @@ be2cdf5 Update CODEX_HANDOFF.md
 4. 메인 패스 Pixel Shader에서 Shadow Map 샘플링 + 그림자 판정(여기서 처음 화면에 그림자가 보임).
 5. Shadow Acne/Peter Panning 보정(Depth Bias).
 6. PCF(`SamplerComparisonState`+`SampleCmp`)로 그림자 경계 부드럽게.
-
-**참고**: `simplePixelShader.hlsl`의 LDR `saturate` 클리핑은 여전히 미해결이다 — Emissive Intensity 3/5/8의 밝기 차이가 화면에서 구분되지 않는 문제는 HDR Scene Target 단계(로드맵 11번)에서 해결 예정.
 
 ---
 
@@ -260,10 +271,11 @@ be2cdf5 Update CODEX_HANDOFF.md
 5. ✅ Emissive Material과 네온 표면 표현
 6. ✅ 전원 상태와 Point Light·Emissive Material 순차 점등 연동
 7. ✅ 조명 역할 분류(`NeonSignFactory`), 네온 배치·색상 정리
+7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
-9. Shadow Mapping ← 현재
-10. Normal/Roughness Material과 젖은 바닥 반사
-11. HDR Scene Target, Bloom과 Tone Mapping
+9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
+10. Normal/Roughness Material과 젖은 바닥 반사 (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행 — 11번 다음 순서)
+11. HDR Scene Target, Bloom과 Tone Mapping ← 다음 (그래픽스 강의 연계로 9·10번보다 먼저 진행. LDR saturate 클리핑을 없애 Rim/Emissive 밝기 차이를 실제로 보이게 하는 것이 목표)
 12. 안개, 비와 색조 보정
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류)
 14. 라이선스 정리와 1~2분 최종 연출
@@ -337,6 +349,17 @@ be2cdf5 Update CODEX_HANDOFF.md
   - **`PlayerCollision`을 정적 함수로 구현**: `Floor`/`PowerSwitch` 참조를 없애면서 완전히 무상태가 돼, `NeonSignFactory`와 같은 이유로 인스턴스 없이 정적 함수로 충분하다고 판단했다.
   - **`MyPF/imgui.ini`, `MyPF/ImGui/imgui.ini` 두 파일을 `.gitignore`에 등록하고 `git rm --cached`로 인덱스에서 제거함**: 전자는 원래도 `.gitignore`에 있었지만 이미 추적 중이던 파일이라 규칙이 무효했다(추가만 막을 뿐 기존 추적은 안 끊음). 후자는 ImGui 벤더 폴더 안에 있던 스트레이 파일(작업 디렉터리가 잘못 잡혔을 때 생긴 것으로 추정)로, 이번에 발견해서 같이 정리했다. 둘 다 로컬 파일은 삭제하지 않고 인덱스에서만 뺐다.
 
+### 2026-09-14 — Rim Lighting 구현 완료 ✅
+
+- 완료한 작업: Rim Lighting을 Step 1(카메라 월드 위치를 Pixel Shader까지 전달하는 Constant Buffer 확장) → Step 2(Rim 계산: `Material`에 `rimColor`/`rimIntensity`/`rimPower` 추가, HLSL에서 `pow(1-saturate(dot(normal,viewDir)), rimPower)` 계산해 `finalColor`에 가산) 순서로 구현했다. `ShaderConstants.h`의 `CameraConstantData`에 `cameraPosition`(+정렬용 `pad`)을 추가하고 `FrameRenderData`/`Renderer::BeginFrame`을 거쳐 채웠으며, `simplePixelShader.hlsl`에 `register(b2)` 카메라 Constant Buffer를 새로 선언했다. `MaterialConstantData`를 64바이트로 확장해 Rim 세 필드를 추가하고 `EditorUI::DrawMaterialInspector`에 Rim Color/Intensity/Power 슬라이더를 추가했다.
+- 확인한 결과: 매 단계 코드 리뷰로 확인했고, 두 차례 버그를 잡았다 — ① `CameraConstantData`가 `Matrix view + Matrix projection + Vector3 cameraPosition` = 140바이트로 16의 배수가 아니어서 `CreateConstantBuffer<T>`의 `static_assert`를 어길 뻔한 것(`float pad` 추가로 144바이트로 수정), ② `Renderer::DrawRenderItem`에서 Pixel Shader용 상수 버퍼 배열이 `{ materialConstantBuffer }` 하나만 들어있는 채로 slot 2(카메라가 기대하는 slot)에 바인딩되고 있어서 slot 1(Material이 기대하는 slot)은 비고 카메라 버퍼는 Pixel Shader에 아예 바인딩된 적이 없던 문제(`{ materialConstantBuffer, cameraConstantBuffer }`로 고치고 `PSSetConstantBuffers(1, 2, ...)`로 수정) — Rim이 Pixel Shader가 카메라 데이터를 받는 첫 사례라서 처음 드러난 버그다. PowerSwitch Material에 테스트 값(Rim Color 청록, Intensity 2.5, Power 4.0)을 적용해 화면 가장자리가 시야각에 따라 밝아지는 것을 사용자가 직접 확인했다.
+- 남아 있는 문제: LDR `saturate` 클리핑이 여전히 해결되지 않아 Rim Intensity 값 간 밝기 차이도 Emissive와 마찬가지로 화면에서 잘 구분되지 않는다(HDR 단계에서 함께 해결 예정). `Renderer::Initialize()`가 `m_materialConstantData`의 Rim 필드를 버퍼 생성 시점에 명시적으로 0으로 초기화하지 않는다(첫 `DrawRenderItem` 호출 전에 항상 덮어써지므로 실질적 위험은 없음 — 선택적 정리 항목으로 남겨둠).
+- 다음에 이어서 할 작업: 로드맵 11번 HDR Scene Target + Bloom + Tone Mapping(§6/§7 참고 — 그래픽스 강의 연계로 9번 Shadow Mapping보다 먼저 진행하기로 함).
+- 중요한 설계 결정과 이유:
+  - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
+  - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
+  - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
 ### 2026-09-13 — NeonSignFactory 구현 완료 ✅
 
 - 완료한 작업: `NeonSign.h`/`.cpp`에 `NeonSignDesc`(입력 데이터)와 `NeonSignFactory::Create`(정적 팩토리 함수)를 구현했다. Step 1(뼈대) → Step 2(Pink 교체) → Step 3(Cyan/Orange 교체) 순서로 진행했고, 매 단계 코드 리뷰로 확인했다.
@@ -386,7 +409,8 @@ be2cdf5 Update CODEX_HANDOFF.md
 
 ## 9. 다른 PC에서 확인할 체크리스트
 
-- `git pull` 후 HEAD가 최소 `9eb727d`인지 확인한다.
+- `git pull` 후 HEAD가 최소 `2835951`인지 확인한다.
+- Play에서 PowerSwitch를 여러 각도에서 바라보며 가장자리가 시야각에 따라 청록색으로 밝아지는지(Rim Lighting) 확인한다.
 - `AGENTS.md`와 이 문서의 마지막 갱신일이 같은지 확인한다.
 - `git status`에서 사용자 변경과 로컬 `MyPF/imgui.ini` 변경을 구분한다.
 - `GeometryGenerator::MakeCube`가 1m 단위인지 확인한다.
