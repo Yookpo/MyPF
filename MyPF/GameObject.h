@@ -4,6 +4,7 @@
 #include "MeshComponent.h"
 #include "ModelComponent.h"
 #include "PointLightComponent.h"
+#include "BoxCollisionComponent.h"
 
 namespace My
 {
@@ -33,13 +34,24 @@ namespace My
 		const PointLightComponent& GetPointLightComponent() const { return m_pointLightComponent; } // 읽기전용
 		bool					   HasPointLightComponent() const { return m_hasPointLightComponent; }
 
+		BoxCollisionComponent& AddBoxCollisionComponent()
+		{
+			m_hasBoxCollisionComponent = true;
+			return m_boxCollisionComponent;
+		}
+		BoxCollisionComponent&		 GetBoxCollisionComponent() { return m_boxCollisionComponent; }		  // 수정 가능
+		const BoxCollisionComponent& GetBoxCollisionComponent() const { return m_boxCollisionComponent; } // 읽기전용
+		bool						 HasBoxCollisionComponent() const { return m_hasBoxCollisionComponent; }
+
 	private:
-		std::string			m_name;
-		Transform			m_transform;
-		MeshComponent		m_meshComponent;
-		ModelComponent		m_modelComponent;
-		PointLightComponent m_pointLightComponent;
-		bool				m_hasPointLightComponent{ false };
+		std::string			  m_name;
+		Transform			  m_transform;
+		MeshComponent		  m_meshComponent;
+		ModelComponent		  m_modelComponent;
+		PointLightComponent	  m_pointLightComponent;
+		BoxCollisionComponent m_boxCollisionComponent;
+		bool				  m_hasPointLightComponent{ false };
+		bool				  m_hasBoxCollisionComponent{ false };
 	};
 
 } // namespace My

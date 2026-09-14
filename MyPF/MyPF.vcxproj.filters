@@ -127,7 +127,10 @@
       <Filter>Scene</Filter>
     </ClCompile>
     <ClCompile Include="NeonSign.cpp">
-      <Filter>소스 파일</Filter>
+      <Filter>Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayerCollision.cpp">
+      <Filter>Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -257,8 +260,14 @@
     <ClInclude Include="PointLightComponent.h">
       <Filter>Scene</Filter>
     </ClInclude>
+    <ClInclude Include="BoxCollisionComponent.h">
+      <Filter>Scene</Filter>
+    </ClInclude>
     <ClInclude Include="NeonSign.h">
-      <Filter>헤더 파일</Filter>
+      <Filter>Scene</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayerCollision.h">
+      <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

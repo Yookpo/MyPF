@@ -6,6 +6,7 @@
 #include "Material.h"
 #include "Model.h"
 #include "NeonSign.h"
+#include "PlayerCollision.h"
 
 namespace My
 {
@@ -291,6 +292,9 @@ namespace My
 
 	bool AppBase::InitGreyBoxScene()
 	{
+		// Set Camera Pos
+		m_camera.SetPosition(Vector3(0.0f, 1.6f, 0.0f));
+
 		// Setting for Mesh, Material
 		MeshData greyBoxData = GeometryGenerator::MakeCube();
 		auto	 greyBoxMesh = m_assetManager.CreateMesh("greybox", greyBoxData);
@@ -390,6 +394,7 @@ namespace My
 		floor->GetMeshComponent().SetMaterial(greyBoxMat);
 
 		// Create Wall
+		GameObject* startWall = &m_scene.CreateGameObject("startWall"); // 시작 지점 -> 뒤로 벗어나지 못하게 막음
 		GameObject* leftWall = &m_scene.CreateGameObject("leftWall");
 		GameObject* rightWall = &m_scene.CreateGameObject("rightWall");
 		GameObject* endWall = &m_scene.CreateGameObject("endWall");
@@ -397,10 +402,12 @@ namespace My
 		leftWall->GetTransform().SetScale(Vector3(0.2f, 4.0f, 20.0f));
 		rightWall->GetTransform().SetScale(Vector3(0.2f, 4.0f, 20.0f));
 		endWall->GetTransform().SetScale(Vector3(4.0f, 4.0f, 0.2f));
+		startWall->GetTransform().SetScale(Vector3(4.0f, 4.0f, 0.2f));
 
 		leftWall->GetTransform().SetPosition(Vector3(-2.1f, 2.0f, 10.0f));
 		rightWall->GetTransform().SetPosition(Vector3(2.1f, 2.0f, 10.0f));
 		endWall->GetTransform().SetPosition(Vector3(0.0f, 2.0f, 20.1f));
+		startWall->GetTransform().SetPosition(Vector3(0.0f, 2.0f, -0.1f));
 
 		leftWall->GetMeshComponent().SetMesh(greyBoxMesh);
 		rightWall->GetMeshComponent().SetMesh(greyBoxMesh);
@@ -410,8 +417,10 @@ namespace My
 		rightWall->GetMeshComponent().SetMaterial(greyBoxMat);
 		endWall->GetMeshComponent().SetMaterial(greyBoxMat);
 
-		// Set Camera Pos
-		m_camera.SetPosition(Vector3(0.0f, 1.6f, 0.0f));
+		leftWall->AddBoxCollisionComponent();
+		rightWall->AddBoxCollisionComponent();
+		endWall->AddBoxCollisionComponent();
+		startWall->AddBoxCollisionComponent();
 
 		// Create Power Switch
 		auto powerSwitchObject = &m_scene.CreateGameObject("powerSwitch");
@@ -430,6 +439,7 @@ namespace My
 
 		powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
 		powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
+		powerSwitchObject->AddBoxCollisionComponent();
 
 		m_powerSwitch.Initialize(*powerSwitchObject);
 
@@ -480,6 +490,9 @@ namespace My
 		}
 
 		m_firstPersonCameraController.Update(dt);
+
+		Vector3 resolvedPos = PlayerCollision::Resolve(m_camera.GetPosition(), m_scene.GatherBoxColliders(), 0.3f);
+		m_camera.SetPosition(resolvedPos);
 
 		// E키를 눌러 조명을 키거나 끈다
 		if (m_inputSystem.WasKeyPressed('E'))
