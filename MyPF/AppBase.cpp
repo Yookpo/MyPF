@@ -304,29 +304,57 @@ namespace My
 			return false;
 		}
 
-		const Texture* greyBoxTex = m_assetManager.LoadTexture("wall.jpg");
+		const Texture* wallAlbedoTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\cyberpunk_wall_albedo_v1.png");
 
-		if (!greyBoxTex)
+		if (!wallAlbedoTex)
 		{
 			return false;
 		}
 
-		const Texture* neonTex = m_assetManager.LoadTexture("neonFlat.jpg");
+		const Texture* floorAlbedoTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\wet_asphalt_floor_albedo_v1.png");
+
+		if (!floorAlbedoTex)
+		{
+			return false;
+		}
+
+		const Texture* neonTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\neon_diffuser_albedo_v1.png");
 
 		if (!neonTex)
 		{
 			return false;
 		}
 
-		auto greyBoxMat = m_assetManager.CreateMaterial("greyBoxMat");
+		const Texture* powerSwitchTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\power_switch_panel_albedo_v1.png");
 
-		if (!greyBoxMat)
+		if (!powerSwitchTex)
 		{
 			return false;
 		}
 
-		greyBoxMat->SetAlbedoTexture(greyBoxTex);
-		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
+		auto wallMat = m_assetManager.CreateMaterial("wallMat");
+
+		if (!wallMat)
+		{
+			return false;
+		}
+
+		wallMat->SetAlbedoTexture(wallAlbedoTex);
+		wallMat->SetBaseColor(Vector3(1.0f));
+
+		auto floorMat = m_assetManager.CreateMaterial("floorMat");
+
+		if (!floorMat)
+		{
+			return false;
+		}
+
+		floorMat->SetAlbedoTexture(floorAlbedoTex);
+		floorMat->SetBaseColor(Vector3(1.0f));
 
 		// Neon test
 		NeonSignDesc desc1{};
@@ -391,7 +419,7 @@ namespace My
 		m_editorUI.SetSelectedObject(floor);
 
 		floor->GetMeshComponent().SetMesh(greyBoxMesh);
-		floor->GetMeshComponent().SetMaterial(greyBoxMat);
+		floor->GetMeshComponent().SetMaterial(floorMat);
 
 		// Create Wall
 		GameObject* startWall = &m_scene.CreateGameObject("startWall"); // 시작 지점 -> 뒤로 벗어나지 못하게 막음
@@ -413,9 +441,9 @@ namespace My
 		rightWall->GetMeshComponent().SetMesh(greyBoxMesh);
 		endWall->GetMeshComponent().SetMesh(greyBoxMesh);
 
-		leftWall->GetMeshComponent().SetMaterial(greyBoxMat);
-		rightWall->GetMeshComponent().SetMaterial(greyBoxMat);
-		endWall->GetMeshComponent().SetMaterial(greyBoxMat);
+		leftWall->GetMeshComponent().SetMaterial(wallMat);
+		rightWall->GetMeshComponent().SetMaterial(wallMat);
+		endWall->GetMeshComponent().SetMaterial(wallMat);
 
 		leftWall->AddBoxCollisionComponent();
 		rightWall->AddBoxCollisionComponent();
@@ -438,7 +466,7 @@ namespace My
 			return false;
 		}
 
-		powerSwitchMat->SetAlbedoTexture(greyBoxTex);
+		powerSwitchMat->SetAlbedoTexture(powerSwitchTex);
 
 		powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
 		powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
