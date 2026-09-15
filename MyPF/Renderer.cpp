@@ -1,4 +1,5 @@
-﻿#include "Renderer.h"
+﻿#include <cmath>
+#include "Renderer.h"
 #include "Mesh.h"
 #include "Material.h"
 #include "Texture.h"
@@ -204,7 +205,12 @@ namespace My
 			return false;
 		}
 
-		Context->ClearRenderTargetView(sceneRTV, m_backgroundColor.data());
+		Vector3 backgroundLinear =
+			SrgbToLinear(Vector3(m_backgroundColor[0], m_backgroundColor[1], m_backgroundColor[2]));
+		const std::array<float, 4> clearColor = { backgroundLinear.x, backgroundLinear.y, backgroundLinear.z,
+			m_backgroundColor[3] };
+
+		Context->ClearRenderTargetView(sceneRTV, clearColor.data());
 		Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 		// 비교: Depth Buffer를 사용하지 않는 경우
 		// m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
@@ -227,7 +233,7 @@ namespace My
 		// Directional Light
 		m_lightConstantData.direction = frameRenderData.directionalLight.direction;
 		m_lightConstantData.direction.Normalize();
-		m_lightConstantData.color = frameRenderData.directionalLight.color;
+		m_lightConstantData.color = SrgbToLinear(frameRenderData.directionalLight.color);
 		m_lightConstantData.intensity = frameRenderData.directionalLight.intensity;
 		m_lightConstantData.ambientStrength = frameRenderData.directionalLight.ambientStrength;
 		// Point Light
@@ -239,7 +245,7 @@ namespace My
 
 			destinationLight.position = sourceLight.position;
 			destinationLight.range = sourceLight.range;
-			destinationLight.color = sourceLight.color;
+			destinationLight.color = SrgbToLinear(sourceLight.color);
 			destinationLight.intensity = sourceLight.intensity;
 			destinationLight.isEnabled = sourceLight.isEnabled ? 1u : 0u;
 		}
@@ -392,10 +398,10 @@ namespace My
 		}
 
 		// 머터리얼 변환
-		m_materialConstantData.baseColor = drawMat.GetBaseColor();
-		m_materialConstantData.emissiveColor = drawMat.GetEmissiveColor();
+		m_materialConstantData.baseColor = SrgbToLinear(drawMat.GetBaseColor());
+		m_materialConstantData.emissiveColor = SrgbToLinear(drawMat.GetEmissiveColor());
 		m_materialConstantData.emissiveIntensity = drawMat.GetEffectiveEmissiveIntensity();
-		m_materialConstantData.rimColor = drawMat.GetRimColor();
+		m_materialConstantData.rimColor = SrgbToLinear(drawMat.GetRimColor());
 		m_materialConstantData.rimIntensity = drawMat.GetRimIntensity();
 		m_materialConstantData.rimPower = drawMat.GetRimPower();
 		if (!m_resourceManager->UpdateBuffer(m_materialBufferHandle, m_materialConstantData))
@@ -511,6 +517,17 @@ namespace My
 		m_screenViewport.MaxDepth = 1.0f; // Note: important for depth buffering
 
 		Context->RSSetViewports(1, &m_screenViewport);
+	}
+
+	Vector3 Renderer::SrgbToLinear(const Vector3& sRgbcolor)
+	{
+		Vector3 linearColor{ 0.0f };
+
+		linearColor.x = std::pow(sRgbcolor.x, 2.2f);
+		linearColor.y = std::pow(sRgbcolor.y, 2.2f);
+		linearColor.z = std::pow(sRgbcolor.z, 2.2f);
+
+		return linearColor;
 	}
 
 	bool Renderer::CreateRasterizerState()

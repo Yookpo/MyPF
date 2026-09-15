@@ -27,8 +27,9 @@ namespace My
 		bool SetSceneViewport(float topLeftX, float topLeftY, float width, float height);
 
 	private:
-		bool CreateRasterizerState();
-		void SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight);
+		bool		   CreateRasterizerState();
+		void		   SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight);
+		static Vector3 SrgbToLinear(const Vector3& sRgbcolor);
 
 	private:
 		GraphicsDevice*			 m_graphicsDevice = nullptr;

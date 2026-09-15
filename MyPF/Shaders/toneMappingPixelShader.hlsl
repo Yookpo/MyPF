@@ -25,6 +25,6 @@ float4 main(Output input) : SV_Target
     // Reinhard를 적용한다: 결과 = 색 / (1 + 색). HLSL은 float3에 대해 이 계산을 채널마다 따로 해준다. 반복문이 필요 없다.
     color = color / (1 + color);
     // 결과 rgb에 알파 1을 붙여 반환한다.
-    return float4(color, 1.0f);
+    return float4(pow(color, 1 / 2.2), 1.0f);
 
 }

@@ -346,7 +346,10 @@ namespace My
 		txtDesc.Width = width;
 		txtDesc.Height = height;
 		txtDesc.MipLevels = txtDesc.ArraySize = 1;
-		txtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		//"파일 텍스처는 모두 색상 텍스처라 sRGB로 읽는다. 노멀/러프니스 맵이 생기면 인자로 분리한다"
+		txtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
 		txtDesc.SampleDesc.Count = 1;
 		txtDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		txtDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
