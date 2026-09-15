@@ -459,9 +459,6 @@ namespace My
 
 		// Switch Mat
 		auto powerSwitchMat = m_assetManager.CreateMaterial("powerSwitchMat");
-		powerSwitchMat->SetRimColor(Vector3(0.3f, 0.9f, 1.0f));
-		powerSwitchMat->SetRimIntensity(2.5f);
-		powerSwitchMat->SetRimPower(4.0f);
 
 		if (!powerSwitchMat)
 		{
@@ -526,6 +523,21 @@ namespace My
 
 		Vector3 resolvedPos = PlayerCollision::Resolve(m_camera.GetPosition(), m_scene.GatherBoxColliders(), 0.3f);
 		m_camera.SetPosition(resolvedPos);
+
+		GameObject* obj = m_powerSwitch.GetGameObject();
+		Material*	powerSwitchMat = obj->GetMeshComponent().GetMaterial();
+
+		// 상호작용되면 림컬러 적용
+		if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
+		{
+			powerSwitchMat->SetRimColor(Vector3(0.3f, 0.9f, 1.0f));
+			powerSwitchMat->SetRimIntensity(2.5f);
+			powerSwitchMat->SetRimPower(4.0f);
+		}
+		else
+		{
+			powerSwitchMat->SetRimIntensity(0.0f);
+		}
 
 		// E키를 눌러 조명을 키거나 끈다
 		if (m_inputSystem.WasKeyPressed('E'))

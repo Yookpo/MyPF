@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <directxtk/SimpleMath.h>
 
 namespace My
@@ -15,6 +15,8 @@ namespace My
 		bool IsPowerOn() const;
 		bool Toggle();
 		bool CanInteract(const Vector3& position, const Vector3& forward) const;
+
+		GameObject* GetGameObject() const { return m_gameObject; }
 
 	private:
 		void ApplyVisualState();
