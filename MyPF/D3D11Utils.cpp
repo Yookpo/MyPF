@@ -108,6 +108,7 @@ namespace My
 
 		return true;
 	}
+
 	bool D3D11Utils::CreateVertexShaderAndInputLayout(ID3D11Device* device, const wstring& fileName,
 		const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader,
 		ComPtr<ID3D11InputLayout>& m_inputLayout)
@@ -147,6 +148,43 @@ namespace My
 
 		return true;
 	}
+
+	bool D3D11Utils::CreateVertexShader(
+		ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11VertexShader>& vertexShader)
+	{
+		if (!device)
+		{
+			return false;
+		}
+
+		ComPtr<ID3DBlob> shaderBlob;
+		ComPtr<ID3DBlob> errorBlob;
+
+		UINT compileFlags = 0;
+#if defined(DEBUG) || defined(_DEBUG)
+		compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+		HRESULT hr = D3DCompileFromFile(fileName.c_str(), 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0",
+			compileFlags, 0, &shaderBlob, &errorBlob);
+
+		CheckResult(hr, errorBlob.Get());
+
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(L"Shader Compile() failed");
+			return false;
+		}
+
+		if (FAILED(device->CreateVertexShader(
+				shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), NULL, &vertexShader)))
+		{
+			OutputDebugStringW(L"CreateVertexShader() failed");
+			return false;
+		}
+
+		return true;
+	}
+
 	bool D3D11Utils::CreatePixelShader(
 		ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader)
 	{
@@ -335,7 +373,7 @@ namespace My
 
 		return true;
 	}
-  
+
 	bool D3D11Utils::CreateRenderTargetTexture(ID3D11Device* device, uint32_t width, uint32_t height,
 		DXGI_FORMAT format, ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11RenderTargetView>& renderTargetView,
 		ComPtr<ID3D11ShaderResourceView>& shaderResourceView)

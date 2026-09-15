@@ -88,9 +88,9 @@ namespace My
 		}
 
 		// debug
-		 std::wstring msg = L"HDR Scene Target created: " + std::to_wstring(screenWidth) + L" x "
+		std::wstring msg = L"HDR Scene Target created: " + std::to_wstring(screenWidth) + L" x "
 			+ std::to_wstring(screenHeight) + L", index " + std::to_wstring(m_hdrSceneTargetHandle.GetIndex()) + L"\n";
-		 OutputDebugStringW(msg.c_str());
+		OutputDebugStringW(msg.c_str());
 
 		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
 															   D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -106,6 +106,18 @@ namespace My
 
 		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader))
 		{
+			return false;
+		}
+
+		if (!D3D11Utils::CreateVertexShader(Device, L"Shaders\\fullscreenVertexShader.hlsl", m_fullscreenVertexShader))
+		{
+			OutputDebugStringW(L"fullscreenVertexShader Created Failed\n");
+			return false;
+		}
+
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\copyPixelShader.hlsl", m_copyPixelShader))
+		{
+			OutputDebugStringW(L"copyPixelShader Created Failed\n");
 			return false;
 		}
 
@@ -158,24 +170,31 @@ namespace My
 	{
 		if (!m_graphicsDevice)
 		{
-			OutputDebugStringW(L"GraphicsDevice is Empty");
+			OutputDebugStringW(L"GraphicsDevice is Empty\n");
 			return false;
 		}
 
-		ID3D11DeviceContext*	Context = m_graphicsDevice->GetContext();
-		ID3D11RenderTargetView* RTV = m_graphicsDevice->GetRTV();
+		if (!m_resourceManager)
+		{
+			OutputDebugStringW(L"ResourceManager is Empty\n");
+			return false;
+		}
+
+		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
+		// ID3D11RenderTargetView* RTV = m_graphicsDevice->GetRTV(); // 백버퍼에서 가져온다
+		ID3D11RenderTargetView* sceneRTV = m_resourceManager->GetRTV(m_hdrSceneTargetHandle);
 		ID3D11DepthStencilView* DSV = m_graphicsDevice->GetDSV();
 
-		if (!Context || !RTV || !DSV)
+		if (!Context || !sceneRTV || !DSV)
 		{
 			return false;
 		}
 
-		Context->ClearRenderTargetView(RTV, m_backgroundColor.data());
+		Context->ClearRenderTargetView(sceneRTV, m_backgroundColor.data());
 		Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 		// 비교: Depth Buffer를 사용하지 않는 경우
 		// m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
-		Context->OMSetRenderTargets(1, &RTV, DSV);
+		Context->OMSetRenderTargets(1, &sceneRTV, DSV);
 		Context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
 		// 카메라
@@ -223,6 +242,78 @@ namespace My
 		}
 
 		Context->PSSetConstantBuffers(0, 1, &lightconstantBuffer);
+
+		return true;
+	}
+
+	bool Renderer::EndScene()
+	{
+		if (!m_graphicsDevice)
+		{
+			OutputDebugStringW(L"m_graphicsDevice is NULL\n");
+			return false;
+		}
+
+		if (!m_graphicsDevice->GetContext())
+		{
+			OutputDebugStringW(L"Context is NULL\n");
+			return false;
+		}
+
+		if (!m_graphicsDevice->GetRTV())
+		{
+			OutputDebugStringW(L"BackBuffer is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetSRV(m_hdrSceneTargetHandle))
+		{
+			OutputDebugStringW(L"HDR SRV is NULL\n");
+			return false;
+		}
+
+		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
+		ID3D11RenderTargetView*	  backRTV = m_graphicsDevice->GetRTV();
+		ID3D11ShaderResourceView* hdrSRV = m_resourceManager->GetSRV(m_hdrSceneTargetHandle);
+		ID3D11ShaderResourceView* nullSRV = nullptr;
+
+		// HDR RTV를 출력에서 제거
+		context->OMSetRenderTargets(1, &backRTV, nullptr);
+
+		// 정점 데이터를 쓰지않음
+		context->IASetInputLayout(nullptr);
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// 쉐이더 설정
+		context->VSSetShader(m_fullscreenVertexShader.Get(), 0, 0);
+		context->PSSetShader(m_copyPixelShader.Get(), 0, 0);
+
+		// 입력 바인딩
+		context->PSSetShaderResources(0, 1, &hdrSRV);
+		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
+
+		// 그리기
+		context->Draw(3, 0);
+
+		// 입력 해제
+		context->PSSetShaderResources(0, 1, &nullSRV);
+
+		return true;
+	}
+
+	bool Renderer::EndFrame()
+	{
+		if (!m_graphicsDevice)
+		{
+			OutputDebugStringW(L"GraphicsDevice is Empty\n");
+			return false;
+		}
+
+		if (!m_graphicsDevice->Present())
+		{
+			OutputDebugStringW(L"m_graphicsDevice::Present failed\n");
+			return false;
+		}
 
 		return true;
 	}
@@ -362,23 +453,6 @@ namespace My
 		}
 
 		this->SetViewPort(topLeftX, topLeftY, width, height);
-
-		return true;
-	}
-
-	bool Renderer::EndFrame()
-	{
-		if (!m_graphicsDevice)
-		{
-			OutputDebugStringW(L"GraphicsDevice is Empty");
-			return false;
-		}
-
-		if (!m_graphicsDevice->Present())
-		{
-			OutputDebugStringW(L"m_graphicsDevice::Present failed");
-			return false;
-		}
 
 		return true;
 	}

@@ -30,6 +30,9 @@ namespace My
 			const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader,
 			ComPtr<ID3D11InputLayout>& m_inputLayout);
 
+		static bool CreateVertexShader(
+			ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11VertexShader>& vertexShader);
+
 		static bool CreatePixelShader(
 			ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader);
 

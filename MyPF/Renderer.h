@@ -20,6 +20,7 @@ namespace My
 		bool Resize(int screenWidth, int screenHeight);
 
 		bool BeginFrame(const FrameRenderData&, const std::array<float, 4>&);
+		bool EndScene();
 		bool EndFrame();
 
 		bool DrawRenderItem(const RenderItem&);
@@ -40,7 +41,9 @@ namespace My
 
 		// shader
 		ComPtr<ID3D11VertexShader> m_vertexShader;
+		ComPtr<ID3D11VertexShader> m_fullscreenVertexShader;
 		ComPtr<ID3D11PixelShader>  m_pixelShader;
+		ComPtr<ID3D11PixelShader>  m_copyPixelShader;
 		ComPtr<ID3D11InputLayout>  m_inputLayout;
 
 		// sampler

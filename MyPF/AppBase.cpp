@@ -122,7 +122,7 @@ namespace My
 
 		if (!RegisterClassEx(&wc))
 		{
-			std::cerr << "RegisterClassEx() failed." << endl;
+			OutputDebugStringW(L"RegisterClassEx() failed\n");
 			return false;
 		}
 
@@ -139,7 +139,7 @@ namespace My
 
 		if (!m_mainWindow)
 		{
-			std::cerr << "CreateWindow() failed.\n";
+			OutputDebugStringW(L"CreateWindow() failed\n");
 			return false;
 		}
 
@@ -557,7 +557,7 @@ namespace My
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{
-			OutputDebugStringW(L"Draw camera failed, Program shutting down");
+			OutputDebugStringW(L"Draw camera failed, Program shutting down\n");
 			PostQuitMessage(-1);
 			return;
 		}
@@ -586,7 +586,7 @@ namespace My
 
 					if (!m_renderer.DrawRenderItem(renderItem))
 					{
-						OutputDebugStringW(L"Draw RenderItem failed, Program shutting down");
+						OutputDebugStringW(L"Draw RenderItem failed, Program shutting down\n");
 						PostQuitMessage(-1);
 						return;
 					}
@@ -605,18 +605,25 @@ namespace My
 
 				if (!m_renderer.DrawRenderItem(renderItem))
 				{
-					OutputDebugStringW(L"Draw RenderItem failed, Program shutting down");
+					OutputDebugStringW(L"Draw RenderItem failed, Program shutting down\n");
 					PostQuitMessage(-1);
 					return;
 				}
 			}
 		}
 
+		if (!m_renderer.EndScene())
+		{
+			OutputDebugStringW(L"EndScene failed, Program shutting down\n");
+			PostQuitMessage(-1);
+			return;
+		}
+
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 		if (!m_renderer.EndFrame())
 		{
-			OutputDebugStringW(L"Rendering failed, Program shutting down");
+			OutputDebugStringW(L"Rendering failed, Program shutting down\n");
 			PostQuitMessage(-1);
 		}
 	}
