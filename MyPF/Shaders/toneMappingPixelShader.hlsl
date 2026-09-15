@@ -4,7 +4,8 @@ SamplerState linearSampler : register(s0);
 cbuffer PostProcessConstantData : register(b0)
 {
     float exposure;
-    float3 pad;
+    uint toneMapper;
+    float2 pad;
 }
 
 struct Output
@@ -13,6 +14,15 @@ struct Output
     float2 uv : TEXCOORD0;
 };
 
+float3 Reinhard(float3 x)
+{
+    return x / (1 + x);
+}
+
+float3 ACESFilm(float3 x)
+{
+    return saturate(x * (2.51 * x + 0.03) / (x * (2.43 * x + 0.59) + 0.14));
+}
 
 float4 main(Output input) : SV_Target
 {
@@ -22,9 +32,17 @@ float4 main(Output input) : SV_Target
     // 카메라가 받아들이는 빛의 양
     color *= exposure;
     
-    // Reinhard를 적용한다: 결과 = 색 / (1 + 색). HLSL은 float3에 대해 이 계산을 채널마다 따로 해준다. 반복문이 필요 없다.
-    color = color / (1 + color);
-    // 결과 rgb에 알파 1을 붙여 반환한다.
+    // ToneMapper 값과 순서가 같아야 한다 (0: Reinhard, 1: ACES)
+    if (toneMapper == 0)
+    {
+        color = Reinhard(color);
+    }
+    else
+    {
+        color = ACESFilm(color);
+    }
+    
+    // 감마 인코드
     return float4(pow(color, 1 / 2.2), 1.0f);
 
 }

@@ -256,6 +256,7 @@ namespace My
 		}
 
 		m_postProcessConstantData.exposure = frameRenderData.postProcess.exposure;
+		m_postProcessConstantData.toneMapper = static_cast<std::uint32_t>(frameRenderData.postProcess.toneMapper);
 		if (!m_resourceManager->UpdateBuffer(m_postProcessBufferHandle, m_postProcessConstantData))
 		{
 			return false;

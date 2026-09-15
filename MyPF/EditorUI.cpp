@@ -127,6 +127,14 @@ namespace My
 			return;
 		}
 
+		// Order must match the ToneMapper enum values.
+		const char* const toneMapperNames[] = { "Reinhard", "ACES" };
+		int				  toneMapperIndex = static_cast<int>(m_postProcessSettings->toneMapper);
+		if (ImGui::Combo("Tone Mapper", &toneMapperIndex, toneMapperNames, IM_ARRAYSIZE(toneMapperNames)))
+		{
+			m_postProcessSettings->toneMapper = static_cast<ToneMapper>(toneMapperIndex);
+		}
+
 		float exposure = m_postProcessSettings->exposure;
 		if (ImGui::SliderFloat("Exposure", &exposure, 0.1f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic))
 		{
