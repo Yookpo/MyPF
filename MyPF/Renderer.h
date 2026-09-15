@@ -4,6 +4,7 @@
 #include "ShaderConstants.h"
 #include "FrameRenderData.h"
 #include "BufferHandle.h"
+#include "TextureHandle.h"
 
 namespace My
 {
@@ -15,6 +16,8 @@ namespace My
 	public:
 		bool Initialize(GraphicsDevice& graphicsDevice, GraphicsResourceManager& resourceManager, int screenWidth,
 			int screenHeight);
+
+		bool Resize(int screenWidth, int screenHeight);
 
 		bool BeginFrame(const FrameRenderData&, const std::array<float, 4>&);
 		bool EndFrame();
@@ -54,6 +57,9 @@ namespace My
 		BufferHandle m_lightBufferHandle;
 		BufferHandle m_objectBufferHandle;
 		BufferHandle m_materialBufferHandle;
+
+		// TextureHandle
+		TextureHandle m_hdrSceneTargetHandle;
 
 		D3D11_VIEWPORT m_screenViewport;
 	};

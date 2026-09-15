@@ -71,13 +71,26 @@ namespace My
 		m_materialConstantData.emissiveIntensity = 0.0f;
 		m_materialConstantData.rimColor = Vector3(1.0f);
 		m_materialConstantData.rimIntensity = 0.0f;
-		m_materialConstantData.rimIntensity = 3.0f;
+		m_materialConstantData.rimPower = 3.0f;
 		m_materialBufferHandle = m_resourceManager->CreateConstantBuffer(m_materialConstantData);
 
 		if (!m_materialBufferHandle.IsValid())
 		{
 			return false;
 		}
+
+		m_hdrSceneTargetHandle = m_resourceManager->CreateRenderTarget(
+			static_cast<uint32_t>(screenWidth), static_cast<uint32_t>(screenHeight), DXGI_FORMAT_R16G16B16A16_FLOAT);
+
+		if (!m_hdrSceneTargetHandle.IsValid())
+		{
+			return false;
+		}
+
+		// debug
+		 std::wstring msg = L"HDR Scene Target created: " + std::to_wstring(screenWidth) + L" x "
+			+ std::to_wstring(screenHeight) + L", index " + std::to_wstring(m_hdrSceneTargetHandle.GetIndex()) + L"\n";
+		 OutputDebugStringW(msg.c_str());
 
 		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
 															   D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -110,6 +123,33 @@ namespace My
 		{
 			return false;
 		}
+
+		return true;
+	}
+
+	bool Renderer::Resize(int screenWidth, int screenHeight)
+	{
+		if (screenWidth <= 0 || screenHeight <= 0)
+		{
+			return true;
+		}
+
+		if (!m_resourceManager || !m_hdrSceneTargetHandle.IsValid())
+		{
+			return true;
+		}
+
+		if (!m_resourceManager->ResizeRenderTarget(
+				m_hdrSceneTargetHandle, static_cast<uint32_t>(screenWidth), static_cast<uint32_t>(screenHeight)))
+		{
+			OutputDebugStringW(L"ResizeRenderTarget() Failed\n");
+			return false;
+		}
+
+		// debug
+		std::wstring msg = L"HDR Scene Target resized: " + std::to_wstring(screenWidth) + L" x "
+			+ std::to_wstring(screenHeight) + L", index " + std::to_wstring(m_hdrSceneTargetHandle.GetIndex()) + L"\n";
+		OutputDebugStringW(msg.c_str());
 
 		return true;
 	}

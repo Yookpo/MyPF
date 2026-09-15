@@ -24,8 +24,11 @@ namespace My
 		bool					  Initialize(GraphicsDevice&);
 		ID3D11Buffer*			  GetBuffer(BufferHandle) const;
 		ID3D11ShaderResourceView* GetSRV(TextureHandle) const;
+		ID3D11RenderTargetView*	  GetRTV(TextureHandle) const;
 
 		TextureHandle CreateTexture(const std::string& filename);
+		TextureHandle CreateRenderTarget(uint32_t width, uint32_t height, DXGI_FORMAT format);
+		bool		  ResizeRenderTarget(TextureHandle textureHandle, uint32_t width, uint32_t height);
 
 		template <typename T_VERTEX> BufferHandle CreateVertexBuffer(const std::vector<T_VERTEX>& vertices)
 		{
@@ -70,6 +73,8 @@ namespace My
 		{
 			ComPtr<ID3D11Texture2D>			 texture;
 			ComPtr<ID3D11ShaderResourceView> textureSRV;
+			ComPtr<ID3D11RenderTargetView>	 textureRTV;
+			DXGI_FORMAT						 textureFormat{ DXGI_FORMAT_UNKNOWN };
 		};
 
 		BufferHandle CreateImmutableBufferInternal(const void* data, uint32_t byteWidth, UINT flag);

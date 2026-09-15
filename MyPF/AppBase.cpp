@@ -48,6 +48,7 @@ namespace My
 				if (m_graphicsDevice.GetDevice() && (m_screenWidth > 0 && m_screenHeight > 0))
 				{
 					m_graphicsDevice.Resize(m_screenWidth, m_screenHeight);
+					m_renderer.Resize(m_screenWidth, m_screenHeight);
 				}
 
 				break;

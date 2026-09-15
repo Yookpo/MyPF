@@ -335,4 +335,48 @@ namespace My
 
 		return true;
 	}
+  
+	bool D3D11Utils::CreateRenderTargetTexture(ID3D11Device* device, uint32_t width, uint32_t height,
+		DXGI_FORMAT format, ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11RenderTargetView>& renderTargetView,
+		ComPtr<ID3D11ShaderResourceView>& shaderResourceView)
+	{
+		if (!device || width == 0 || height == 0)
+		{
+			OutputDebugStringW(L"device is NULL or Width,Height ==0\n");
+			return false;
+		}
+
+		// 텍스처 생성
+		D3D11_TEXTURE2D_DESC desc{};
+		desc.Width = width;
+		desc.Height = height;
+		desc.MipLevels = desc.ArraySize = 1;
+		desc.Format = format;
+		desc.SampleDesc.Count = 1;
+		desc.Usage = D3D11_USAGE_DEFAULT; // GPU가 매 프레임 다시 그린다
+		desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+		HRESULT hr = device->CreateTexture2D(&desc, nullptr, texture.GetAddressOf());
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(L"RenderTarget Texture Create Failed\n");
+			return false;
+		}
+
+		// RTV 생성
+		if (FAILED(device->CreateRenderTargetView(texture.Get(), nullptr, renderTargetView.GetAddressOf())))
+		{
+			OutputDebugStringW(L"CreateRTV() failed\n");
+			return false;
+		}
+
+		// SRV 생성
+		if (FAILED(device->CreateShaderResourceView(texture.Get(), nullptr, shaderResourceView.GetAddressOf())))
+		{
+			OutputDebugStringW(L"CreateSRV() failed\n");
+			return false;
+		}
+
+		return true;
+	}
 } // namespace My
