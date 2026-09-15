@@ -1,6 +1,6 @@
 # MyPF 진행 기록 및 작업 인계
 
-마지막 갱신: 2026-09-14
+마지막 갱신: 2026-09-15
 
 노트북과 데스크톱에서 Git으로 공유하는 MyPF의 실제 구현 상태와 다음 작업을 기록한다.
 
@@ -17,36 +17,38 @@
 
 ## 1. 진행률
 
-현재 전체 진행률은 약 **65%**다.
+현재 전체 진행률은 약 **70%**다.
 
 | 영역 | 진행 | 현재 상태 |
 |---|---:|---|
-| Win32/DX11 기반 | 약 85% | 기본 렌더링, Resize와 제출 경계 완료. 다중 패스는 남음 |
-| GPU Resource/Asset 구조 | 약 75% | Buffer/Texture Handle, Asset 캐시와 Model 업로드 완료 |
+| Win32/DX11 기반 | 약 90% | 기본 렌더링, Resize와 제출 경계, HDR 씬 타깃 → 전체 화면 패스의 2-pass 구조 완료 |
+| GPU Resource/Asset 구조 | 약 80% | Buffer/Texture Handle, Asset 캐시와 Model 업로드, 렌더 타깃 생성과 같은 슬롯 재생성 완료 |
 | Model 파이프라인 | 약 65% | FBX/OBJ/glTF BaseColor 로드 완료. aiNode/PBR은 남음 |
-| Scene/ImGui 편집 | 약 65% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유 완료 |
-| 1인칭 입력/카메라 | 약 90% | Editor/Play, WASD/마우스/ESC/focus와 단발 키 입력 완료 |
-| 조명/Material | 약 72% | Directional/Ambient, 최대 8 Point Light, 거리 감쇠, Emissive CPU→GPU→HLSL 경로 완료 |
-| 실제 골목/상호작용 | 약 80% | PowerSwitch와 Ray 기반 거리/E 입력, 스위치 피드백, 순차 점등 완료 |
-| 고급 렌더링/연출 | 약 15% | Entry 기반 순차 점등 완료. Shadow/Wet/HDR/Bloom/Fog/Rain은 없음 |
+| Scene/ImGui 편집 | 약 70% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유, Post Process(Exposure/Tone Mapper) 패널 완료 |
+| 1인칭 입력/카메라 | 약 90% | Editor/Play, WASD/마우스/ESC/focus와 단발 키 입력, 플레이어-벽 충돌 완료 |
+| 조명/Material | 약 78% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환) 완료. Specular는 없음 |
+| 실제 골목/상호작용 | 약 80% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백과 상호작용 가능 시 Rim 강조, 순차 점등 완료 |
+| 고급 렌더링/연출 | 약 30% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마 완료. Bloom/Shadow/Wet/Fog/Rain은 없음 |
 
 ---
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `2835951` — RimLight 기능 추가
-- 현재 작업 트리: 브랜치 `WORK_CLAUDE`, `git status` 기준 clean. commit/push는 사용자가 요청할 때만 한다.
+- 문서 갱신 기준 HEAD: `10fa116` — 상호작용 가능할 때만 전원 스위치 Rim 강조
+- 현재 작업 트리: 브랜치 `HDR_SCENE_TARGET`, `git status` 기준 clean. commit/push는 사용자가 요청할 때만 한다.
 - `MyPF/imgui.ini`와 `MyPF/ImGui/imgui.ini`는 `.gitignore`에 등록하고 `git rm --cached`로 인덱스에서 제거했다(로컬 파일은 유지) — 이제부터는 변경돼도 `git status`에 아예 안 잡힌다(2026-09-14).
+- 저장소 루트 `.editorconfig`가 VS 저장 시 `.cpp`/`.h`는 UTF-8 with BOM, `.hlsl`/`.hlsli`는 BOM 없는 UTF-8을 강제한다(2026-09-15).
 
 최근 기능 commit:
 
 ```text
-2835951 RimLight 기능 추가
-f329bc1 Update CODEX_HANDOFF.md
-9eb727d imgui.ini 추적안하기
-74e0c46 BoxCollisionComponent + PlayerCollision 충돌 시스템 구현
-be2cdf5 Update CODEX_HANDOFF.md
-82aae2a 네온 텍스처 및 위치 수정
+10fa116 상호작용 가능할 때만 전원 스위치 Rim 강조
+86f17a4 Step 3-d. ACES 톤 매핑 + Tone Mapper 전환
+e17b870 Step 4. 선형 색공간(감마) 정리
+d5d36d7 Step 3. 톤 매핑 + Exposure
+0e75485 Step 2. 씬을 HDR 타깃에 그리고 백버퍼로 옮기기
+74aebd8 Step 1. 렌더 타깃 텍스처를 만드는 기능
+9d195bd 텍스처 교체
 ```
 
 ---
@@ -97,22 +99,34 @@ be2cdf5 Update CODEX_HANDOFF.md
 - Pixel Shader가 조명 결과와 별도로 Emissive를 최종 색에 더함
 - Rim Lighting: `Material`에 `rimColor`/`rimIntensity`(기본 0)/`rimPower` 추가, Pixel Shader가 처음으로 카메라 월드 위치를 받아(`CameraConstantData`→`register(b2)`) `pow(1-saturate(dot(normal,viewDir)), rimPower)` 기반 가장자리 발광을 `finalColor`에 가산. ImGui Material Inspector에 Rim 슬라이더 3종 추가. 설계 배경은 §4 "Rim Lighting과 카메라 위치 전달" 참고
 
+### HDR 렌더링과 선형 색공간
+
+- `GraphicsResourceManager::CreateRenderTarget`/`GetRTV`/`ResizeRenderTarget`: 크기·포맷으로 Texture2D + RTV + SRV를 만들고, 창 크기가 바뀌면 **같은 슬롯에서** 다시 만든다(핸들 index 유지). 실제 D3D 호출은 `D3D11Utils::CreateRenderTargetTexture`
+- `Renderer`가 `R16G16B16A16_FLOAT` HDR 씬 타깃(`m_hdrSceneTargetHandle`)을 소유하고 포맷·크기를 결정한다. `WM_SIZE`에서 `GraphicsDevice::Resize` 다음에 `Renderer::Resize`가 호출된다
+- `BeginFrame`은 백버퍼 대신 HDR 씬 타깃을 Clear·바인딩하고, 씬 셰이더(`simplePixelShader.hlsl`)는 최종 `saturate` 없이 1을 넘는 값을 그대로 기록한다
+- `Renderer::EndScene`: 백버퍼를 깊이 버퍼 없이 출력으로 바인딩 → 전체 화면 삼각형(`fullscreenVertexShader.hlsl`, `SV_VertexID`, 정점 버퍼·Input Layout 없음) + `toneMappingPixelShader.hlsl`이 HDR 텍스처(`t0`)를 톤 매핑 → `t0` 해제. `AppBase::Render`가 씬 순회와 ImGui 사이에서 호출한다
+- `copyPixelShader.hlsl`(단순 복사)은 생성·보관만 하고 현재 쓰지 않는다 — Bloom 디버그 뷰에서 재사용 예정
+- Exposure와 Tone Mapper(Reinhard / ACES 근사 곡선): `PostProcessSettings`(AppBase 소유) → `FrameRenderData` → `BeginFrame`이 16바이트 `PostProcessConstantData` 업로드 → `EndScene`이 PS `b0`에 바인딩. EditorUI "Post Process" 패널에 Tone Mapper 콤보박스(기본 ACES)와 로그 스케일 Exposure 슬라이더(0.1~10)
+- 선형 색공간: 파일 텍스처를 `R8G8B8A8_UNORM_SRGB`로 생성해 GPU가 자동 디코드, Material/Light/배경 색 상수는 `Renderer::SrgbToLinear`(2.2제곱)로 업로드 시 변환, 톤 매핑 셰이더 마지막에서 `1/2.2`제곱으로 출력 인코드
+- 전원을 켰을 때 Emissive 3/5/8 네온의 밝기 차이가 화면에서 구분되고, 창 크기를 바꿔도 화면이 유지되는 것을 확인
+
 ### Greybox 골목과 상호작용
 
 - `GeometryGenerator::MakeCube()` 정점 범위를 -0.5 ~ +0.5로 바꿔 기본 크기 1m 통일
 - 폭 4m, 높이 4m, 길이 20m Greybox 골목
-- 바닥과 좌우/끝 벽이 공용 Cube Mesh와 Greybox Material 공유
+- 바닥과 좌우/끝 벽이 공용 Cube Mesh를 공유한다. Material은 `wallMat`(좌/우/끝벽)과 `floorMat`(바닥)으로 나뉘고, 텍스처는 `Assets/Textures/CyberpunkAlley/`의 벽·젖은 아스팔트 바닥·네온 디퓨저·스위치 패널 PNG 4장이다(2026-09-15 교체)
 - 끝 벽의 전원 스위치 GameObject와 독립 Material
 - 상호작용 거리 2.0m 이내의 Ray-BoundingBox 교차 판정(`PowerSwitch::CanInteract`, `DirectX::SimpleMath::Ray`/`BoundingBox::Intersects` 사용)
 - `WasKeyPressed('E')`로 단발 상호작용 입력 처리
 - `PowerSwitch`가 Scene 소유 GameObject를 비소유 참조하는 컴포지션 구조
 - 전원 On/Off 토글과 스위치 Material의 빨강/초록 시각 변화
+- Play에서 `CanInteract`가 참일 때만 스위치 Material의 Rim Intensity를 2.5로 켜서 상호작용 가능 여부를 강조한다(아니면 Intensity만 0)
 - `PointLightSequence`가 1.4초 간격으로 등록된 Entry 순서대로 켜고 역순으로 끔
 - 점등 중 E키 재입력 시 현재 개수에서 목표 방향 전환
 - `SequenceEntry`가 Point Light GameObject와 비소유 Emissive Material 포인터를 묶음
 - 독립 Material과 다른 Emissive 색을 가진 네온 세 개(Pink/Cyan/Orange)의 순차 On/Off 실행 확인
 - `NeonSignFactory::Create`가 네온 1개(Material + 발광 GameObject + Point Light GameObject + 시퀀스 등록)를 `NeonSignDesc` 하나로 생성하는 절차를 통합해, `InitGreyBoxScene`의 반복 코드를 제거함(Pink/Cyan/Orange 3개 모두 적용 완료, 오브젝트/Material 이름도 `"PinkNeon_Light"`/`"PinkNeon_Glow"`처럼 의미 있는 이름으로 정리됨)
-- 네온 전용 민무늬 텍스처(`neonFlat.jpg`, 64x64 흰색)를 추가해 네온 Material의 Albedo를 `wall.jpg`(벽돌 사진 텍스처)에서 분리함 — `surfaceColor = albedo * baseColor` 계산에서 벽돌 무늬가 섞여 Emissive로 포화되지 않는 채널(G/B)에 얼룩으로 비치던 문제를 해결
+- 네온 전용 민무늬 텍스처(`neonFlat.jpg`, 64x64 흰색 — 2026-09-15에 `neon_diffuser_albedo_v1.png`로 교체됨)를 추가해 네온 Material의 Albedo를 `wall.jpg`(벽돌 사진 텍스처)에서 분리함 — `surfaceColor = albedo * baseColor` 계산에서 벽돌 무늬가 섞여 Emissive로 포화되지 않는 채널(G/B)에 얼룩으로 비치던 문제를 해결
 - `NeonSignFactory`가 `BaseColor = desc.color * 0.12f`로 꺼진 상태의 유리관 색조를 자동 계산, Cyan의 Emissive Color를 `(0.37,0.86,1.0)`→`(0.0,0.86,1.0)`로 조정해 파스텔톤 대신 채도 높은 시안으로 변경, 세 네온의 위치/크기를 좌·우·끝벽 실제 배치 감각에 맞게 재조정(Orange는 끝벽에 평평하게 붙도록 방향 자체를 수정)
 
 ### Greybox 배치 수치
@@ -147,6 +161,13 @@ be2cdf5 Update CODEX_HANDOFF.md
 
 `AppBase`에는 E 단발 입력 확인, Camera 위치/전방 전달, 활성화 요청만 남긴다. 범용 ECS나 Component Registry는 아직 만들지 않는다.
 
+**상속/컴포넌트 재검토 (2026-09-15)**: "PowerSwitch도 GameObject의 한 종류이니 상속이나 컴포넌트 구조가 낫지 않나"를 다시 논의했다.
+
+- 상속은 위 이유에 더해 "상호작용 + 조명 + 충돌" 같은 조합마다 클래스가 늘어나는 문제가 있어 채택하지 않는다. Unreal도 오브젝트 종류는 Actor 상속으로, 여러 종류가 공유하는 기능은 Component로 나눈다.
+- 컴포넌트가 장기적으로 맞지만, 데모 시나리오의 상호작용 오브젝트가 스위치 하나뿐이고 "상호작용 결과(행동)"를 연결하는 설계(콜백 등)가 추가로 필요해 지금은 만들지 않는다.
+- **전환 조건**: 두 번째 상호작용 오브젝트(문·단말기 등)가 필요해지면 `InteractableComponent`(범위·강조 값) + 가장 가까운 대상을 고르는 상호작용 처리 + 결과 콜백 구조로 옮긴다.
+- 어느 구조든 "오브젝트의 모습은 오브젝트 쪽이 정하고, AppBase는 상호작용 가능 여부만 전달한다"는 경계는 같다. 그래서 현재 AppBase에 있는 Rim 강조는 먼저 `PowerSwitch::SetHighlighted`로 옮긴다(§6).
+
 ### NeonSignFactory
 
 `InitGreyBoxScene`에 네온 1개당 생성 절차(Material 생성 → 발광 GameObject 배치 → Point Light GameObject 생성 → `AddSequenceEntry` 등록)가 Pink/Cyan/Orange 3번 그대로 반복되던 것을 제거하기 위해 도입했다.
@@ -157,7 +178,7 @@ be2cdf5 Update CODEX_HANDOFF.md
 - `PointLightComponent`에 별도 역할(enum) 태그를 추가하지 않았다 — `PointLightSequence`에 등록됐는지 여부가 이미 "네온 연동 vs 환경 조명" 분류 그 자체이기 때문에, 지금 쓰지 않을 태그를 미리 만들지 않았다.
 - Pink/Cyan/Orange 3개 네온 모두 이 팩토리로 교체 완료. `neonMat1`/`neonTestObject0`처럼 남아 있던 테스트용 이름은 `desc.name` 기반 이름(`"PinkNeon_Mat"`, `"PinkNeon_Light"`, `"PinkNeon_Glow"` 등)으로 자동 정리됐다.
 - `Create` 내부에서 `BaseColor`를 `desc.color * 0.12f`로 계산해, 꺼진 상태에서도 각 네온 고유의 어두운 색조가 비치게 했다(모두 동일한 회색이던 것을 개선).
-- Albedo에 `wall.jpg`(벽돌 텍스처) 대신 전용 `neonFlat.jpg`(흰색 민무늬)를 쓴다 — 네온은 발광이 핵심이라 벽 재질과 텍스처를 공유하면 안 된다는 게 이번에 확인된 설계 원칙이다.
+- Albedo에 `wall.jpg`(벽돌 텍스처) 대신 전용 `neonFlat.jpg`(흰색 민무늬, 2026-09-15부터 `neon_diffuser_albedo_v1.png`)를 쓴다 — 네온은 발광이 핵심이라 벽 재질과 텍스처를 공유하면 안 된다는 게 이번에 확인된 설계 원칙이다.
 
 ### BoxCollisionComponent와 PlayerCollision
 
@@ -189,6 +210,25 @@ be2cdf5 Update CODEX_HANDOFF.md
 - **Pixel Shader가 처음으로 카메라 월드 위치를 받도록 Constant Buffer 경로를 새로 텄다.** 기존에는 `view`/`projection`을 Vertex Shader만 알았다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 픽셀별 월드 위치 기준으로 Pixel Shader에서 계산해야 해서, `CameraConstantData`에 `cameraPosition`(+정렬용 `pad`, 총 144바이트)을 추가하고 같은 버퍼를 `simplePixelShader.hlsl`의 `register(b2)`에도 바인딩했다.
 - `Renderer::DrawRenderItem`의 Pixel Shader Constant Buffer 바인딩(`PSSetConstantBuffers(1, 2, { materialConstantBuffer, cameraConstantBuffer })`)은 기존 Vertex Shader 바인딩(`VSSetConstantBuffers(0, 2, ...)`)과 동일한 형태를 그대로 따라, 셰이더 슬롯 규칙(PS의 b0=Light, b1=Material, b2=Camera)을 일관되게 유지했다.
 
+### HDR 씬 타깃, 후처리 패스와 선형 색공간
+
+로드맵 11번(HDR + Tone Mapping + Bloom)의 Step 1~4와 3-d에서 내린 결정이다.
+
+- **렌더 타깃은 `GraphicsResourceManager`가 소유하고, 리사이즈는 같은 슬롯에서 재생성한다.** 창 크기가 바뀔 때마다 `push_back`하면 append-only 구조에서 텍스처가 계속 쌓인다. 슬롯은 계속 "같은 렌더 타깃"을 뜻하므로 generation이 필요 없다. 새 객체를 비어 있는 임시 `ComPtr`에 만든 뒤 성공하면 교체해서, 실패해도 기존 타깃이 남고 `GetAddressOf` 누수도 피한다. 대신 재생성 전에 받은 raw RTV/SRV 포인터는 무효가 되므로 바인딩 직전에 매번 핸들로 조회한다.
+- **포맷·크기 결정과 리사이즈 전파는 `Renderer`가 한다.** AppBase는 `Renderer::Resize`로 창 크기 변경만 알린다. 어떤 타깃이 몇 개이고 각각 어떤 크기인지(Bloom의 절반 크기 등)는 Renderer만 안다.
+- **공개 함수는 약속으로, 셰이더는 하는 일로 이름 짓는다.** `EndScene`은 "씬 그리기가 끝나면 백버퍼에 최종 이미지가 있고 UI를 그릴 준비가 된다"는 약속이라 톤 매핑·Bloom이 추가돼도 AppBase가 바뀌지 않는다. 반대로 `copyPixelShader`는 복사만 하므로 톤 매핑은 새 셰이더로 만들었다.
+- **전체 화면 삼각형**: 화면(-1~1)보다 큰 삼각형 하나를 `SV_VertexID`와 셰이더 안의 상수 배열로 만든다. 정점 버퍼·Input Layout이 필요 없고 모든 후처리 패스가 같은 VS를 쓴다. 클립 공간 y는 위로, UV v는 아래로 커지므로 v 부호를 뒤집는다.
+- **바인딩 순서: 출력 교체 → 입력 바인딩 → Draw → 입력 해제.** 같은 텍스처를 RTV와 SRV로 동시에 걸 수 없기 때문이다. D3D11은 상태 기계라 각 패스는 자기가 쓰는 샘플러·Input Layout·상수 버퍼 슬롯을 직접 설정한다. 후처리가 PS `b0`를 쓰므로 `BeginFrame`이 매 프레임 Light 버퍼를 `b0`에 다시 거는 줄이 필수다.
+- **백버퍼는 Clear하지 않는다.** 전체 화면 삼각형이 깊이 테스트·블렌딩 없이 백버퍼 전체를 매 프레임 덮어쓰기 때문이다. Clear 책임은 빈 공간이 생기는 HDR 씬 타깃으로 옮겼다.
+- **`PostProcessSettings` 구조체와 별도 `PostProcessConstantData`**: Bloom Threshold/Strength/디버그 뷰가 곧 추가될 예정이라 `float` 하나가 아니라 값 묶음으로 만들었다(`DirectionalLight`와 같은 경로). CPU 의미 데이터와 GPU 16바이트 정렬 데이터는 분리한다. 프레임 데이터의 입구는 `FrameRenderData`뿐이므로 `BeginFrame`이 업로드하고 `EndScene`은 바인딩만 한다. `ToneMapper` enum의 명시적 숫자(0/1)는 셰이더 분기와의 약속이다.
+- **선형 색공간** — 조명·Exposure·톤 매핑은 "값 = 빛의 양"을 전제로 한다.
+  - 텍스처 디코드는 셰이더 `pow`가 아니라 `_SRGB` 포맷으로 한다. 필터링 전에 디코드돼 정확하고 한 곳(`D3D11Utils::CreateTexture`)만 바뀐다. 지금 파일 텍스처는 모두 색상 텍스처라 일괄 적용했고, 노멀/러프니스 같은 데이터 텍스처가 생기면 sRGB 여부를 인자로 분리한다.
+  - 출력 인코드는 sRGB 백버퍼 RTV가 아니라 톤 매핑 셰이더 마지막에서 한다. 같은 백버퍼에 그리는 ImGui가 이중 인코드되지 않게 하기 위해서다.
+  - 색 상수는 사람이 고르는 sRGB 값으로 두고 Renderer 경계에서 선형으로 바꾼다(`Transform` 전치, `bool`→`uint32_t`와 같은 원칙). 색상 선택기와 화면이 일치하고 기존 튜닝 색이 유지된다. 세기·거리·Exposure 같은 배율은 변환하지 않는다. sRGB 기준 곱(`desc.color * 0.12f`)은 거듭제곱이 곱에 분배되므로 화면에서도 그대로 유지된다.
+  - 구현은 출력 인코드만 먼저 넣어 "뿌연 화면"(이중으로 밝아짐)을 의도적으로 만들고, RenderDoc으로 원인(`t0`가 `UNORM`)을 확인한 뒤 텍스처 포맷으로 고치는 순서로 진행했다.
+- **ACES는 선형 워크플로 이후, 룩 재튜닝은 Bloom 이후.** 감마 처리 전에는 톤 매핑 곡선 비교가 의미 없고, 튜닝 값은 곡선과 Bloom 번짐에 따라 달라지므로 한 번에 맞추기 위해서다. Reinhard는 결과가 1에 닿지 않아 하이라이트가 답답하고 중간톤이 어두워서, ACES 근사 곡선을 기본으로 하고 비교용 전환을 남겼다.
+- **스위치 Rim 강조는 Intensity만 켜고 끈다.** RimPower를 0으로 두면 정면 픽셀에서 `pow(0, 0)`이 NaN이 되고 곱셈으로도 사라지지 않는다.
+
 ---
 
 ## 5. 현재 알려진 문제와 보류 항목
@@ -198,15 +238,19 @@ be2cdf5 Update CODEX_HANDOFF.md
 - `AppBase`가 초기화, Greybox 구성, Play UI, Play 입력, RenderItem 조립, 기능 객체 조율까지 담당해 여전히 크다. Editor UI는 `EditorUI`로 분리했으며, 실제 변경 압력이 확인되는 책임부터 추가 분리한다.
 - `AppBase`의 멤버가 전부 `public`이고 전역 `g_appBase`로 접근 가능하다.
 - 씬 정의가 `InitGreyBoxScene()`에 하드코딩돼 있어 변경 시 재컴파일이 필요하다.
-- `GameObject`의 컴포넌트가 선택적이지 않다. `PointLightComponent`만 `Has` 플래그를 쓰고 나머지는 포인터 null 검사로 판단해 규칙이 일관되지 않다.
+- `GameObject`의 컴포넌트가 선택적이지 않다. `PointLightComponent`/`BoxCollisionComponent`만 `Has` 플래그를 쓰고 나머지는 포인터 null 검사로 판단해 규칙이 일관되지 않다.
+- 스위치 Rim 강조 로직이 `AppBase::Update`에 있고, 이를 위해 `PowerSwitch::GetGameObject()`로 내부 GameObject를 노출한다. 스위치를 바라본 채 ESC로 나가면 Editor에서 Rim이 켜진 채 남고, `obj`/`powerSwitchMat` null 검사가 없으며 `CanInteract`가 한 프레임에 여러 번 호출된다.
 
 ### 렌더링
 
 - `Renderer` Material 경로는 유효한 Albedo Texture를 전제로 하며 기본 Material/Texture 정책이 없다. 없으면 앱이 종료된다.
 - 드로우콜마다 InputLayout, Shader, Sampler를 다시 바인딩한다.
 - 컬링이 없다. `CullMode`가 `D3D11_CULL_NONE`이고 프러스텀 컬링도 없다.
-- Pixel Shader 최종 `saturate` 때문에 1을 넘는 Emissive가 LDR에서 잘린다. 현재 Intensity 3과 8은 구분되지 않는다.
-- Texture가 `R8G8B8A8_UNORM`(sRGB 아님)이고 MipMap과 UV Tiling 정책이 없다.
+- 파일 텍스처는 모두 `R8G8B8A8_UNORM_SRGB`로 만든다(색상 텍스처 전제). 데이터 텍스처(노멀/러프니스)용 선택 인자가 없고, MipMap과 UV Tiling 정책도 없다.
+- 톤 매핑이 채널별로 적용돼, ACES에서 한 채널이 먼저 1에 닿으면 색조가 이동한다(예: 주황 네온이 노란 쪽으로). 룩 재튜닝 대상이다.
+- 룩 재튜닝 전이다. 선형 공간에서 Ambient 0.4는 화면상 약 0.66으로 보이고 Point Light 감쇠도 넓게 퍼져 보인다. ImGui에서 바꾼 값은 저장되지 않으므로 최종값은 코드 초기값에 옮겨 적어야 한다.
+- 출력 인코드가 정확한 sRGB 곡선이 아니라 `1/2.2`제곱 근사다(가장 어두운 구간에서만 차이). `toneMappingPixelShader.hlsl`의 Reinhard 분기에서 `pow` 음수 경고(X3571)가 난다(실제 입력은 0 이상).
+- `copyPixelShader`는 생성만 하고 현재 쓰지 않는다(Bloom 디버그 뷰 예정). `Renderer::BeginFrame`에 옛 백버퍼 RTV 줄이 주석으로 남아 있고, `D3D11Utils`의 셰이더 생성 실패 로그에는 파일 이름과 줄바꿈이 없다.
 - Material에 Normal / Metallic / Roughness가 없다.
 - 스페큘러 항이 없다. 젖은 바닥 반사의 전제가 빠져 있다.
 - Vertex Color가 최종 Pixel Color에 사용되지 않는다.
@@ -215,7 +259,7 @@ be2cdf5 Update CODEX_HANDOFF.md
 
 ### 리소스와 데이터
 
-- `GraphicsResourceManager`는 append-only이며 개별 삭제, 슬롯 재사용, generation이 없다.
+- `GraphicsResourceManager`는 append-only이며 개별 삭제, 슬롯 재사용, generation이 없다. 렌더 타깃만 리사이즈 시 같은 슬롯에서 재생성된다.
 - `AssetManager`의 key/path 정규화가 없다.
 - `ModelLoader`는 aiNode Transform/Instance를 반영하지 않는다.
 - `GeometryGenerator`의 평행 배열은 데이터 불일치 위험이 있다.
@@ -236,24 +280,31 @@ be2cdf5 Update CODEX_HANDOFF.md
 - `MsgProc`에서 `InputSystem::ProcessMessage`가 ImGui 핸들러보다 먼저 호출된다.
 - 전면 Epic 명명 마이그레이션은 기능 우선 결정으로 보류했다.
 - 외부 캐릭터 에셋은 테스트용이며 공개 전 라이선스를 확인한다.
+- RenderDoc Launch로 실행하면 빌드가 되지 않으므로, C++ 수정 후 빌드를 잊으면 옛 exe가 캡처된다(2026-09-15에 실제로 겪음). 셰이더만 바꿨을 때는 앱 재실행으로 충분하다.
 
 ---
 
 ## 6. 바로 다음 작업
 
-**Rim Lighting 완료 ✅ — 다음은 HDR Scene Target + Bloom + Tone Mapping (로드맵 11번, Shadow Mapping보다 먼저).**
+**로드맵 11번 진행 중 — HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 선형 색공간 완료 ✅. 다음은 Bloom(Step 5~7).**
 
-`Material`에 Rim Color/Intensity/Power를 추가하고 Pixel Shader가 처음으로 카메라 월드 위치를 받도록 Constant Buffer 경로를 새로 터서 Rim 발광을 구현했다. PowerSwitch Material에 테스트 값을 적용해 화면 가장자리가 시야각에 따라 밝아지는 것을 빌드·실행으로 확인했다. 설계 배경과 이유는 §4 "Rim Lighting과 카메라 위치 전달" 참고.
+오늘 완료한 단계: Step 1 렌더 타깃 생성(`74aebd8`) → Step 2 HDR 타깃 2-pass(`0e75485`) → Step 3 톤 매핑 + Exposure(`d5d36d7`) → Step 4 선형 색공간(`e17b870`) → 3-d ACES + Tone Mapper 전환(`86f17a4`), 그리고 스위치 Rim 강조(`10fa116`). 설계 이유는 §4 "HDR 씬 타깃, 후처리 패스와 선형 색공간", 기록은 §8의 2026-09-15 항목 참고.
 
-**진행 순서 변경**: 그래픽스 강의(홍정모)에서 Rim, Cube Mapping, Environment Mapping, IBL+CMFT, Fresnel, Bloom을 배운 시점에 맞춰, 기존 로드맵의 9→10→11 순서 대신 **Rim(완료) → 11번(HDR+Bloom) → 10번(Normal/Roughness+Fresnel+Cube Mapping+IBL, 묶어서 진행) → 9번(Shadow Mapping)** 순으로 진행하기로 했다. 이유는 §8 "Rim Lighting 구현 완료" 설계 결정 참고. Shadow Mapping은 다른 항목에 의존하지 않아 뒤로 미뤄도 손해가 없다.
+진행 순서는 그래픽스 강의 연계로 정한 **11번(HDR+Bloom) → 10번(Normal/Roughness+Fresnel+Cube Mapping+IBL) → 9번(Shadow Mapping)**을 그대로 따른다.
 
-**다음 작업 — HDR Scene Target + Bloom + Tone Mapping (로드맵 11번)**
+**다음에 이어서 할 작업 (순서)**
 
-아직 설계 가이드를 시작하지 않았다(다음 세션에서 왜 필요한가/배경 개념부터 안내 예정). 핵심 동기: `simplePixelShader.hlsl`의 최종 `saturate`가 1을 넘는 색을 그대로 잘라버려서, 지금까지 넣은 Emissive Intensity(3/5/8)와 Rim Intensity 차이가 화면에서 전혀 구분되지 않는다 — HDR Scene Target(부동소수점 렌더 타깃) + Tone Mapping으로 이 클리핑 자체를 없애고, Bloom으로 밝은 픽셀(네온/Rim)이 주변으로 번지는 효과까지 더하는 것이 목표다.
+1. (권장, 가벼움) **스위치 Rim 강조를 `PowerSwitch`로 옮긴다.** 강조 상태와 강조 Rim 값을 `PowerSwitch` 멤버로 두고, `SetHighlighted(bool)`가 값이 바뀔 때만 `ApplyVisualState`를 호출한다(Intensity만 반영, Color/Power는 `Initialize`에서 한 번). `AppBase::Update`는 `CanInteract` 결과를 지역 변수 하나로 계산해 강조와 E키에 같이 쓰고, `ExitPlayMode`에서 `SetHighlighted(false)`를 호출한다. `GetGameObject()`는 제거한다.
+2. **Step 5 — 밝은 부분 추출 + 디버그 뷰**: 1/2 크기 렌더 타깃을 `CreateRenderTarget`으로 추가하고, 리사이즈는 `Renderer::Resize` 안에서만 처리한다. 임계값을 넘는 부분만 뽑는 PS를 만들고, 절반 크기 패스는 Viewport도 절반으로 바꾼다. `PostProcessSettings`에 Threshold와 디버그 뷰 선택(Final/Bright/Blur)을 추가하고, 디버그 뷰는 `copyPixelShader`로 해당 텍스처를 백버퍼에 복사한다. 확인: Bright 뷰에 네온·Rim만 남는다(RenderDoc으로 절반 크기 텍스처와 Pipeline State RS의 Viewport 확인).
+3. **Step 6 — 분리형 가우시안 블러**: 1/2 크기 타깃 두 개를 번갈아 쓰며 가로 → 세로 블러. 가장자리용 CLAMP 샘플러를 추가한다(현재 샘플러는 WRAP뿐). 화면 전체를 덮어쓰는 중간 타깃은 Clear가 필요 없다.
+4. **Step 7 — 합성**: 톤 매핑 전에 `HDR + Bloom × Strength`를 더한다. Strength가 0이면 Step 7 이전 화면과 같아야 한다.
+5. **룩 재튜닝** (Bloom 이후 한 번에): Exposure, Ambient, Point Light 세기·범위, 네온 Emissive 세기, ACES 색조 이동을 맞추고 최종값을 `InitGreyBoxScene`/`NeonSignDesc`/`DirectionalLight`/`PostProcessSettings` 초기값에 반영한다.
 
-**참고 — Shadow Mapping (로드맵 9번, 순서상 마지막으로 미룸)**: 이미 대화로 설계 가이드까지 나온 상태이니 재개 시 아래 순서로 이어가면 된다.
+그다음은 로드맵 10번(Specular → Fresnel → Cube Map/Skybox → 환경 매핑 → IBL(CMFT) → Normal/Roughness Map), 9번(Shadow Mapping) 순서다. 10번에서 바닥에 네온이 번지는 느낌은 대부분 Point Light Specular에서 나오고, 정적 Cube Map은 골목 안 네온을 반사하지 못한다는 한계를 알고 진행한다.
 
-1. `GraphicsResourceManager`에 GPU 전용 Depth+SRV 겸용 텍스처 생성 기능 추가(`DXGI_FORMAT_R32_TYPELESS`로 만들어 DSV는 `D32_FLOAT`, SRV는 `R32_FLOAT`) — 지금은 파일 로드 텍스처만 지원해서 이 기능이 없다.
+**참고 — Shadow Mapping (로드맵 9번)**: 설계 가이드가 이미 나와 있다. 오늘 만든 렌더 타깃 기반과 RenderDoc 확인 방식을 재사용한다.
+
+1. `GraphicsResourceManager`에 GPU 전용 Depth+SRV 겸용 텍스처 생성 기능 추가(`DXGI_FORMAT_R32_TYPELESS`로 만들어 DSV는 `D32_FLOAT`, SRV는 `R32_FLOAT`) — RTV+SRV 렌더 타깃 생성은 있지만 DSV 겸용 텍스처는 아직 없다.
 2. Directional Light 시점 View/Projection(Orthographic) 계산 — Point Light 그림자는 Cube Map이 필요해 훨씬 복잡하므로 이번엔 제외.
 3. Depth-only Shadow Pass 셰이더로 Shadow Map에 렌더(RenderDoc/Graphics Debugger로 캡처해서 확인 — 화면엔 안 보이는 단계).
 4. 메인 패스 Pixel Shader에서 Shadow Map 샘플링 + 그림자 판정(여기서 처음 화면에 그림자가 보임).
@@ -275,7 +326,7 @@ be2cdf5 Update CODEX_HANDOFF.md
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
 10. Normal/Roughness Material과 젖은 바닥 반사 (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행 — 11번 다음 순서)
-11. HDR Scene Target, Bloom과 Tone Mapping ← 다음 (그래픽스 강의 연계로 9·10번보다 먼저 진행. LDR saturate 클리핑을 없애 Rim/Emissive 밝기 차이를 실제로 보이게 하는 것이 목표)
+11. HDR Scene Target, Bloom과 Tone Mapping ← 진행 중 (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 완료 ✅ 2026-09-15, Bloom Step 5~7 남음)
 12. 안개, 비와 색조 보정
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류)
 14. 라이선스 정리와 1~2분 최종 연출
@@ -360,6 +411,31 @@ be2cdf5 Update CODEX_HANDOFF.md
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
 
+### 2026-09-15 — HDR 씬 타깃, 톤 매핑, 선형 색공간 (로드맵 11번 Step 1~4, 3-d) ✅
+
+- 완료한 작업:
+  - (`9d195bd`) 골목 텍스처를 `Assets/Textures/CyberpunkAlley/`의 PNG 4장으로 교체하고 `greyBoxMat`을 `wallMat`/`floorMat`으로 분리했다.
+  - Step 1 (`74aebd8`): `D3D11Utils::CreateRenderTargetTexture`, `GraphicsResourceManager::CreateRenderTarget`/`GetRTV`/`ResizeRenderTarget`, Renderer의 `R16G16B16A16_FLOAT` HDR 씬 타깃과 `Renderer::Resize`.
+  - Step 2 (`0e75485`): `D3D11Utils::CreateVertexShader`, `fullscreenVertexShader.hlsl`/`copyPixelShader.hlsl`, `Renderer::EndScene`, `BeginFrame`의 출력 대상을 HDR 타깃으로 교체.
+  - Step 3 (`d5d36d7`): 씬 셰이더 `saturate` 제거, `toneMappingPixelShader.hlsl`(Reinhard), `PostProcessSettings`/`PostProcessConstantData`와 Exposure 경로, `.editorconfig`. EditorUI의 Exposure 슬라이더 부분은 사용자 요청으로 에이전트가 작성했다.
+  - Step 4 (`e17b870`): 톤 매핑 셰이더 출력 감마 인코드, 파일 텍스처 `R8G8B8A8_UNORM_SRGB`, `Renderer::SrgbToLinear`로 Material/Light/배경 색 변환.
+  - 3-d (`86f17a4`): ACES 근사 곡선(사용자 작성)과 `ToneMapper` enum·상수 버퍼·셰이더 분기·Tone Mapper 콤보박스(사용자 요청으로 에이전트 작성).
+  - (`10fa116`) Play에서 상호작용 가능할 때만 스위치 Rim 강조(사용자 작성).
+  - 그래픽스 디버거 RenderDoc 사용법을 작업과 함께 익혔다: Launch 설정(Working Directory), F12 캡처, Event Browser/API Inspector/Pipeline State/Texture Viewer/Mesh Viewer, Range Auto-fit, Pixel/Vertex Debug, Highlight Drawcall, `renderdoccmd convert`로 캡처를 XML로 바꿔 리소스 포맷 검색.
+- 확인한 결과:
+  - 단계마다 코드 리뷰 후 사용자가 빌드·실행과 RenderDoc 캡처로 확인했고, 셰이더는 에이전트가 `fxc.exe`로 컴파일을 확인했다.
+  - 확인한 것: 로그로 HDR 타깃 크기와 리사이즈 후 index 유지, ①② 중간 단계의 의도된 검은 화면(`Draw(3)`의 `t0`가 아무도 그리지 않은 HDR 텍스처임을 추적), ③ 이후 원래와 같은 화면, 3-a에서 HDR 텍스처의 네온 픽셀이 1을 넘고 백버퍼에서는 1로 잘림, Reinhard 적용 후 네온 밝기 구분, PS `b0`의 exposure/toneMapper 값, 4-b에서 씬 `DrawIndexed`의 `t0`가 `_SRGB`, 4-c에서 `b1`/`b0` 색 값이 ImGui 값보다 작아짐.
+  - 리뷰·디버깅 중 잡은 버그: ① `BindFlags`에 `||`를 써서 값이 1(`VERTEX_BUFFER`)이 됨, ② `ResizeRenderTarget` 범위 검사 `>`(→ `>=`), ③ HDR 타깃 높이 자리에 너비를 넘겼는데 고정 문자열 로그가 이를 가림, ④ `OMSetRenderTargets` 개수 0으로 출력이 없어 ImGui까지 사라짐, ⑤ 수정 후 빌드하지 않고 RenderDoc에서 옛 exe를 실행, ⑥ `BeginFrame`의 Light 버퍼 `b0` 바인딩이 주석 처리돼 두 번째 프레임부터 조명이 사라질 상황, ⑦ 새 셰이더가 CP949로 저장됨(→ `.editorconfig`), ⑧ RenderDoc에서 ImGui 폰트/HDR 텍스처를 보고 `_SRGB`가 없다고 오인(`renderdoccmd convert`로 `_SRGB` 텍스처 4개 생성 확인), ⑨ `ACESFilm` 분모에서 `x` 누락(`2.43 * +0.59`), ⑩ 강조를 끌 때 `RimPower`를 0으로 설정(`pow(0, 0)` NaN 위험).
+- 남아 있는 문제: §5 참고. Rim 강조 책임이 AppBase에 있음(`GetGameObject` 노출, ESC 후 강조 잔존), 룩 재튜닝 전(ACES 채널별 색조 이동 포함), 데이터 텍스처용 sRGB 선택 인자 없음, 출력 감마 `1/2.2` 근사와 Reinhard 분기 `pow` 경고, `copyPixelShader` 미사용, `BeginFrame`의 옛 RTV 주석. Bloom은 아직 없다.
+- 다음에 이어서 할 작업: §6 순서대로 Rim 강조를 `PowerSwitch`로 이동 → Bloom Step 5~7 → 룩 재튜닝.
+- 중요한 설계 결정과 이유: §4 "HDR 씬 타깃, 후처리 패스와 선형 색공간"과 "PowerSwitch 컴포지션"의 재검토 항목에 정리했다. 핵심 요약:
+  - 렌더 타깃은 같은 슬롯에서 재생성하고(핸들 유지, generation 불필요, raw pointer는 매번 조회), 포맷·크기와 리사이즈 전파는 Renderer가 맡는다.
+  - `EndScene`이라는 약속 이름으로 AppBase를 Bloom까지 고정하고, 패스마다 "출력 → 입력 → Draw → 해제"와 필요한 상태 전부를 직접 설정한다.
+  - 선형 색공간은 `_SRGB` 텍스처 포맷 + 톤 매핑 셰이더 출력 인코드 + Renderer 경계의 색 상수 변환으로 구성했다(ImGui 이중 인코드 회피, 선택기와 화면 일치).
+  - ACES는 선형 워크플로 이후, 룩 재튜닝은 Bloom 이후에 한 번에 한다.
+  - PowerSwitch는 상속을 쓰지 않고 컴포지션을 유지하되, 두 번째 상호작용 오브젝트가 생기면 `InteractableComponent`로 전환한다.
+  - 인코딩 문제의 재발을 막기 위해 `.editorconfig`로 확장자별 인코딩을 강제했다.
+
 ### 2026-09-13 — NeonSignFactory 구현 완료 ✅
 
 - 완료한 작업: `NeonSign.h`/`.cpp`에 `NeonSignDesc`(입력 데이터)와 `NeonSignFactory::Create`(정적 팩토리 함수)를 구현했다. Step 1(뼈대) → Step 2(Pink 교체) → Step 3(Cyan/Orange 교체) 순서로 진행했고, 매 단계 코드 리뷰로 확인했다.
@@ -409,15 +485,18 @@ be2cdf5 Update CODEX_HANDOFF.md
 
 ## 9. 다른 PC에서 확인할 체크리스트
 
-- `git pull` 후 HEAD가 최소 `2835951`인지 확인한다.
-- Play에서 PowerSwitch를 여러 각도에서 바라보며 가장자리가 시야각에 따라 청록색으로 밝아지는지(Rim Lighting) 확인한다.
+- `git pull` 후 HEAD가 최소 `10fa116`인지 확인한다.
+- Play에서 상호작용 거리 안에서 스위치를 바라볼 때만 가장자리가 청록색으로 밝아지는지(Rim 강조) 확인한다.
+- Editor 패널 Post Process에서 Tone Mapper(Reinhard/ACES)와 Exposure를 바꾸면 화면이 즉시 바뀌고, 전원을 켰을 때 네온 세 개의 밝기가 서로 다르게 보이는지 확인한다.
+- 창 크기 변경·최대화·최소화 후 복원에도 화면이 정상인지 확인한다(HDR 씬 타깃 재생성).
+- 저장소 루트에 `.editorconfig`가 있는지 확인한다. RenderDoc을 쓴다면 Launch 설정의 Executable Path/Working Directory를 그 PC의 경로로 맞추고, C++ 수정 후에는 먼저 빌드한다.
 - `AGENTS.md`와 이 문서의 마지막 갱신일이 같은지 확인한다.
 - `git status`에서 사용자 변경과 로컬 `MyPF/imgui.ini` 변경을 구분한다.
 - `GeometryGenerator::MakeCube`가 1m 단위인지 확인한다.
 - Greybox 바닥/벽과 PowerSwitch Transform이 §3의 수치와 같은지 확인한다.
 - `InputSystem::WasKeyPressed`와 `EndFrame`이 연결됐는지 확인한다.
 - Play에서 스위치를 바라보며 상호작용 거리(Ray-BoundingBox 교차) 안에 있을 때 E로 전원과 스위치 색상이 On/Off 전환되는지 확인한다.
-- 등록된 네온 두 개와 연결 Point Light가 1.4초 간격으로 함께 켜지고 역순으로 꺼지는지 확인한다.
-- 미등록 Point Light는 현재 시퀀스에서 계속 꺼져 있는 것이 정상이다.
+- 등록된 네온 세 개(Pink/Cyan/Orange)와 연결 Point Light가 1.4초 간격으로 함께 켜지고 역순으로 꺼지는지 확인한다.
+- 시퀀스에 등록되지 않은 `EnvironmentFillLight`는 전원과 무관하게 항상 켜져 있는 것이 정상이다.
 - 대규모 Unreal식 명명 마이그레이션이나 범용 ECS를 시작하지 않는다.
 - 사용자가 요청하지 않으면 빌드, 실행, commit, push하지 않는다.
