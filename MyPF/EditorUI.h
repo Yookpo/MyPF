@@ -9,12 +9,14 @@ namespace My
 	class GameObject;
 	class Scene;
 	struct DirectionalLight;
+	struct PostProcessSettings;
 
 	class EditorUI
 	{
 	public:
 		void Initialize(Scene& scene, Camera& camera, FirstPersonCameraController& cameraController,
-			DirectionalLight& directionalLight, std::array<float, 4>& backgroundColor);
+			DirectionalLight& directionalLight, std::array<float, 4>& backgroundColor,
+			PostProcessSettings& postProcessSettings);
 
 		bool Draw(float screenHeight);
 
@@ -25,6 +27,7 @@ namespace My
 
 		void DrawEnvironmentPanel();
 		void DrawDirectionalLightPanel();
+		void DrawPostProcessPanel();
 		void DrawEditorCameraPanel();
 		void DrawSceneHierarchyPanel();
 		void DrawSelectedObjectInspector();
@@ -37,6 +40,7 @@ namespace My
 		Camera*						 m_camera{ nullptr };
 		FirstPersonCameraController* m_cameraController{ nullptr };
 		DirectionalLight*			 m_directionalLight{ nullptr };
+		PostProcessSettings*		 m_postProcessSettings{ nullptr };
 		std::array<float, 4>*		 m_backgroundColor{ nullptr };
 		GameObject*					 m_selectedObject{ nullptr };
 	};

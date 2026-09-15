@@ -102,7 +102,8 @@ namespace My
 		}
 
 		m_firstPersonCameraController.Initialize(m_camera, m_inputSystem);
-		m_editorUI.Initialize(m_scene, m_camera, m_firstPersonCameraController, m_directionalLight, m_backgroundColor);
+		m_editorUI.Initialize(m_scene, m_camera, m_firstPersonCameraController, m_directionalLight, m_backgroundColor,
+			m_postProcessSettings);
 		m_pointLightSequence.Initialize();
 
 		// Init GeryBox Scene
@@ -554,6 +555,7 @@ namespace My
 		frameRenderData.pointLightCount =
 			m_scene.GatherPointLights(frameRenderData.pointLights.data(), frameRenderData.pointLights.size());
 		frameRenderData.cameraPosition = m_camera.GetPosition();
+		frameRenderData.postProcess = m_postProcessSettings;
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{

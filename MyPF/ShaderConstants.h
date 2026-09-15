@@ -56,4 +56,11 @@ namespace My
 		float	rimPower;		   // 4
 		Vector3 pad2;			   // 12	-> 64
 	};
+
+	struct PostProcessConstantData
+	{
+		float	exposure; // 4
+		Vector3 pad;	  // 12 -> 16
+	};
+
 } // namespace My

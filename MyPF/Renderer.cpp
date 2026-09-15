@@ -79,6 +79,14 @@ namespace My
 			return false;
 		}
 
+		m_postProcessConstantData.exposure = 1.0f;
+		m_postProcessBufferHandle = m_resourceManager->CreateConstantBuffer(m_postProcessConstantData);
+
+		if (!m_postProcessBufferHandle.IsValid())
+		{
+			return false;
+		}
+
 		m_hdrSceneTargetHandle = m_resourceManager->CreateRenderTarget(
 			static_cast<uint32_t>(screenWidth), static_cast<uint32_t>(screenHeight), DXGI_FORMAT_R16G16B16A16_FLOAT);
 
@@ -118,6 +126,12 @@ namespace My
 		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\copyPixelShader.hlsl", m_copyPixelShader))
 		{
 			OutputDebugStringW(L"copyPixelShader Created Failed\n");
+			return false;
+		}
+
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\toneMappingPixelShader.hlsl", m_toneMappingPixelShader))
+		{
+			OutputDebugStringW(L"toneMappingPixelShader Created Failed\n");
 			return false;
 		}
 
@@ -235,6 +249,12 @@ namespace My
 			return false;
 		}
 
+		m_postProcessConstantData.exposure = frameRenderData.postProcess.exposure;
+		if (!m_resourceManager->UpdateBuffer(m_postProcessBufferHandle, m_postProcessConstantData))
+		{
+			return false;
+		}
+
 		ID3D11Buffer* lightconstantBuffer = m_resourceManager->GetBuffer(m_lightBufferHandle);
 		if (!lightconstantBuffer)
 		{
@@ -272,6 +292,12 @@ namespace My
 			return false;
 		}
 
+		if (!m_resourceManager->GetBuffer(m_postProcessBufferHandle))
+		{
+			OutputDebugStringW(L"PostProcessBuffer is NULL\n");
+			return false;
+		}
+
 		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
 		ID3D11RenderTargetView*	  backRTV = m_graphicsDevice->GetRTV();
 		ID3D11ShaderResourceView* hdrSRV = m_resourceManager->GetSRV(m_hdrSceneTargetHandle);
@@ -286,10 +312,12 @@ namespace My
 
 		// 쉐이더 설정
 		context->VSSetShader(m_fullscreenVertexShader.Get(), 0, 0);
-		context->PSSetShader(m_copyPixelShader.Get(), 0, 0);
+		context->PSSetShader(m_toneMappingPixelShader.Get(), 0, 0);
 
 		// 입력 바인딩
+		ID3D11Buffer* postProcessConstantBuffer = m_resourceManager->GetBuffer(m_postProcessBufferHandle);
 		context->PSSetShaderResources(0, 1, &hdrSRV);
+		context->PSSetConstantBuffers(0, 1, &postProcessConstantBuffer);
 		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
 		// 그리기
