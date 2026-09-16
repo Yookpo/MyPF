@@ -4,8 +4,9 @@ SamplerState linearSampler : register(s0);
 cbuffer PostProcessConstantData : register(b0)
 {
     float exposure;
+    float threshold;
     uint toneMapper;
-    float2 pad;
+    float pad;
 }
 
 struct Output

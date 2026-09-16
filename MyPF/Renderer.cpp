@@ -1,4 +1,5 @@
 ﻿#include <cmath>
+#include <algorithm>
 #include "Renderer.h"
 #include "Mesh.h"
 #include "Material.h"
@@ -96,10 +97,27 @@ namespace My
 			return false;
 		}
 
+		m_bloomWidth = static_cast<uint32_t>((std::max)(1, screenWidth / 2));
+		m_bloomHeight = static_cast<uint32_t>((std::max)(1, screenHeight / 2));
+
+		m_bloomBrightTargetHandle =
+			m_resourceManager->CreateRenderTarget(m_bloomWidth, m_bloomHeight, DXGI_FORMAT_R16G16B16A16_FLOAT);
+
+		if (!m_bloomBrightTargetHandle.IsValid())
+		{
+			return false;
+		}
+
 		// debug
 		std::wstring msg = L"HDR Scene Target created: " + std::to_wstring(screenWidth) + L" x "
 			+ std::to_wstring(screenHeight) + L", index " + std::to_wstring(m_hdrSceneTargetHandle.GetIndex()) + L"\n";
 		OutputDebugStringW(msg.c_str());
+
+		// debug
+		std::wstring msg1 = L"Bloom Bright Target created: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBrightTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg1.c_str());
 
 		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
 															   D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -136,6 +154,12 @@ namespace My
 			return false;
 		}
 
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\brightPassPixelShader.hlsl", m_brightPassPixelShader))
+		{
+			OutputDebugStringW(L"brightPassPixelShader Created Failed\n");
+			return false;
+		}
+
 		// Sampler 만들기
 		D3D11_SAMPLER_DESC sampDesc;
 		ZeroMemory(&sampDesc, sizeof(sampDesc));
@@ -161,7 +185,7 @@ namespace My
 			return true;
 		}
 
-		if (!m_resourceManager || !m_hdrSceneTargetHandle.IsValid())
+		if (!m_resourceManager || !m_hdrSceneTargetHandle.IsValid() || !m_bloomBrightTargetHandle.IsValid())
 		{
 			return true;
 		}
@@ -173,10 +197,24 @@ namespace My
 			return false;
 		}
 
+		m_bloomWidth = static_cast<uint32_t>((std::max)(1, screenWidth / 2));
+		m_bloomHeight = static_cast<uint32_t>((std::max)(1, screenHeight / 2));
+
+		if (!m_resourceManager->ResizeRenderTarget(m_bloomBrightTargetHandle, m_bloomWidth, m_bloomHeight))
+		{
+			OutputDebugStringW(L"Bloom Bright Target resize failed\n");
+			return false;
+		}
+
 		// debug
 		std::wstring msg = L"HDR Scene Target resized: " + std::to_wstring(screenWidth) + L" x "
 			+ std::to_wstring(screenHeight) + L", index " + std::to_wstring(m_hdrSceneTargetHandle.GetIndex()) + L"\n";
 		OutputDebugStringW(msg.c_str());
+
+		std::wstring msg1 = L"Bloom Bright Target resized: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBrightTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg1.c_str());
 
 		return true;
 	}
@@ -257,10 +295,14 @@ namespace My
 
 		m_postProcessConstantData.exposure = frameRenderData.postProcess.exposure;
 		m_postProcessConstantData.toneMapper = static_cast<std::uint32_t>(frameRenderData.postProcess.toneMapper);
+		m_postProcessConstantData.threshold = frameRenderData.postProcess.threshold;
+
 		if (!m_resourceManager->UpdateBuffer(m_postProcessBufferHandle, m_postProcessConstantData))
 		{
 			return false;
 		}
+
+		m_debugView = frameRenderData.postProcess.debugView;
 
 		ID3D11Buffer* lightconstantBuffer = m_resourceManager->GetBuffer(m_lightBufferHandle);
 		if (!lightconstantBuffer)
@@ -299,17 +341,71 @@ namespace My
 			return false;
 		}
 
+		if (!m_resourceManager->GetSRV(m_bloomBrightTargetHandle))
+		{
+			OutputDebugStringW(L"Bloom SRV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetRTV(m_bloomBrightTargetHandle))
+		{
+			OutputDebugStringW(L"Bloom RTV is NULL\n");
+			return false;
+		}
+
 		if (!m_resourceManager->GetBuffer(m_postProcessBufferHandle))
 		{
 			OutputDebugStringW(L"PostProcessBuffer is NULL\n");
 			return false;
 		}
 
+		ID3D11Buffer*			  postProcessConstantBuffer = m_resourceManager->GetBuffer(m_postProcessBufferHandle);
 		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
 		ID3D11RenderTargetView*	  backRTV = m_graphicsDevice->GetRTV();
+		ID3D11RenderTargetView*	  bloomRTV = m_resourceManager->GetRTV(m_bloomBrightTargetHandle);
+		ID3D11ShaderResourceView* bloomSRV = m_resourceManager->GetSRV(m_bloomBrightTargetHandle);
 		ID3D11ShaderResourceView* hdrSRV = m_resourceManager->GetSRV(m_hdrSceneTargetHandle);
 		ID3D11ShaderResourceView* nullSRV = nullptr;
 
+		// 추출 패스
+		context->OMSetRenderTargets(1, &bloomRTV, nullptr);
+
+		// 블룸전용 뷰포트
+		D3D11_VIEWPORT bloomViewPort{};
+		bloomViewPort.TopLeftX = bloomViewPort.TopLeftY = 0;
+		bloomViewPort.Width = static_cast<FLOAT>(m_bloomWidth);
+		bloomViewPort.Height = static_cast<FLOAT>(m_bloomHeight);
+		bloomViewPort.MinDepth = 0;
+		bloomViewPort.MaxDepth = 1;
+
+		context->RSSetViewports(1, &bloomViewPort);
+		context->PSSetShader(m_brightPassPixelShader.Get(), 0, 0);
+
+		context->IASetInputLayout(nullptr);
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		context->VSSetShader(m_fullscreenVertexShader.Get(), 0, 0);
+		context->PSSetShaderResources(0, 1, &hdrSRV);
+		context->PSSetConstantBuffers(0, 1, &postProcessConstantBuffer);
+		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
+		// 그리기
+		context->Draw(3, 0);
+
+		// 입력 해제
+		context->PSSetShaderResources(0, 1, &nullSRV);
+
+		// 뷰포트 복구
+		context->RSSetViewports(1, &m_screenViewport);
+
+		// 패스 시작 전 : 무엇을 쓸 지 선택.
+		ID3D11PixelShader*		  finalPS = m_toneMappingPixelShader.Get();
+		ID3D11ShaderResourceView* finalSRV = hdrSRV;
+		if (m_debugView == PostProcessDebugView::Bright)
+		{
+			finalPS = m_copyPixelShader.Get();
+			finalSRV = bloomSRV;
+		}
+
+		// 톤 매핑 패스
 		// HDR RTV를 출력에서 제거
 		context->OMSetRenderTargets(1, &backRTV, nullptr);
 
@@ -319,11 +415,10 @@ namespace My
 
 		// 쉐이더 설정
 		context->VSSetShader(m_fullscreenVertexShader.Get(), 0, 0);
-		context->PSSetShader(m_toneMappingPixelShader.Get(), 0, 0);
+		context->PSSetShader(finalPS, 0, 0);
 
 		// 입력 바인딩
-		ID3D11Buffer* postProcessConstantBuffer = m_resourceManager->GetBuffer(m_postProcessBufferHandle);
-		context->PSSetShaderResources(0, 1, &hdrSRV);
+		context->PSSetShaderResources(0, 1, &finalSRV);
 		context->PSSetConstantBuffers(0, 1, &postProcessConstantBuffer);
 		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 

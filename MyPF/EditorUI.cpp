@@ -140,6 +140,22 @@ namespace My
 		{
 			m_postProcessSettings->exposure = exposure;
 		}
+
+		ImGui::SeparatorText("Bloom");
+
+		float threshold = m_postProcessSettings->threshold;
+		if (ImGui::SliderFloat("Threshold", &threshold, 0.0f, 5.0f, "%.2f"))
+		{
+			m_postProcessSettings->threshold = threshold;
+		}
+
+		// Order must match the PostProcessDebugView enum values.
+		const char* const debugViewNames[] = { "Final", "Bright" };
+		int				  debugViewIndex = static_cast<int>(m_postProcessSettings->debugView);
+		if (ImGui::Combo("Debug View", &debugViewIndex, debugViewNames, IM_ARRAYSIZE(debugViewNames)))
+		{
+			m_postProcessSettings->debugView = static_cast<PostProcessDebugView>(debugViewIndex);
+		}
 	}
 
 	void EditorUI::DrawEditorCameraPanel()

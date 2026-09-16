@@ -46,6 +46,7 @@ namespace My
 		ComPtr<ID3D11PixelShader>  m_pixelShader;
 		ComPtr<ID3D11PixelShader>  m_copyPixelShader;
 		ComPtr<ID3D11PixelShader>  m_toneMappingPixelShader;
+		ComPtr<ID3D11PixelShader>  m_brightPassPixelShader;
 		ComPtr<ID3D11InputLayout>  m_inputLayout;
 
 		// sampler
@@ -67,8 +68,14 @@ namespace My
 
 		// TextureHandle
 		TextureHandle m_hdrSceneTargetHandle;
+		TextureHandle m_bloomBrightTargetHandle;
 
 		D3D11_VIEWPORT m_screenViewport;
+
+		uint32_t m_bloomWidth{ 0 };
+		uint32_t m_bloomHeight{ 0 };
+
+		PostProcessDebugView m_debugView{ PostProcessDebugView::Final };
 	};
 
 } // namespace My

@@ -60,8 +60,9 @@ namespace My
 	struct PostProcessConstantData
 	{
 		float		  exposure;	  // 4
+		float		  threshold;  // 4
 		std::uint32_t toneMapper; // 4
-		float		  pad[2];	  // 8 -> 16
+		float		  pad;		  // 4 -> 16
 	};
 
 } // namespace My

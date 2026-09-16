@@ -289,6 +289,9 @@
     <FxCompile Include="Shaders\toneMappingPixelShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\brightPassPixelShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ImGui\imgui.ini">
