@@ -14,6 +14,8 @@ namespace My
 	{
 		Final,
 		Bright,
+		BlurX,
+		Blur,
 	};
 
 	struct PostProcessSettings

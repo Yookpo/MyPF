@@ -150,7 +150,7 @@ namespace My
 		}
 
 		// Order must match the PostProcessDebugView enum values.
-		const char* const debugViewNames[] = { "Final", "Bright" };
+		const char* const debugViewNames[] = { "Final", "Bright", "Blur X", "Blur" };
 		int				  debugViewIndex = static_cast<int>(m_postProcessSettings->debugView);
 		if (ImGui::Combo("Debug View", &debugViewIndex, debugViewNames, IM_ARRAYSIZE(debugViewNames)))
 		{

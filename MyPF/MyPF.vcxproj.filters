@@ -292,12 +292,21 @@
     <FxCompile Include="Shaders\brightPassPixelShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Shaders\blurXPixelShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\blurYPixelShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="ImGui\imgui.ini">
       <Filter>ImGui</Filter>
     </None>
     <None Include="Shaders\Lighting.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\PostProcess.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

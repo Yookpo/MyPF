@@ -1,13 +1,8 @@
-Texture2D hdrTexture : register(t0);
-SamplerState linearSampler : register(s0);
+#include "PostProcess.hlsli"
 
-cbuffer PostProcessConstantData : register(b0)
-{
-    float exposure;
-    float threshold;
-    uint toneMapper;
-    float pad;
-}
+Texture2D hdrTexture : register(t0);
+
+SamplerState linearSampler : register(s0);
 
 struct Output
 {
@@ -42,6 +37,7 @@ float4 main(Output input) : SV_Target
     {
         color = ACESFilm(color);
     }
+    
     
     // 감마 인코드
     return float4(pow(color, 1 / 2.2), 1.0f);

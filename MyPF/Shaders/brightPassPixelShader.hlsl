@@ -1,13 +1,7 @@
+#include "PostProcess.hlsli"
+
 Texture2D hdrTexture : register(t0);
 SamplerState linearSampler : register(s0);
-
-cbuffer PostProcessConstantData : register(b0)
-{
-    float exposure;
-    float threshold;
-    uint toneMapper;
-    float pad;
-}
 
 struct Output
 {

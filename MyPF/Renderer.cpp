@@ -108,6 +108,22 @@ namespace My
 			return false;
 		}
 
+		m_bloomBlurXTargetHandle =
+			m_resourceManager->CreateRenderTarget(m_bloomWidth, m_bloomHeight, DXGI_FORMAT_R16G16B16A16_FLOAT);
+
+		if (!m_bloomBlurXTargetHandle.IsValid())
+		{
+			return false;
+		}
+
+		m_bloomBlurYTargetHandle =
+			m_resourceManager->CreateRenderTarget(m_bloomWidth, m_bloomHeight, DXGI_FORMAT_R16G16B16A16_FLOAT);
+
+		if (!m_bloomBlurYTargetHandle.IsValid())
+		{
+			return false;
+		}
+
 		// debug
 		std::wstring msg = L"HDR Scene Target created: " + std::to_wstring(screenWidth) + L" x "
 			+ std::to_wstring(screenHeight) + L", index " + std::to_wstring(m_hdrSceneTargetHandle.GetIndex()) + L"\n";
@@ -118,6 +134,17 @@ namespace My
 			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBrightTargetHandle.GetIndex())
 			+ L"\n";
 		OutputDebugStringW(msg1.c_str());
+
+		std::wstring msg2 = L"Bloom BlurX created: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBlurXTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg2.c_str());
+
+		// debug
+		std::wstring msg3 = L"Bloom BlurY created: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBlurYTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg3.c_str());
 
 		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
 															   D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -160,6 +187,18 @@ namespace My
 			return false;
 		}
 
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\blurXPixelShader.hlsl", m_blurXPixelShader))
+		{
+			OutputDebugStringW(L"blurXPixelShader Created Failed\n");
+			return false;
+		}
+
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\blurYPixelShader.hlsl", m_blurYPixelShader))
+		{
+			OutputDebugStringW(L"blurYPixelShader Created Failed\n");
+			return false;
+		}
+
 		// Sampler 만들기
 		D3D11_SAMPLER_DESC sampDesc;
 		ZeroMemory(&sampDesc, sizeof(sampDesc));
@@ -171,6 +210,14 @@ namespace My
 		sampDesc.MinLOD = 0;
 		sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
 		if (FAILED(Device->CreateSamplerState(&sampDesc, m_samplerState.GetAddressOf())))
+		{
+			return false;
+		}
+
+		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		if (FAILED(Device->CreateSamplerState(&sampDesc, m_clampSamplerState.GetAddressOf())))
 		{
 			return false;
 		}
@@ -215,6 +262,29 @@ namespace My
 			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBrightTargetHandle.GetIndex())
 			+ L"\n";
 		OutputDebugStringW(msg1.c_str());
+
+		if (!m_resourceManager->ResizeRenderTarget(m_bloomBlurXTargetHandle, m_bloomWidth, m_bloomHeight))
+		{
+			OutputDebugStringW(L"Bloom BlurX resize failed\n");
+			return false;
+		}
+
+		if (!m_resourceManager->ResizeRenderTarget(m_bloomBlurYTargetHandle, m_bloomWidth, m_bloomHeight))
+		{
+			OutputDebugStringW(L"Bloom BlurY resize failed\n");
+			return false;
+		}
+
+		// debug
+		std::wstring msg2 = L"Bloom BlurX resized: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBlurXTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg2.c_str());
+
+		std::wstring msg3 = L"Bloom BlurY Target resized: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBlurYTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg3.c_str());
 
 		return true;
 	}
@@ -296,6 +366,8 @@ namespace My
 		m_postProcessConstantData.exposure = frameRenderData.postProcess.exposure;
 		m_postProcessConstantData.toneMapper = static_cast<std::uint32_t>(frameRenderData.postProcess.toneMapper);
 		m_postProcessConstantData.threshold = frameRenderData.postProcess.threshold;
+		m_postProcessConstantData.dx = static_cast<float>(1.0f / m_bloomWidth);
+		m_postProcessConstantData.dy = static_cast<float>(1.0f / m_bloomHeight);
 
 		if (!m_resourceManager->UpdateBuffer(m_postProcessBufferHandle, m_postProcessConstantData))
 		{
@@ -313,6 +385,30 @@ namespace My
 		Context->PSSetConstantBuffers(0, 1, &lightconstantBuffer);
 
 		return true;
+	}
+
+	void Renderer::DrawFullScreenPass(ID3D11RenderTargetView* target, ID3D11PixelShader* pixelShader,
+		ID3D11ShaderResourceView* sourceSRV, ID3D11SamplerState* sampler)
+	{
+		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
+		ID3D11Buffer*			  postProcessConstantBuffer = m_resourceManager->GetBuffer(m_postProcessBufferHandle);
+		ID3D11ShaderResourceView* nullSRV = nullptr;
+
+		context->OMSetRenderTargets(1, &target, nullptr);
+		context->PSSetShader(pixelShader, 0, 0);
+		context->PSSetShaderResources(0, 1, &sourceSRV);
+		context->PSSetSamplers(0, 1, &sampler);
+
+		context->IASetInputLayout(nullptr);
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		context->VSSetShader(m_fullscreenVertexShader.Get(), 0, 0);
+		context->PSSetConstantBuffers(0, 1, &postProcessConstantBuffer);
+
+		// 그리기
+		context->Draw(3, 0);
+
+		// 입력 해제
+		context->PSSetShaderResources(0, 1, &nullSRV);
 	}
 
 	bool Renderer::EndScene()
@@ -353,22 +449,45 @@ namespace My
 			return false;
 		}
 
+		if (!m_resourceManager->GetRTV(m_bloomBlurXTargetHandle))
+		{
+			OutputDebugStringW(L"BloomBlurX RTV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetRTV(m_bloomBlurYTargetHandle))
+		{
+			OutputDebugStringW(L"BloomBlurY RTV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetSRV(m_bloomBlurXTargetHandle))
+		{
+			OutputDebugStringW(L"BloomBlurX SRV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetSRV(m_bloomBlurYTargetHandle))
+		{
+			OutputDebugStringW(L"BloomBlurY SRV is NULL\n");
+			return false;
+		}
+
 		if (!m_resourceManager->GetBuffer(m_postProcessBufferHandle))
 		{
 			OutputDebugStringW(L"PostProcessBuffer is NULL\n");
 			return false;
 		}
 
-		ID3D11Buffer*			  postProcessConstantBuffer = m_resourceManager->GetBuffer(m_postProcessBufferHandle);
 		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
 		ID3D11RenderTargetView*	  backRTV = m_graphicsDevice->GetRTV();
 		ID3D11RenderTargetView*	  bloomRTV = m_resourceManager->GetRTV(m_bloomBrightTargetHandle);
 		ID3D11ShaderResourceView* bloomSRV = m_resourceManager->GetSRV(m_bloomBrightTargetHandle);
+		ID3D11RenderTargetView*	  blurXRTV = m_resourceManager->GetRTV(m_bloomBlurXTargetHandle);
+		ID3D11ShaderResourceView* blurXSRV = m_resourceManager->GetSRV(m_bloomBlurXTargetHandle);
+		ID3D11RenderTargetView*	  blurYRTV = m_resourceManager->GetRTV(m_bloomBlurYTargetHandle);
+		ID3D11ShaderResourceView* blurYSRV = m_resourceManager->GetSRV(m_bloomBlurYTargetHandle);
 		ID3D11ShaderResourceView* hdrSRV = m_resourceManager->GetSRV(m_hdrSceneTargetHandle);
-		ID3D11ShaderResourceView* nullSRV = nullptr;
-
-		// 추출 패스
-		context->OMSetRenderTargets(1, &bloomRTV, nullptr);
 
 		// 블룸전용 뷰포트
 		D3D11_VIEWPORT bloomViewPort{};
@@ -379,54 +498,37 @@ namespace My
 		bloomViewPort.MaxDepth = 1;
 
 		context->RSSetViewports(1, &bloomViewPort);
-		context->PSSetShader(m_brightPassPixelShader.Get(), 0, 0);
 
-		context->IASetInputLayout(nullptr);
-		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		context->VSSetShader(m_fullscreenVertexShader.Get(), 0, 0);
-		context->PSSetShaderResources(0, 1, &hdrSRV);
-		context->PSSetConstantBuffers(0, 1, &postProcessConstantBuffer);
-		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
-		// 그리기
-		context->Draw(3, 0);
-
-		// 입력 해제
-		context->PSSetShaderResources(0, 1, &nullSRV);
+		DrawFullScreenPass(bloomRTV, m_brightPassPixelShader.Get(), hdrSRV, m_samplerState.Get());
+		DrawFullScreenPass(blurXRTV, m_blurXPixelShader.Get(), bloomSRV, m_clampSamplerState.Get());
+		DrawFullScreenPass(blurYRTV, m_blurYPixelShader.Get(), blurXSRV, m_clampSamplerState.Get());
 
 		// 뷰포트 복구
 		context->RSSetViewports(1, &m_screenViewport);
 
-		// 패스 시작 전 : 무엇을 쓸 지 선택.
+		// 패스 시작 전 : 무엇을 쓸 지 선택. 디버그 뷰는 가공 없이 복사한다.
 		ID3D11PixelShader*		  finalPS = m_toneMappingPixelShader.Get();
 		ID3D11ShaderResourceView* finalSRV = hdrSRV;
-		if (m_debugView == PostProcessDebugView::Bright)
+		switch (m_debugView)
 		{
-			finalPS = m_copyPixelShader.Get();
-			finalSRV = bloomSRV;
+			case PostProcessDebugView::Bright:
+				finalPS = m_copyPixelShader.Get();
+				finalSRV = bloomSRV;
+				break;
+			case PostProcessDebugView::BlurX:
+				finalPS = m_copyPixelShader.Get();
+				finalSRV = blurXSRV;
+				break;
+			case PostProcessDebugView::Blur:
+				finalPS = m_copyPixelShader.Get();
+				finalSRV = blurYSRV;
+				break;
+			default: // Final
+				break;
 		}
 
 		// 톤 매핑 패스
-		// HDR RTV를 출력에서 제거
-		context->OMSetRenderTargets(1, &backRTV, nullptr);
-
-		// 정점 데이터를 쓰지않음
-		context->IASetInputLayout(nullptr);
-		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		// 쉐이더 설정
-		context->VSSetShader(m_fullscreenVertexShader.Get(), 0, 0);
-		context->PSSetShader(finalPS, 0, 0);
-
-		// 입력 바인딩
-		context->PSSetShaderResources(0, 1, &finalSRV);
-		context->PSSetConstantBuffers(0, 1, &postProcessConstantBuffer);
-		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
-
-		// 그리기
-		context->Draw(3, 0);
-
-		// 입력 해제
-		context->PSSetShaderResources(0, 1, &nullSRV);
+		DrawFullScreenPass(backRTV, finalPS, finalSRV, m_samplerState.Get());
 
 		return true;
 	}
