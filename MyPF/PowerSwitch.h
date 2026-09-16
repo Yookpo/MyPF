@@ -14,9 +14,9 @@ namespace My
 		void Initialize(GameObject& gameObject);
 		bool IsPowerOn() const;
 		bool Toggle();
+		void SetHighlighted(bool);
+		bool IsHighlighted() const;
 		bool CanInteract(const Vector3& position, const Vector3& forward) const;
-
-		GameObject* GetGameObject() const { return m_gameObject; }
 
 	private:
 		void ApplyVisualState();
@@ -28,5 +28,6 @@ namespace My
 
 		float m_interactionRange;
 		bool  m_isPowerOn;
+		bool  m_isHighlighted;
 	};
 } // namespace My

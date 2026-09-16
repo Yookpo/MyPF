@@ -14,11 +14,21 @@ namespace My
 		, m_powerOnColor{ 0.15f, 0.8f, 0.25f }
 		, m_interactionRange{ 2.0f }
 		, m_isPowerOn{ false }
+		, m_isHighlighted{ false }
 	{
 	}
 	void PowerSwitch::Initialize(GameObject& gameObject)
 	{
+		if (!gameObject.GetMeshComponent().HasMaterial())
+		{
+			return;
+		}
+
 		m_gameObject = &gameObject;
+		Material* powerSwitchMat = m_gameObject->GetMeshComponent().GetMaterial();
+		powerSwitchMat->SetRimColor(Vector3(0.3f, 0.9f, 1.0f));
+		powerSwitchMat->SetRimPower(4.0f);
+
 		ApplyVisualState();
 	}
 
@@ -73,18 +83,44 @@ namespace My
 			return;
 		}
 
-		// 꺼져있다면 offColor 적용
 		auto powerSwitchMat = m_gameObject->GetMeshComponent().GetMaterial();
 
-		if (!m_isPowerOn)
+		// 켜져 있다면 OnColor 적용
+		if (m_isPowerOn)
+		{
+			powerSwitchMat->SetBaseColor(m_powerOnColor);
+		}
+		else
 		{
 			powerSwitchMat->SetBaseColor(m_powerOffColor);
-			return;
 		}
 
-		// 켜져 있다면 OnColor 적용
-		powerSwitchMat->SetBaseColor(m_powerOnColor);
+		// 상호작용거리가 된다면 Rim Intensity 적용
+		if (m_isHighlighted)
+		{
+			powerSwitchMat->SetRimIntensity(2.5f);
+		}
+		else
+		{
+			powerSwitchMat->SetRimIntensity(0.0f);
+		}
+
 		return;
+	}
+
+	void PowerSwitch::SetHighlighted(bool isHighlighted)
+	{
+		if (m_isHighlighted != isHighlighted)
+		{
+			m_isHighlighted = isHighlighted;
+			ApplyVisualState();
+		}
+		return;
+	}
+
+	bool PowerSwitch::IsHighlighted() const
+	{
+		return m_isHighlighted;
 	}
 
 } // namespace My

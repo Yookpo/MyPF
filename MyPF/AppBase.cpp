@@ -194,6 +194,7 @@ namespace My
 		m_inputSystem.Reset();
 		m_camera = m_editorCameraSnapshot;
 		m_appMode = AppMode::Editor;
+		m_powerSwitch.SetHighlighted(false);
 
 		return;
 	}
@@ -524,25 +525,14 @@ namespace My
 		Vector3 resolvedPos = PlayerCollision::Resolve(m_camera.GetPosition(), m_scene.GatherBoxColliders(), 0.3f);
 		m_camera.SetPosition(resolvedPos);
 
-		GameObject* obj = m_powerSwitch.GetGameObject();
-		Material*	powerSwitchMat = obj->GetMeshComponent().GetMaterial();
+		bool isInteract = m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward());
 
-		// 상호작용되면 림컬러 적용
-		if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
-		{
-			powerSwitchMat->SetRimColor(Vector3(0.3f, 0.9f, 1.0f));
-			powerSwitchMat->SetRimIntensity(2.5f);
-			powerSwitchMat->SetRimPower(4.0f);
-		}
-		else
-		{
-			powerSwitchMat->SetRimIntensity(0.0f);
-		}
+		m_powerSwitch.SetHighlighted(isInteract);
 
 		// E키를 눌러 조명을 키거나 끈다
 		if (m_inputSystem.WasKeyPressed('E'))
 		{
-			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
+			if (isInteract)
 			{
 				if (m_powerSwitch.Toggle())
 				{
@@ -684,7 +674,7 @@ namespace My
 
 			ImGui::Separator();
 			ImGui::Text("Power: %s", m_powerSwitch.IsPowerOn() ? "On" : "Off");
-			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
+			if (m_powerSwitch.IsHighlighted())
 			{
 				ImGui::TextUnformatted("[E] Interact");
 			}
