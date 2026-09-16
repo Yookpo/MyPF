@@ -1,6 +1,6 @@
 # MyPF 진행 기록 및 작업 인계
 
-마지막 갱신: 2026-09-15
+마지막 갱신: 2026-09-17
 
 노트북과 데스크톱에서 Git으로 공유하는 MyPF의 실제 구현 상태와 다음 작업을 기록한다.
 
@@ -17,38 +17,43 @@
 
 ## 1. 진행률
 
-현재 전체 진행률은 약 **70%**다.
+현재 전체 진행률은 약 **73%**다.
 
 | 영역 | 진행 | 현재 상태 |
 |---|---:|---|
-| Win32/DX11 기반 | 약 90% | 기본 렌더링, Resize와 제출 경계, HDR 씬 타깃 → 전체 화면 패스의 2-pass 구조 완료 |
+| Win32/DX11 기반 | 약 90% | 기본 렌더링, Resize와 제출 경계, HDR 씬 타깃 → 다중 후처리 패스 → 백버퍼 구조 완료 |
 | GPU Resource/Asset 구조 | 약 80% | Buffer/Texture Handle, Asset 캐시와 Model 업로드, 렌더 타깃 생성과 같은 슬롯 재생성 완료 |
 | Model 파이프라인 | 약 65% | FBX/OBJ/glTF BaseColor 로드 완료. aiNode/PBR은 남음 |
-| Scene/ImGui 편집 | 약 70% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유, Post Process(Exposure/Tone Mapper) 패널 완료 |
+| Scene/ImGui 편집 | 약 72% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유, Post Process 패널(Exposure/Tone Mapper/Bloom 3종/Debug View) 완료 |
 | 1인칭 입력/카메라 | 약 90% | Editor/Play, WASD/마우스/ESC/focus와 단발 키 입력, 플레이어-벽 충돌 완료 |
 | 조명/Material | 약 78% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환) 완료. Specular는 없음 |
-| 실제 골목/상호작용 | 약 80% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백과 상호작용 가능 시 Rim 강조, 순차 점등 완료 |
-| 고급 렌더링/연출 | 약 30% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마 완료. Bloom/Shadow/Wet/Fog/Rain은 없음 |
+| 실제 골목/상호작용 | 약 82% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백과 상호작용 가능 시 Rim 강조(PowerSwitch 소유), 순차 점등 완료 |
+| 고급 렌더링/연출 | 약 45% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성) 완료. 룩 재튜닝 미완. Shadow/Wet/Fog/Rain은 없음 |
 
 ---
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `10fa116` — 상호작용 가능할 때만 전원 스위치 Rim 강조
+- 문서 갱신 기준 HEAD: `89f8d64` — Bloom 블러 반복 횟수 조절
 - 현재 작업 트리: 브랜치 `HDR_SCENE_TARGET`, `git status` 기준 clean. commit/push는 사용자가 요청할 때만 한다.
+- 이 브랜치는 `origin/main`보다 13 commit 앞서 있다(push는 되어 있고 머지는 안 함). **룩 재튜닝까지 끝나 로드맵 11번이 닫히는 시점**을 `main` 머지 지점으로 잡았다.
 - `MyPF/imgui.ini`와 `MyPF/ImGui/imgui.ini`는 `.gitignore`에 등록하고 `git rm --cached`로 인덱스에서 제거했다(로컬 파일은 유지) — 이제부터는 변경돼도 `git status`에 아예 안 잡힌다(2026-09-14).
 - 저장소 루트 `.editorconfig`가 VS 저장 시 `.cpp`/`.h`는 UTF-8 with BOM, `.hlsl`/`.hlsli`는 BOM 없는 UTF-8을 강제한다(2026-09-15).
 
 최근 기능 commit:
 
 ```text
+89f8d64 Bloom 블러 반복 횟수 조절
+4df455b Step 7. Bloom 합성
+80b825f Step 6. 분리형 가우시안 블러
+5ddb2ab Step 5. Bloom 밝은 부분 추출 + 디버그 뷰
+765b68c 스위치 Rim 강조를 PowerSwitch로 이동
 10fa116 상호작용 가능할 때만 전원 스위치 Rim 강조
 86f17a4 Step 3-d. ACES 톤 매핑 + Tone Mapper 전환
 e17b870 Step 4. 선형 색공간(감마) 정리
 d5d36d7 Step 3. 톤 매핑 + Exposure
 0e75485 Step 2. 씬을 HDR 타깃에 그리고 백버퍼로 옮기기
 74aebd8 Step 1. 렌더 타깃 텍스처를 만드는 기능
-9d195bd 텍스처 교체
 ```
 
 ---
@@ -104,11 +109,22 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - `GraphicsResourceManager::CreateRenderTarget`/`GetRTV`/`ResizeRenderTarget`: 크기·포맷으로 Texture2D + RTV + SRV를 만들고, 창 크기가 바뀌면 **같은 슬롯에서** 다시 만든다(핸들 index 유지). 실제 D3D 호출은 `D3D11Utils::CreateRenderTargetTexture`
 - `Renderer`가 `R16G16B16A16_FLOAT` HDR 씬 타깃(`m_hdrSceneTargetHandle`)을 소유하고 포맷·크기를 결정한다. `WM_SIZE`에서 `GraphicsDevice::Resize` 다음에 `Renderer::Resize`가 호출된다
 - `BeginFrame`은 백버퍼 대신 HDR 씬 타깃을 Clear·바인딩하고, 씬 셰이더(`simplePixelShader.hlsl`)는 최종 `saturate` 없이 1을 넘는 값을 그대로 기록한다
-- `Renderer::EndScene`: 백버퍼를 깊이 버퍼 없이 출력으로 바인딩 → 전체 화면 삼각형(`fullscreenVertexShader.hlsl`, `SV_VertexID`, 정점 버퍼·Input Layout 없음) + `toneMappingPixelShader.hlsl`이 HDR 텍스처(`t0`)를 톤 매핑 → `t0` 해제. `AppBase::Render`가 씬 순회와 ImGui 사이에서 호출한다
-- `copyPixelShader.hlsl`(단순 복사)은 생성·보관만 하고 현재 쓰지 않는다 — Bloom 디버그 뷰에서 재사용 예정
-- Exposure와 Tone Mapper(Reinhard / ACES 근사 곡선): `PostProcessSettings`(AppBase 소유) → `FrameRenderData` → `BeginFrame`이 16바이트 `PostProcessConstantData` 업로드 → `EndScene`이 PS `b0`에 바인딩. EditorUI "Post Process" 패널에 Tone Mapper 콤보박스(기본 ACES)와 로그 스케일 Exposure 슬라이더(0.1~10)
+- `Renderer::EndScene`: 후처리 패스들을 순서대로 실행한다. 각 패스는 `Renderer::DrawFullScreenPass(타깃, PS, 입력 SRV, 샘플러, 두 번째 SRV = nullptr)` 한 번이고, 전체 화면 삼각형(`fullscreenVertexShader.hlsl`, `SV_VertexID`, 정점 버퍼·Input Layout 없음)을 `Draw(3, 0)`으로 그린다. `AppBase::Render`가 씬 순회와 ImGui 사이에서 호출한다
+- Exposure와 Tone Mapper(Reinhard / ACES 근사 곡선): `PostProcessSettings`(AppBase 소유) → `FrameRenderData` → `BeginFrame`이 32바이트 `PostProcessConstantData` 업로드 → 후처리 패스가 PS `b0`에 바인딩. EditorUI "Post Process" 패널에 Tone Mapper 콤보박스(기본 ACES)와 로그 스케일 Exposure 슬라이더(0.1~10)
 - 선형 색공간: 파일 텍스처를 `R8G8B8A8_UNORM_SRGB`로 생성해 GPU가 자동 디코드, Material/Light/배경 색 상수는 `Renderer::SrgbToLinear`(2.2제곱)로 업로드 시 변환, 톤 매핑 셰이더 마지막에서 `1/2.2`제곱으로 출력 인코드
 - 전원을 켰을 때 Emissive 3/5/8 네온의 밝기 차이가 화면에서 구분되고, 창 크기를 바꿔도 화면이 유지되는 것을 확인
+
+### Bloom
+
+- 타깃 세 개를 화면의 **절반 크기** `R16G16B16A16_FLOAT`로 추가했다(`m_bloomBrightTargetHandle` / `m_bloomBlurXTargetHandle` / `m_bloomBlurYTargetHandle`). HDR 타깃과 함께 `Renderer::Resize`에서 재생성하며, 절반 크기 계산은 `std::max(1, ...)`로 0을 막는다
+- `brightPassPixelShader.hlsl`: HDR 씬을 샘플링해 `exposure`를 곱한 뒤 가중 휘도 `dot(color, float3(0.2126, 0.7152, 0.0722))`가 `threshold` 미만이면 0, 넘으면 원본 색을 그대로 통과시킨다(하드 컷)
+- `blurXPixelShader.hlsl` / `blurYPixelShader.hlsl`: 5탭 가중치 `{ 0.0545, 0.2442, 0.4026, 0.2442, 0.0545 }`(σ=1 가우시안의 정규화 샘플, 합 1)로 가로·세로를 따로 블러한다. 샘플 간격은 상수 버퍼의 `dx`/`dy`(= 1 / 타깃 크기)
+- 블러는 `m_bloomBlurIterations`만큼 반복한다. 첫 회차만 Bright에서 읽고 이후에는 직전 BlurY 결과에서 읽어 누적시킨다(BlurX/BlurY 타깃이 핑퐁, 결과는 항상 BlurY)
+- 가장자리 처리를 위한 CLAMP 샘플러(`m_clampSamplerState`)를 추가했다. 블러 패스에서만 쓰고 다른 패스는 기존 WRAP 샘플러를 다시 건다
+- 합성은 별도 패스 없이 `toneMappingPixelShader.hlsl`이 `t1`로 Blur 텍스처를 받아 `hdr * exposure + bloom * bloomStrength` → 톤 매핑 → `1/2.2` 감마 순서로 처리한다
+- 디버그 뷰(`PostProcessDebugView`: Final / Bright / BlurX / Blur)는 GPU로 보내지 않는 CPU 전용 값이다. `EndScene`이 마지막 패스의 PS와 `t0`만 골라 바꾸고, 디버그 뷰에서는 `copyPixelShader.hlsl`이 가공 없이 복사한다
+- EditorUI "Post Process" 패널의 Bloom 그룹: Threshold(0~5), Strength(0~2), Blur Iterations(1~10), Debug View
+- 확인: Bright 뷰에 네온과 스위치 Rim만 남고, Blur X 뷰는 가로로만 늘어나며, Blur 뷰는 사방으로 번진다. Strength 0이면 합성 전 화면과 같고, 반복을 1→4로 올리면 번짐 폭이 약 2배가 된다
 
 ### Greybox 골목과 상호작용
 
@@ -120,7 +136,7 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - `WasKeyPressed('E')`로 단발 상호작용 입력 처리
 - `PowerSwitch`가 Scene 소유 GameObject를 비소유 참조하는 컴포지션 구조
 - 전원 On/Off 토글과 스위치 Material의 빨강/초록 시각 변화
-- Play에서 `CanInteract`가 참일 때만 스위치 Material의 Rim Intensity를 2.5로 켜서 상호작용 가능 여부를 강조한다(아니면 Intensity만 0)
+- 상호작용 가능 여부 강조를 `PowerSwitch`가 소유한다. `SetHighlighted(bool)`가 값이 바뀔 때만 `ApplyVisualState`를 호출하고, 거기서 전원 상태(BaseColor)와 강조 상태(Rim Intensity 2.5 / 0)를 함께 반영한다. Rim 색(0.3, 0.9, 1.0)과 Power(4)는 `Initialize`에서 한 번만 설정한다. `AppBase::Update`는 `CanInteract`를 프레임당 한 번 계산해 강조와 E키에 함께 쓰고, Play HUD는 `IsHighlighted()`로 같은 판정을 읽는다. `ExitPlayMode`가 강조를 끄고, `GetGameObject()`는 제거했다
 - `PointLightSequence`가 1.4초 간격으로 등록된 Entry 순서대로 켜고 역순으로 끔
 - 점등 중 E키 재입력 시 현재 개수에서 목표 방향 전환
 - `SequenceEntry`가 Point Light GameObject와 비소유 Emissive Material 포인터를 묶음
@@ -229,6 +245,22 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - **ACES는 선형 워크플로 이후, 룩 재튜닝은 Bloom 이후.** 감마 처리 전에는 톤 매핑 곡선 비교가 의미 없고, 튜닝 값은 곡선과 Bloom 번짐에 따라 달라지므로 한 번에 맞추기 위해서다. Reinhard는 결과가 1에 닿지 않아 하이라이트가 답답하고 중간톤이 어두워서, ACES 근사 곡선을 기본으로 하고 비교용 전환을 남겼다.
 - **스위치 Rim 강조는 Intensity만 켜고 끈다.** RimPower를 0으로 두면 정면 픽셀에서 `pow(0, 0)`이 NaN이 되고 곱셈으로도 사라지지 않는다.
 
+### Bloom 파이프라인
+
+로드맵 11번 Step 5~7과 반복 기능에서 내린 결정이다. 강의(`Hong_Graphics2/.../08_ShaderToys_Step6_BloomEffect`)의 `ImageFilter` 구조를 참고하되, 우리 구조에 맞게 바꾼 부분이 많다.
+
+- **절반 해상도에서 처리한다.** 결과가 어차피 흐릿해서 품질 손해가 없고 픽셀 수가 1/4이 된다. 덤으로 절반 해상도의 1텍셀이 화면 2픽셀이라 같은 커널로 번짐 반경이 두 배가 된다.
+- **추출 타깃도 float 포맷을 쓴다.** UNORM으로 만들면 추출 단계에서 1을 넘는 값이 잘려 Emissive 3과 8의 번짐 세기가 같아진다(강의는 8비트 백버퍼를 읽는 LDR Bloom이라 임계값 범위가 0~1이다).
+- **분리형 블러**: 2D 가우시안이 x축·y축 함수의 곱으로 분해되므로 1D 두 번이 2D 한 번과 같고, 픽셀당 샘플이 25회에서 10회로 준다. 가중치 합이 1이라 반복해도 밝기가 보존된다.
+- **`dx`/`dy`는 공용 상수 버퍼 하나에 둔다.** Bloom 타깃이 모두 같은 절반 크기라 가능하다. 강의가 필터마다 상수 버퍼를 갖는 이유는 다운샘플 단계마다 타깃 크기가 다르기 때문이며, 다단계로 확장하면 우리도 분리해야 한다.
+- **Bright 타깃을 덮어쓰지 않고 남긴다.** 핑퐁을 BlurX/BlurY 두 개로만 돌리면 타깃 하나를 아낄 수 있지만, 그러면 디버그 뷰에서 "추출 결과"와 "블러 결과"를 구분할 수 없어 실패 원인을 좁히지 못한다.
+- **합성은 톤 매핑 셰이더 안에서 한다.** 톤 매핑 전에 더해야 1을 넘는 합이 곡선에 눌린다(뒤에 더하면 네온 주변이 흰 덩어리가 되고, 감마 뒤에 더하면 선형 값과 감마 값을 섞게 된다). 마지막 후처리 패스가 이미 있으므로 강의의 `Combine` 전용 패스가 필요 없다.
+- **exposure는 원본에만 곱한다.** Bloom 텍스처에는 추출 패스에서 이미 반영돼 있다. "화면에서 밝게 보이는 것이 번진다"를 만족시키려고 추출에서 곱했기 때문에, 합성에서 또 곱하면 노출을 올릴 때 번짐만 폭주한다.
+- **반복 블러의 입력 사슬**: 첫 회차만 Bright에서 읽는다. 매 회차 Bright에서 읽으면 결과가 같아 반복이 무의미하고, 반대로 첫 회차부터 BlurY에서 읽으면 이전 프레임 내용을 읽어 프레임 간 되먹임(잔상)이 생긴다. 중간 타깃을 Clear하지 않는 최적화가 이 함정을 만든다.
+- **디버그 뷰는 CPU 전용 값이다.** 셰이더가 분기하는 `ToneMapper`와 달리 "어떤 SRV를 바인딩할까"의 선택이라 상수 버퍼에 넣지 않았다. `PostProcessSettings`와 `PostProcessConstantData`를 분리해둔 것이 실제로 이득이 된 첫 사례다.
+- **`DrawFullScreenPass` 헬퍼는 패스가 셋이 된 시점에 뽑았다.** 반복 기능이 함수 없이는 구현 자체가 불가능해서 "실제 변경 압력"이 확정된 시점이었다. 뷰포트 설정(패스가 아니라 구간 단위), null 검사(상태를 바꾸기 전에 끝내야 함), 디버그 뷰 선택(정책)은 호출자에 남겨 헬퍼를 작게 유지했다.
+- **강의의 `ImageFilter` 같은 클래스는 만들지 않았다.** 필터가 10~20개일 때 루프로 찍어내려는 구조이고, 우리는 패스가 4~5개라 함수 하나로 충분하다. **전환 조건**: 다운샘플을 다단계로 늘려 패스마다 타깃 크기와 `dx`/`dy`가 달라지면 그때 도입한다.
+
 ---
 
 ## 5. 현재 알려진 문제와 보류 항목
@@ -239,7 +271,7 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - `AppBase`의 멤버가 전부 `public`이고 전역 `g_appBase`로 접근 가능하다.
 - 씬 정의가 `InitGreyBoxScene()`에 하드코딩돼 있어 변경 시 재컴파일이 필요하다.
 - `GameObject`의 컴포넌트가 선택적이지 않다. `PointLightComponent`/`BoxCollisionComponent`만 `Has` 플래그를 쓰고 나머지는 포인터 null 검사로 판단해 규칙이 일관되지 않다.
-- 스위치 Rim 강조 로직이 `AppBase::Update`에 있고, 이를 위해 `PowerSwitch::GetGameObject()`로 내부 GameObject를 노출한다. 스위치를 바라본 채 ESC로 나가면 Editor에서 Rim이 켜진 채 남고, `obj`/`powerSwitchMat` null 검사가 없으며 `CanInteract`가 한 프레임에 여러 번 호출된다.
+- `Renderer`가 렌더 타깃 네 개와 셰이더 일곱 개, 샘플러 두 개를 직접 들고 있다. 후처리 패스가 더 늘면 타깃·셰이더 묶음을 다루는 구조(강의의 `ImageFilter` 상당)가 필요해진다 — 전환 조건은 §4 참고.
 
 ### 렌더링
 
@@ -250,7 +282,10 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - 톤 매핑이 채널별로 적용돼, ACES에서 한 채널이 먼저 1에 닿으면 색조가 이동한다(예: 주황 네온이 노란 쪽으로). 룩 재튜닝 대상이다.
 - 룩 재튜닝 전이다. 선형 공간에서 Ambient 0.4는 화면상 약 0.66으로 보이고 Point Light 감쇠도 넓게 퍼져 보인다. ImGui에서 바꾼 값은 저장되지 않으므로 최종값은 코드 초기값에 옮겨 적어야 한다.
 - 출력 인코드가 정확한 sRGB 곡선이 아니라 `1/2.2`제곱 근사다(가장 어두운 구간에서만 차이). `toneMappingPixelShader.hlsl`의 Reinhard 분기에서 `pow` 음수 경고(X3571)가 난다(실제 입력은 0 이상).
-- `copyPixelShader`는 생성만 하고 현재 쓰지 않는다(Bloom 디버그 뷰 예정). `Renderer::BeginFrame`에 옛 백버퍼 RTV 줄이 주석으로 남아 있고, `D3D11Utils`의 셰이더 생성 실패 로그에는 파일 이름과 줄바꿈이 없다.
+- `Renderer::BeginFrame`에 옛 백버퍼 RTV 줄이 주석으로 남아 있고(`Renderer.cpp` 307·324행), `D3D11Utils`의 셰이더 생성 실패 로그에는 파일 이름과 줄바꿈이 없다.
+- **Bloom이 단일 해상도 반복 방식이다.** 반복으로 넓히면 σ가 √n로만 커져 수확이 체감한다(1→4회에서 2배, 4→8회에서 1.4배). 더 넓은 번짐이 필요하면 다단계 다운샘플/업샘플(mip 체인)로 바꿔야 한다 — 현대 엔진의 표준 방식이다.
+- **임계값이 하드 컷이다.** 경계 근처 픽셀이 카메라가 조금만 움직여도 켜졌다 꺼졌다 할 수 있다(시간적 불안정). 소프트 니(soft knee)로 부드럽게 하거나, 다운샘플 시 Karis 평균으로 반딧불이(firefly)를 억제하는 대응이 없다.
+- Bloom 타깃 세 개를 앱 생명주기 내내 들고 있다. 상용 엔진은 프레임 내에서만 사는 일시적 리소스로 풀링·에일리어싱한다. 지금 규모(절반 해상도 float16 3장)에서는 문제가 아니다.
 - Material에 Normal / Metallic / Roughness가 없다.
 - 스페큘러 항이 없다. 젖은 바닥 반사의 전제가 빠져 있다.
 - Vertex Color가 최종 Pixel Color에 사용되지 않는다.
@@ -286,19 +321,25 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 
 ## 6. 바로 다음 작업
 
-**로드맵 11번 진행 중 — HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 선형 색공간 완료 ✅. 다음은 Bloom(Step 5~7).**
+**로드맵 11번 거의 완료 — HDR 씬 타깃, 톤 매핑, 선형 색공간, Bloom까지 구현 완료 ✅. 남은 것은 룩 재튜닝뿐이다.**
 
-오늘 완료한 단계: Step 1 렌더 타깃 생성(`74aebd8`) → Step 2 HDR 타깃 2-pass(`0e75485`) → Step 3 톤 매핑 + Exposure(`d5d36d7`) → Step 4 선형 색공간(`e17b870`) → 3-d ACES + Tone Mapper 전환(`86f17a4`), 그리고 스위치 Rim 강조(`10fa116`). 설계 이유는 §4 "HDR 씬 타깃, 후처리 패스와 선형 색공간", 기록은 §8의 2026-09-15 항목 참고.
+완료한 단계: Step 1 렌더 타깃 생성(`74aebd8`) → Step 2 HDR 타깃 2-pass(`0e75485`) → Step 3 톤 매핑 + Exposure(`d5d36d7`) → Step 4 선형 색공간(`e17b870`) → 3-d ACES(`86f17a4`) → Rim 강조 이동(`765b68c`) → Step 5 밝은 부분 추출·디버그 뷰(`5ddb2ab`) → Step 6 분리형 블러(`80b825f`) → Step 7 합성(`4df455b`) → 블러 반복(`89f8d64`). 설계 이유는 §4의 "HDR 씬 타깃, 후처리 패스와 선형 색공간"과 "Bloom 파이프라인", 기록은 §8 참고.
 
 진행 순서는 그래픽스 강의 연계로 정한 **11번(HDR+Bloom) → 10번(Normal/Roughness+Fresnel+Cube Mapping+IBL) → 9번(Shadow Mapping)**을 그대로 따른다.
 
 **다음에 이어서 할 작업 (순서)**
 
-1. (권장, 가벼움) **스위치 Rim 강조를 `PowerSwitch`로 옮긴다.** 강조 상태와 강조 Rim 값을 `PowerSwitch` 멤버로 두고, `SetHighlighted(bool)`가 값이 바뀔 때만 `ApplyVisualState`를 호출한다(Intensity만 반영, Color/Power는 `Initialize`에서 한 번). `AppBase::Update`는 `CanInteract` 결과를 지역 변수 하나로 계산해 강조와 E키에 같이 쓰고, `ExitPlayMode`에서 `SetHighlighted(false)`를 호출한다. `GetGameObject()`는 제거한다.
-2. **Step 5 — 밝은 부분 추출 + 디버그 뷰**: 1/2 크기 렌더 타깃을 `CreateRenderTarget`으로 추가하고, 리사이즈는 `Renderer::Resize` 안에서만 처리한다. 임계값을 넘는 부분만 뽑는 PS를 만들고, 절반 크기 패스는 Viewport도 절반으로 바꾼다. `PostProcessSettings`에 Threshold와 디버그 뷰 선택(Final/Bright/Blur)을 추가하고, 디버그 뷰는 `copyPixelShader`로 해당 텍스처를 백버퍼에 복사한다. 확인: Bright 뷰에 네온·Rim만 남는다(RenderDoc으로 절반 크기 텍스처와 Pipeline State RS의 Viewport 확인).
-3. **Step 6 — 분리형 가우시안 블러**: 1/2 크기 타깃 두 개를 번갈아 쓰며 가로 → 세로 블러. 가장자리용 CLAMP 샘플러를 추가한다(현재 샘플러는 WRAP뿐). 화면 전체를 덮어쓰는 중간 타깃은 Clear가 필요 없다.
-4. **Step 7 — 합성**: 톤 매핑 전에 `HDR + Bloom × Strength`를 더한다. Strength가 0이면 Step 7 이전 화면과 같아야 한다.
-5. **룩 재튜닝** (Bloom 이후 한 번에): Exposure, Ambient, Point Light 세기·범위, 네온 Emissive 세기, ACES 색조 이동을 맞추고 최종값을 `InitGreyBoxScene`/`NeonSignDesc`/`DirectionalLight`/`PostProcessSettings` 초기값에 반영한다.
+1. **룩 재튜닝 — 로드맵 11번을 닫는 마지막 작업.** 값이 서로 영향을 주므로 이 순서로 맞춘다.
+   1. Strength 0으로 두고 Exposure·Ambient로 "어두운 골목"의 기본 밝기를 잡는다.
+   2. Bright 뷰를 보며 Threshold — 네온과 Rim만 남기고 벽이 보이지 않게 한다.
+   3. Blur 뷰를 보며 Blur Iterations로 번짐 폭을 정한다.
+   4. Final로 돌아와 Strength를 0부터 올린다.
+   5. 네온 세 개(Pink/Cyan/Orange)의 Emissive 세기 균형.
+   6. ACES ↔ Reinhard 최종 선택. ACES에서 주황 네온이 노란 쪽으로 뜨면 Emissive 색을 조정한다.
+   - **ImGui 값은 저장되지 않는다.** 확정값을 `PostProcessSettings` 기본값(Exposure/Threshold/Strength/Iterations/ToneMapper), `Renderer::Initialize`의 `ambientStrength`, `NeonSignDesc` 세 개의 세기·색에 옮겨 적는다.
+   - 참고 현재 상태: 선형 공간에서 Ambient 0.4는 화면상 약 0.66으로 보이고 Point Light 감쇠가 넓게 퍼져 보인다.
+2. 룩이 확정되면 `HDR_SCENE_TARGET` 브랜치를 `main`에 머지한다(§2 참고).
+3. 그다음 로드맵 10번 — Specular → Fresnel → Cube Map/Skybox → 환경 매핑 → IBL(CMFT) → Normal/Roughness Map. **시작 전에 데이터 텍스처용 sRGB 선택 인자를 먼저 추가해야 한다**(§5 참고). 지금은 모든 파일 텍스처가 `_SRGB`라 노멀 맵을 그대로 넣으면 벡터가 왜곡된다.
 
 그다음은 로드맵 10번(Specular → Fresnel → Cube Map/Skybox → 환경 매핑 → IBL(CMFT) → Normal/Roughness Map), 9번(Shadow Mapping) 순서다. 10번에서 바닥에 네온이 번지는 느낌은 대부분 Point Light Specular에서 나오고, 정적 Cube Map은 골목 안 네온을 반사하지 못한다는 한계를 알고 진행한다.
 
@@ -326,7 +367,7 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
 10. Normal/Roughness Material과 젖은 바닥 반사 (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행 — 11번 다음 순서)
-11. HDR Scene Target, Bloom과 Tone Mapping ← 진행 중 (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 완료 ✅ 2026-09-15, Bloom Step 5~7 남음)
+11. HDR Scene Target, Bloom과 Tone Mapping ← 진행 중 (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 완료 ✅ 2026-09-15, Bloom Step 5~7과 블러 반복 완료 ✅ 2026-09-17. **룩 재튜닝만 남음**)
 12. 안개, 비와 색조 보정
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류)
 14. 라이선스 정리와 1~2분 최종 연출
@@ -411,6 +452,27 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
 
+### 2026-09-17 — Bloom 구현과 Rim 강조 책임 이동 (로드맵 11번 Step 5~7) ✅
+
+- 완료한 작업:
+  - (`765b68c`) 스위치 Rim 강조를 `PowerSwitch`로 옮겼다. `SetHighlighted(bool)`는 값이 바뀔 때만 `ApplyVisualState`를 부르고, `ExitPlayMode`가 강조를 끄며, `GetGameObject()`를 제거했다. `CanInteract` 호출이 프레임당 3회에서 1회로 줄었다.
+  - Step 5 (`5ddb2ab`): 절반 크기 Bright 타깃, `brightPassPixelShader`(exposure 적용 후 가중 휘도 임계값), 추출 패스와 뷰포트 전환·복구, `PostProcessSettings`에 Threshold와 디버그 뷰, EditorUI 패널.
+  - Step 6 (`80b825f`): `blurX`/`blurY` 셰이더(5탭 σ=1 가우시안), `dx`/`dy` 상수, CLAMP 샘플러, BlurX/BlurY 타깃, `DrawFullScreenPass` 헬퍼 추출, `PostProcess.hlsli`로 cbuffer 선언 분리, 디버그 뷰 Blur X/Blur.
+  - Step 7 (`4df455b`): 톤 매핑 셰이더가 `t1`로 Blur를 받아 `hdr * exposure + bloom * strength`로 합성. 헬퍼에 두 번째 SRV(기본값 `nullptr`) 추가, EditorUI Strength 슬라이더.
+  - (`89f8d64`) 블러 반복 횟수(1~10)와 핑퐁 누적.
+  - 강의 프로젝트(`Hong_Graphics2/Graphics_Part2/08_ShaderToys_Step6_BloomEffect`)의 `ImageFilter`·`SamplingPixelShader`·`BlurX/Y`·`Combine`을 읽고 우리 구조와 대조했다. 가중치·분리형 블러·`dx`/`dy`·CLAMP는 그대로 가져왔고, 백버퍼 SRV 방식·사각형 메시·`copyFilter`·필터 클래스는 가져오지 않았다(이유는 §4 "Bloom 파이프라인").
+- 확인한 결과:
+  - 단계마다 코드 리뷰 후 사용자가 빌드·실행과 RenderDoc으로 확인했고, 새 셰이더 세 개는 에이전트가 `fxc.exe`로 `ps_5_0` 컴파일을 확인했다.
+  - 확인한 것: Bright 뷰에 네온과 스위치 Rim만 남음, Blur X 뷰가 가로로만 늘어남, Blur 뷰가 사방으로 번짐, Final 뷰가 Strength 0에서 합성 전과 동일, 반복 1→4에서 번짐 폭 약 2배, 반복을 올려도 화면 밝기 유지(가중치 합 1), 잔상 없음, `Draw(3)` 개수가 `1 + 2n + 1`.
+  - 리뷰·디버깅 중 잡은 버그: ① `Initialize`의 null 검사가 인자가 아닌 멤버(`m_gameObject`)를 봐서 항상 즉시 반환 → 고친 뒤에는 nullptr 역참조, ② `SetHighlighted`가 값이 아니라 true/false로 분기해 강조가 꺼지지 않음, ③ 절반 크기 0 방지 누락, ④ `!!`로 조건이 뒤집힘, ⑤ `||` 단락 평가로 두 번째 리사이즈가 실행되지 않고 실패 로그도 구분 불가, ⑥ 로그가 실제 만든 크기가 아닌 값을 계산해 찍음, ⑦ 추출 패스에 `Draw`·VS·IA 누락, ⑧ BlurX가 Bright가 아닌 HDR을 읽음, ⑨ `&m_clampSamplerState`(`ComPtr::operator&`)로 샘플러가 Release됨, ⑩ 디버그 뷰 입력 바인딩이 출력 교체보다 앞서 SRV가 null이 됨, ⑪ 기본 매개변수 뒤에 일반 매개변수를 두고 정의에도 기본값을 씀, ⑫ 합성을 톤 매핑·감마 뒤에서 함, ⑬ `t1` 해제 누락, ⑭ 반복 루프가 매 회차 Bright에서 읽어 반복이 무의미, ⑮ 고친 뒤 첫 회차가 이전 프레임 BlurY를 읽어 프레임 간 되먹임.
+- 남아 있는 문제: §5 참고. 룩 재튜닝 미완(값이 전부 기본값), 단일 해상도 반복 방식의 √n 수확 체감, 하드 컷 임계값의 시간적 불안정과 반딧불이 대응 없음, 데이터 텍스처용 sRGB 선택 인자 없음, `BeginFrame`의 옛 RTV 주석.
+- 다음에 이어서 할 작업: §6의 룩 재튜닝 → `main` 머지 → 로드맵 10번.
+- 중요한 설계 결정과 이유: §4 "Bloom 파이프라인"에 정리했다. 핵심 요약:
+  - 절반 해상도 float 타깃에서 추출·블러하고, 합성은 톤 매핑 셰이더 안에서 톤 매핑 **전에** 한다. exposure는 원본에만 곱한다(Bloom에는 추출 단계에서 이미 반영).
+  - 분리형 블러와 합이 1인 가중치, 반복은 첫 회차만 Bright에서 읽어 누적시킨다.
+  - 디버그 뷰는 CPU 전용 값이라 상수 버퍼에 넣지 않고, Bright 타깃을 보존해 단계별로 눈으로 확인할 수 있게 했다.
+  - 패스가 셋이 된 시점에 `DrawFullScreenPass`를 뽑되, 뷰포트·null 검사·정책 선택은 호출자에 남겼다. 강의식 필터 클래스는 다단계 다운샘플이 필요해질 때로 미뤘다.
+
 ### 2026-09-15 — HDR 씬 타깃, 톤 매핑, 선형 색공간 (로드맵 11번 Step 1~4, 3-d) ✅
 
 - 완료한 작업:
@@ -485,9 +547,10 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 
 ## 9. 다른 PC에서 확인할 체크리스트
 
-- `git pull` 후 HEAD가 최소 `10fa116`인지 확인한다.
-- Play에서 상호작용 거리 안에서 스위치를 바라볼 때만 가장자리가 청록색으로 밝아지는지(Rim 강조) 확인한다.
+- `git pull` 후 HEAD가 최소 `89f8d64`인지 확인한다.
+- Play에서 상호작용 거리 안에서 스위치를 바라볼 때만 가장자리가 청록색으로 밝아지고(Rim 강조), HUD의 `[E] Interact`가 같은 타이밍으로 뜨는지 확인한다. ESC나 Alt+Tab으로 나가면 Editor에서 강조가 꺼져 있어야 한다.
 - Editor 패널 Post Process에서 Tone Mapper(Reinhard/ACES)와 Exposure를 바꾸면 화면이 즉시 바뀌고, 전원을 켰을 때 네온 세 개의 밝기가 서로 다르게 보이는지 확인한다.
+- Bloom 확인: 전원을 켠 뒤 Editor로 나와 Debug View를 Bright → Blur X → Blur → Final로 돌려본다. Bright에 네온과 Rim만, Blur X는 가로로만, Blur는 사방으로 번져야 한다. Strength 0이면 Bloom이 없는 화면과 같고, Blur Iterations를 올리면 번짐이 넓어진다.
 - 창 크기 변경·최대화·최소화 후 복원에도 화면이 정상인지 확인한다(HDR 씬 타깃 재생성).
 - 저장소 루트에 `.editorconfig`가 있는지 확인한다. RenderDoc을 쓴다면 Launch 설정의 Executable Path/Working Directory를 그 PC의 경로로 맞추고, C++ 수정 후에는 먼저 빌드한다.
 - `AGENTS.md`와 이 문서의 마지막 갱신일이 같은지 확인한다.

@@ -1,6 +1,6 @@
 # MyPF 작업 지침
 
-마지막 갱신: 2026-09-15
+마지막 갱신: 2026-09-17
 
 이 문서가 MyPF 프로젝트의 단일 진실 원본이다. 사용하는 도구(Claude Code, Codex 등)와 무관하게 적용된다.
 
@@ -14,11 +14,11 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 최종 결과물은 범용 엔진 자체가 아니라 `DX11 렌더링 기술 + 확장 가능한 구조 + 짧지만 완결된 플레이 경험`을 보여주는 포트폴리오다.
 
-남은 목표 기능: Bloom, 그림자, 젖은 바닥 반사(Specular·Fresnel·Cube Map·IBL), 안개·비·색조 보정, 나머지 이동 제한.
+남은 목표 기능: 그림자, 젖은 바닥 반사(Specular·Fresnel·Cube Map·IBL), 안개·비·색조 보정, 나머지 이동 제한.
 
-현재 전체 진행률은 약 70%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간까지 완료했다.
+현재 전체 진행률은 약 73%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성)까지 완료했다.
 
-**바로 다음 기능 책임:** Bloom(밝은 부분 추출 + 디버그 뷰 → 분리형 블러 → 합성). 그다음 룩 재튜닝, 로드맵 10번(젖은 바닥 반사), 9번(Shadow Mapping) 순서다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+**바로 다음 기능 책임:** 룩 재튜닝(Exposure·Threshold·Strength·Iterations·Ambient·네온 세기를 맞추고 코드 초기값에 반영)으로 로드맵 11번을 닫는다. 그다음 로드맵 10번(젖은 바닥 반사), 9번(Shadow Mapping) 순서다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
 
 ## 2. 에이전트의 역할 — 가장 중요한 규칙
 
@@ -84,7 +84,8 @@ AppBase
 ├─ AssetManager --비소유--> GraphicsResourceManager
 │  └─ unique_ptr<Mesh / Texture / Material / Model> + 이름 캐시
 ├─ Renderer --비소유--> GraphicsDevice / GraphicsResourceManager
-│  └─ HDR 씬 타깃 TextureHandle, Constant Buffer Handle 5개, 씬·전체 화면·복사·톤 매핑 셰이더
+│  └─ 렌더 타깃 TextureHandle 4개(HDR 씬 + Bloom Bright/BlurX/BlurY), Constant Buffer Handle 5개,
+│     셰이더(씬·전체 화면 VS·복사·톤 매핑·밝은 부분 추출·BlurX·BlurY), 샘플러 2개(WRAP/CLAMP)
 ├─ Scene
 │  └─ vector<unique_ptr<GameObject>>
 │     ├─ Transform
@@ -114,7 +115,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 |---|---|---|
 | `GraphicsDevice` | Device, Context, SwapChain, 기본 RTV/Depth Texture/DSV. Resize와 Present | 그 위 전부 |
 | `GraphicsResourceManager` | 실제 Buffer/Texture2D/SRV/RTV ComPtr. 생성·조회·업데이트, 렌더 타깃 생성과 같은 슬롯 재생성 | Camera/Light/Material의 의미, Draw 순서, 렌더 타깃의 용도 |
-| `Renderer` | Shader/InputLayout, Rasterizer/DepthStencil/Sampler State, 5개 Constant Buffer Handle, HDR 씬 타깃 Handle(포맷·크기 결정), 후처리 패스(`EndScene`), 색 상수 sRGB→선형 변환 | Scene, GameObject, Camera 클래스, ImGui |
+| `Renderer` | Shader/InputLayout, Rasterizer/DepthStencil/Sampler State(WRAP·CLAMP), 5개 Constant Buffer Handle, 렌더 타깃 Handle 4개(포맷·크기 결정, Bloom은 화면 절반), 후처리 패스 체인(`EndScene`, `DrawFullScreenPass`), 색 상수 sRGB→선형 변환 | Scene, GameObject, Camera 클래스, ImGui |
 | `AssetManager` | Mesh/Texture/Material/Model의 `unique_ptr`와 이름 캐시 | Scene, Renderer |
 | `Scene` | `vector<unique_ptr<GameObject>>` | DX11, ImGui |
 | `InputSystem` | key state, 단발 입력(`WasKeyPressed`), 누적 MouseDelta | Camera, Scene |
@@ -136,7 +137,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 9. `AppBase`가 Camera, DirectionalLight, `Scene::GatherPointLights` 결과, `PostProcessSettings`(Exposure, ToneMapper)로 `FrameRenderData`를 만든다.
 10. `Renderer::BeginFrame`이 HDR 씬 타깃(`R16G16B16A16_FLOAT`)과 DSV를 Clear·바인딩하고, 색 상수를 선형으로 바꿔 Camera/Light/PostProcess Constant Buffer를 갱신한다. Light 버퍼는 매 프레임 PS `b0`에 다시 건다.
 11. `AppBase`가 Scene을 순회해 `ModelPart` 또는 `MeshComponent`를 `RenderItem`으로 변환하고, `Renderer::DrawRenderItem`이 Object/Material Buffer와 Mesh/Texture를 바인딩해 `DrawIndexed`한다. 씬 셰이더는 1을 넘는 선형 HDR 값을 그대로 기록한다.
-12. `Renderer::EndScene`이 백버퍼를 깊이 버퍼 없이 출력으로 바꾸고, 전체 화면 삼각형과 톤 매핑 셰이더로 HDR 텍스처(`t0`)에 Exposure → Reinhard/ACES → `1/2.2` 감마 인코드를 적용한 뒤 `t0`를 해제한다.
+12. `Renderer::EndScene`이 후처리 패스를 순서대로 실행한다. 뷰포트를 Bloom 타깃 크기(화면 절반)로 바꿔 ① 밝은 부분 추출(HDR → Bright) ② BlurX·BlurY를 반복 횟수만큼(첫 회차만 Bright에서 읽고 이후 직전 결과에서 누적)을 돌린 뒤 화면 뷰포트로 되돌리고, ③ 백버퍼를 깊이 버퍼 없이 출력으로 바꿔 톤 매핑 셰이더가 HDR(`t0`)과 Bloom(`t1`)을 `hdr * exposure + bloom * strength`로 합친 뒤 Reinhard/ACES → `1/2.2` 감마 인코드를 적용한다. 디버그 뷰가 Final이 아니면 마지막 패스만 복사 셰이더로 해당 중간 타깃을 보여준다. 각 패스는 출력 교체 → 입력 바인딩 → `Draw(3, 0)` → 입력 해제 순서를 지킨다.
 13. ImGui DrawData를 백버퍼에 렌더링하고 `Renderer::EndFrame`이 Present한다. `InputSystem::EndFrame`이 단발 키 상태를 초기화한다.
 
 ## 7. 코드를 읽어도 알 수 없는 함정
@@ -155,6 +156,10 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **렌더 타깃 raw pointer**: `GetRTV`/`GetSRV`가 돌려준 포인터는 `Renderer::Resize` 후 무효다. 멤버에 저장하지 말고 바인딩 직전에 핸들로 조회한다. 렌더 타깃은 리사이즈 시 append가 아니라 같은 슬롯에서 재생성된다.
 - **바인딩 규칙**: 같은 텍스처를 RTV와 SRV로 동시에 걸 수 없으므로 패스는 출력 교체 → 입력 바인딩 → Draw → 입력 해제 순서를 지킨다. 파이프라인은 상태 기계라 각 패스는 자기가 쓰는 샘플러·Input Layout·상수 버퍼를 직접 설정한다. 후처리가 PS `b0`를 쓰므로 `BeginFrame`의 Light 버퍼 `b0` 재바인딩을 지우면 두 번째 프레임부터 조명이 사라진다.
 - **Rim Power 0 금지**: `pow(1 - N·V, rimPower)`에서 지수가 0이면 정면 픽셀이 `pow(0, 0)`(NaN)이 된다. Rim을 끌 때는 Intensity만 0으로 한다.
+- **`Renderer::SetViewPort`는 `m_screenViewport` 멤버를 덮어쓴다.** 후처리 패스에서 이 함수를 부르면 복구할 화면 뷰포트가 사라져 이후 패스가 화면 일부에만 그려진다. Bloom처럼 타깃 크기가 다른 패스는 **지역 `D3D11_VIEWPORT` + `RSSetViewports`**를 쓰고, 구간이 끝나면 `m_screenViewport`로 되돌린다.
+- **`ComPtr::operator&`는 Release한다.** `PSSetSamplers(0, 1, &m_clampSamplerState)`처럼 쓰면 들고 있던 객체가 해제된다(WRL이 `&`를 출력 파라미터용으로 설계했기 때문). 이미 들고 있는 객체를 넘길 때는 `.GetAddressOf()`, 함수에 전달할 때는 `.Get()`을 쓴다. 컴파일도 경고도 통과하므로 증상으로 찾기 어렵다.
+- **중간 렌더 타깃은 Clear하지 않는다.** 전체 화면 패스가 매번 전부 덮어쓰기 때문인데, 그래서 **패스 순서가 틀리면 이전 프레임 내용을 읽는다.** 반복 블러의 첫 회차가 BlurY에서 읽으면 프레임 간 되먹임(잔상)이 생긴다. "이번 프레임에 이 텍스처를 누가 먼저 쓰는가"를 항상 확인한다.
+- **바인딩한 슬롯 수만큼 해제한다.** 합성 패스가 `t0`·`t1` 두 장을 걸므로 해제도 두 슬롯이어야 한다. `t1`이 걸린 채 다음 프레임이 시작되면 그 텍스처를 출력으로 걸 때 충돌한다.
 - **RenderDoc은 빌드하지 않는다**: RenderDoc Launch는 지정한 exe를 그대로 실행하므로 C++ 수정 후 빌드를 잊으면 옛 코드가 캡처된다. 셰이더만 바꿨다면 앱 재실행으로 충분하다.
 - **단위 혼용**: `Camera`는 Yaw/Pitch를 도(degree)로 다루는데 `Transform`의 회전과 Inspector 라벨은 라디안이다.
 - **`invTranspose` 계산**: `Renderer::DrawRenderItem`의 `Translation(Vector3(0))` 호출은 이미 전치된 행렬에서 아무 효과가 없다. 결과는 우연히 맞지만 의도와 코드가 다르다.
