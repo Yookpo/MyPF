@@ -368,6 +368,7 @@ namespace My
 		m_postProcessConstantData.threshold = frameRenderData.postProcess.threshold;
 		m_postProcessConstantData.dx = static_cast<float>(1.0f / m_bloomWidth);
 		m_postProcessConstantData.dy = static_cast<float>(1.0f / m_bloomHeight);
+		m_postProcessConstantData.bloomStrength = frameRenderData.postProcess.bloomStrength;
 
 		if (!m_resourceManager->UpdateBuffer(m_postProcessBufferHandle, m_postProcessConstantData))
 		{
@@ -388,15 +389,18 @@ namespace My
 	}
 
 	void Renderer::DrawFullScreenPass(ID3D11RenderTargetView* target, ID3D11PixelShader* pixelShader,
-		ID3D11ShaderResourceView* sourceSRV, ID3D11SamplerState* sampler)
+		ID3D11ShaderResourceView* sourceSRV, ID3D11SamplerState* sampler, ID3D11ShaderResourceView* sourceSRV2)
 	{
 		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
 		ID3D11Buffer*			  postProcessConstantBuffer = m_resourceManager->GetBuffer(m_postProcessBufferHandle);
-		ID3D11ShaderResourceView* nullSRV = nullptr;
+		ID3D11ShaderResourceView* nullSRVs[2] = {
+			nullptr,
+		};
+		ID3D11ShaderResourceView* srv[2] = { sourceSRV, sourceSRV2 };
 
 		context->OMSetRenderTargets(1, &target, nullptr);
 		context->PSSetShader(pixelShader, 0, 0);
-		context->PSSetShaderResources(0, 1, &sourceSRV);
+		context->PSSetShaderResources(0, 2, srv);
 		context->PSSetSamplers(0, 1, &sampler);
 
 		context->IASetInputLayout(nullptr);
@@ -408,7 +412,7 @@ namespace My
 		context->Draw(3, 0);
 
 		// 입력 해제
-		context->PSSetShaderResources(0, 1, &nullSRV);
+		context->PSSetShaderResources(0, 2, nullSRVs);
 	}
 
 	bool Renderer::EndScene()
@@ -528,7 +532,7 @@ namespace My
 		}
 
 		// 톤 매핑 패스
-		DrawFullScreenPass(backRTV, finalPS, finalSRV, m_samplerState.Get());
+		DrawFullScreenPass(backRTV, finalPS, finalSRV, m_samplerState.Get(), blurYSRV);
 
 		return true;
 	}

@@ -1,6 +1,7 @@
 #include "PostProcess.hlsli"
 
 Texture2D hdrTexture : register(t0);
+Texture2D bloomTexture : register(t1);
 
 SamplerState linearSampler : register(s0);
 
@@ -25,8 +26,7 @@ float4 main(Output input) : SV_Target
     // UV로 HDR 텍스처를 샘플링해서 rgb만 꺼낸다. 알파는 쓰지 않는다.
     float3 color = hdrTexture.Sample(linearSampler, input.uv).rgb;
     
-    // 카메라가 받아들이는 빛의 양
-    color *= exposure;
+    color = color * exposure + bloomTexture.Sample(linearSampler, input.uv).rgb * bloomStrength;
     
     // ToneMapper 값과 순서가 같아야 한다 (0: Reinhard, 1: ACES)
     if (toneMapper == 0)

@@ -65,7 +65,8 @@ namespace My
 		float		  pad;			 // 4
 		float		  dx;			 // 4
 		float		  dy;			 // 4
-		float		  pad2[2];		 // 8 -> 32
+		float		  bloomStrength; // 4
+		float		  pad2;			 // 4 -> 32
 	};
 
 } // namespace My

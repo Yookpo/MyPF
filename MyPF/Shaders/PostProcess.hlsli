@@ -6,5 +6,6 @@ cbuffer PostProcessConstantData : register(b0)
     float pad;
     float dx;
     float dy;
-    float2 pad2;
+    float bloomStrength;
+    float pad2;
 }

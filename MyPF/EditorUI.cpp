@@ -149,6 +149,12 @@ namespace My
 			m_postProcessSettings->threshold = threshold;
 		}
 
+		float bloomStrength = m_postProcessSettings->bloomStrength;
+		if (ImGui::SliderFloat("Strength", &bloomStrength, 0.0f, 2.0f, "%.2f"))
+		{
+			m_postProcessSettings->bloomStrength = bloomStrength;
+		}
+
 		// Order must match the PostProcessDebugView enum values.
 		const char* const debugViewNames[] = { "Final", "Bright", "Blur X", "Blur" };
 		int				  debugViewIndex = static_cast<int>(m_postProcessSettings->debugView);

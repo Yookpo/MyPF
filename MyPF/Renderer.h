@@ -31,7 +31,8 @@ namespace My
 		void		   SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight);
 		static Vector3 SrgbToLinear(const Vector3& sRgbcolor);
 		void		   DrawFullScreenPass(ID3D11RenderTargetView* target, ID3D11PixelShader* pixelShader,
-					  ID3D11ShaderResourceView* sourceSRV, ID3D11SamplerState* sampler);
+					  ID3D11ShaderResourceView* sourceSRV, ID3D11SamplerState* sampler,
+					  ID3D11ShaderResourceView* sourceSRV2 = nullptr);
 
 	private:
 		GraphicsDevice*			 m_graphicsDevice = nullptr;

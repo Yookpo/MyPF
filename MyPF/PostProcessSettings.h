@@ -22,6 +22,7 @@ namespace My
 	{
 		float				 exposure{ 1.0f };
 		float				 threshold{ 1.0f };
+		float				 bloomStrength{ 0.5f };
 		ToneMapper			 toneMapper{ ToneMapper::ACES };
 		PostProcessDebugView debugView{ PostProcessDebugView::Final };
 	};
