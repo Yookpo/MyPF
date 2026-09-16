@@ -376,6 +376,7 @@ namespace My
 		}
 
 		m_debugView = frameRenderData.postProcess.debugView;
+		m_bloomBlurIterations = frameRenderData.postProcess.bloomBlurIterations;
 
 		ID3D11Buffer* lightconstantBuffer = m_resourceManager->GetBuffer(m_lightBufferHandle);
 		if (!lightconstantBuffer)
@@ -504,8 +505,12 @@ namespace My
 		context->RSSetViewports(1, &bloomViewPort);
 
 		DrawFullScreenPass(bloomRTV, m_brightPassPixelShader.Get(), hdrSRV, m_samplerState.Get());
-		DrawFullScreenPass(blurXRTV, m_blurXPixelShader.Get(), bloomSRV, m_clampSamplerState.Get());
-		DrawFullScreenPass(blurYRTV, m_blurYPixelShader.Get(), blurXSRV, m_clampSamplerState.Get());
+		for (int i = 0; i < m_bloomBlurIterations; i++)
+		{
+			auto src = (i == 0) ? bloomSRV : blurYSRV;
+			DrawFullScreenPass(blurXRTV, m_blurXPixelShader.Get(), src, m_clampSamplerState.Get());
+			DrawFullScreenPass(blurYRTV, m_blurYPixelShader.Get(), blurXSRV, m_clampSamplerState.Get());
+		}
 
 		// 뷰포트 복구
 		context->RSSetViewports(1, &m_screenViewport);

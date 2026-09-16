@@ -84,6 +84,7 @@ namespace My
 		uint32_t m_bloomHeight{ 0 };
 
 		PostProcessDebugView m_debugView{ PostProcessDebugView::Final };
+		int					 m_bloomBlurIterations{ 1 };
 	};
 
 } // namespace My

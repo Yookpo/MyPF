@@ -1,4 +1,4 @@
-#include "EditorUI.h"
+﻿#include "EditorUI.h"
 
 #include "Camera.h"
 #include "DirectionalLight.h"
@@ -153,6 +153,12 @@ namespace My
 		if (ImGui::SliderFloat("Strength", &bloomStrength, 0.0f, 2.0f, "%.2f"))
 		{
 			m_postProcessSettings->bloomStrength = bloomStrength;
+		}
+
+		int iterations = m_postProcessSettings->bloomBlurIterations;
+		if (ImGui::SliderInt("Blur Iterations", &iterations, 1, 10))
+		{
+			m_postProcessSettings->bloomBlurIterations = iterations;
 		}
 
 		// Order must match the PostProcessDebugView enum values.
