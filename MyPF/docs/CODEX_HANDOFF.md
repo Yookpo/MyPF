@@ -17,7 +17,7 @@
 
 ## 1. 진행률
 
-현재 전체 진행률은 약 **73%**다.
+현재 전체 진행률은 약 **76%**다.
 
 | 영역 | 진행 | 현재 상태 |
 |---|---:|---|
@@ -26,23 +26,24 @@
 | Model 파이프라인 | 약 65% | FBX/OBJ/glTF BaseColor 로드 완료. aiNode/PBR은 남음 |
 | Scene/ImGui 편집 | 약 72% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유, Post Process 패널(Exposure/Tone Mapper/Bloom 3종/Debug View) 완료 |
 | 1인칭 입력/카메라 | 약 90% | Editor/Play, WASD/마우스/ESC/focus와 단발 키 입력, 플레이어-벽 충돌 완료 |
-| 조명/Material | 약 78% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환) 완료. Specular는 없음 |
-| 실제 골목/상호작용 | 약 82% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백과 상호작용 가능 시 Rim 강조(PowerSwitch 소유), 순차 점등 완료 |
-| 고급 렌더링/연출 | 약 45% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성) 완료. 룩 재튜닝 미완. Shadow/Wet/Fog/Rain은 없음 |
+| 조명/Material | 약 82% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅 완료. Specular는 없음 |
+| 실제 골목/상호작용 | 약 85% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백·대기 표시등·호박색 Rim 강조(PowerSwitch 소유), 순차 점등 완료 |
+| 고급 렌더링/연출 | 약 55% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성), 룩 재튜닝 완료. Shadow/Wet/Fog/Rain은 없음 |
 
 ---
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `89f8d64` — Bloom 블러 반복 횟수 조절
+- 문서 갱신 기준 HEAD: `050a1d9` — 룩 재튜닝
 - 현재 작업 트리: 브랜치 `HDR_SCENE_TARGET`, `git status` 기준 clean. commit/push는 사용자가 요청할 때만 한다.
-- 이 브랜치는 `origin/main`보다 13 commit 앞서 있다(push는 되어 있고 머지는 안 함). **룩 재튜닝까지 끝나 로드맵 11번이 닫히는 시점**을 `main` 머지 지점으로 잡았다.
+- 이 브랜치는 `main`보다 16 commit 앞서 있다. **로드맵 11번이 닫혔으므로 지금이 `main` 머지 지점이다**(§6 참고).
 - `MyPF/imgui.ini`와 `MyPF/ImGui/imgui.ini`는 `.gitignore`에 등록하고 `git rm --cached`로 인덱스에서 제거했다(로컬 파일은 유지) — 이제부터는 변경돼도 `git status`에 아예 안 잡힌다(2026-09-14).
 - 저장소 루트 `.editorconfig`가 VS 저장 시 `.cpp`/`.h`는 UTF-8 with BOM, `.hlsl`/`.hlsli`는 BOM 없는 UTF-8을 강제한다(2026-09-15).
 
 최근 기능 commit:
 
 ```text
+050a1d9 룩 재튜닝 - 밤 골목 조명과 후처리 초기값 확정
 89f8d64 Bloom 블러 반복 횟수 조절
 4df455b Step 7. Bloom 합성
 80b825f Step 6. 분리형 가우시안 블러
@@ -125,6 +126,41 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - 디버그 뷰(`PostProcessDebugView`: Final / Bright / BlurX / Blur)는 GPU로 보내지 않는 CPU 전용 값이다. `EndScene`이 마지막 패스의 PS와 `t0`만 골라 바꾸고, 디버그 뷰에서는 `copyPixelShader.hlsl`이 가공 없이 복사한다
 - EditorUI "Post Process" 패널의 Bloom 그룹: Threshold(0~5), Strength(0~2), Blur Iterations(1~10), Debug View
 - 확인: Bright 뷰에 네온과 스위치 Rim만 남고, Blur X 뷰는 가로로만 늘어나며, Blur 뷰는 사방으로 번진다. Strength 0이면 합성 전 화면과 같고, 반복을 1→4로 올리면 번짐 폭이 약 2배가 된다
+
+### 룩 재튜닝 (밤 골목 조명 세팅)
+
+기능 검증용 임시값을 전부 버리고 사이버펑크 밤 골목 기준으로 다시 잡았다(`050a1d9`). 확정값은 아래가 전부이며 ImGui 없이도 그대로 재현된다.
+
+| 대상 | 값 | 위치 |
+|---|---|---|
+| 하늘광 방향 | `(0, -0.932, 0.362)` 단위 벡터 | `DirectionalLight.h` |
+| 하늘광 색/세기 | `(0.45, 0.60, 1.0)` / `0.18` | 〃 |
+| Ambient | `0.045` | 〃 |
+| Exposure / Threshold | `2.0` / `1.2` | `PostProcessSettings.h` |
+| Bloom Strength / Iterations | `0.8` / `5` | 〃 |
+| Tone Mapper | ACES | 〃 |
+| 배경(하늘) 색 | `(0.020, 0.028, 0.055)` | `AppBase` 생성자 |
+| 환경 보조광 | `(0, 3.2, 10)`, 색 `(0.28, 0.48, 0.85)`, range `24`, intensity `0.55` | `AppBase::InitGreyBoxScene` |
+
+네온 세 개(`NeonSignDesc`):
+
+| | color | Emissive | Point 세기 | Point range |
+|---|---|---:|---:|---:|
+| Pink | `(1.0, 0.08, 0.45)` | 18.0 | 1.4 | 6.0 |
+| Cyan | `(0.10, 0.85, 1.00)` | 7.0 | 0.7 | 6.5 |
+| Orange | `(1.0, 0.20, 0.05)` | 15.0 | 1.4 | 6.5 |
+
+전원 스위치(`PowerSwitch` 생성자):
+
+| 상태 | BaseColor | Emissive | 세기 |
+|---|---|---|---:|
+| Off | `(0.30, 0.12, 0.10)` | `(0.90, 0.12, 0.08)` | 0.20 |
+| On | `(0.22, 0.85, 0.55)` | `(0.25, 1.00, 0.55)` | 0.30 |
+
+Rim 색은 `(1.0, 0.75, 0.25)` 호박색, Power 4.0, 강조 시 Intensity 3.0이다.
+
+- `EditorUI`의 Ambient 슬라이더를 로그 스케일(`0.001~1.0`, `%.3f`)로 바꿨다. 쓸모 있는 구간이 0.01~0.1인데 선형 `0~1`로는 조절 자체가 불가능했다.
+- 확인: 전원 Off에서 차가운 청색 골목과 끝벽 빨간 대기 표시등이 유도등처럼 보이고, On에서 네온 심지가 번지며 벽이 은은하게 물든다. 세 번 빌드·실행하며 ① 벽이 과하게 물드는 문제(Point Light 세기 절반으로) ② 표시등이 평평하게 날아가는 문제(Emissive 0.5 → 0.20)를 고쳤다. 144 FPS 유지.
 
 ### Greybox 골목과 상호작용
 
@@ -261,6 +297,19 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - **`DrawFullScreenPass` 헬퍼는 패스가 셋이 된 시점에 뽑았다.** 반복 기능이 함수 없이는 구현 자체가 불가능해서 "실제 변경 압력"이 확정된 시점이었다. 뷰포트 설정(패스가 아니라 구간 단위), null 검사(상태를 바꾸기 전에 끝내야 함), 디버그 뷰 선택(정책)은 호출자에 남겨 헬퍼를 작게 유지했다.
 - **강의의 `ImageFilter` 같은 클래스는 만들지 않았다.** 필터가 10~20개일 때 루프로 찍어내려는 구조이고, 우리는 패스가 4~5개라 함수 하나로 충분하다. **전환 조건**: 다운샘플을 다단계로 늘려 패스마다 타깃 크기와 `dx`/`dy`가 달라지면 그때 도입한다.
 
+### 룩 재튜닝
+
+목표로 잡은 그림은 이렇다. **"비 온 뒤 한밤의 뒷골목. 전원이 꺼져 있을 땐 희미한 음영과 젖은 바닥의 윤곽만 보인다. 걷다 보면 스위치가 눈에 들어오고, 상호작용 거리에 들어오면 윤곽선이 밝아진다. 켜면 네온이 차례로 들어와 각자의 색으로 골목을 물들인다. 네온 자체는 매우 밝아 형태가 번지고, 주변 벽은 물들되 어둡다."** 아래 결정은 전부 이 문장에서 나왔다.
+
+- **값을 만지기 전에 세팅 논리부터 고쳤다.** 슬라이더로 해결되지 않던 어색함의 원인은 세 가지였다 — 흰색 Directional Light `intensity 1.0`(한밤에 한낮의 태양), 보라색 `EnvironmentFillLight` `intensity 1.58` 상시 On(전원 Off인데 골목 한가운데가 보라색), Ambient `0.4`(선형이라 화면상 0.66). 이걸 놔두면 어떤 값을 넣어도 목표 문장에 도달할 수 없었다.
+- **하늘광을 거의 수직으로 눕혔다.** 옆벽은 법선이 수평이라 `dot(-direction, normal)`이 0이 돼 하늘광을 전혀 받지 않는다. 결과적으로 **바닥만 차갑게 빛나고 옆벽은 네온이 닿는 곳만 밝아진다.** 골목 위 좁은 하늘에서 빛이 떨어지는 상황과 일치하고, 젖은 아스팔트가 하늘을 반사하는 레퍼런스 룩이 여기서 나온다.
+- **방향을 단위 벡터로 저장한다.** 셰이더가 `normalize`하지 않으므로 길이가 곧 세기 배율이 된다. 기존 `(0, -0.5, 1)`은 길이 1.118이라 의도보다 12% 세게 들어가고 있었다.
+- **Emissive는 올리고 Point Light는 내렸다.** 두 값은 물리적으로는 하나여야 하지만(발광체는 자기 밝기만큼 주변을 비춘다) 우리에겐 GI가 없어 따로 논다. 이 분리가 오히려 이득이다 — "네온은 매우 밝고 벽은 은은하게"를 두 값을 반대로 움직여 만들 수 있다.
+- **세기는 채널별 휘도 가중치로 환산해 맞췄다.** `brightPass`가 `dot(color, (0.2126, 0.7152, 0.0722))`로 판정하므로 같은 Intensity가 같은 밝기가 아니다. 선형 변환 후 단위 세기당 휘도는 Pink 0.242 / Cyan 0.585 / Orange 0.284로, **Cyan이 Pink의 2.4배**다. 튜닝 전 값(3 / 8 / 5)은 실제 휘도가 0.73 / 4.68 / 1.42로 Cyan만 6배 이상 튀었고 Pink는 Threshold를 넘지도 못했다.
+- **스위치에 대기 표시등(Emissive)을 넣었다.** 골목을 어둡게 만들자 스위치가 아예 안 보여서 "걷다 보면 스위치가 눈에 들어온다"가 성립하지 않았다. BaseColor만으로는 어두운 곳에서 빛나지 않는다. 세기는 Threshold 아래로 잡아 **번지지 않게** 했다 — 번지면 "네온"으로 읽히고 "표시등"으로 읽히지 않는다.
+- **Rim 강조를 청록에서 호박색으로 바꿨다.** 골목 전체가 청록 계열이라 청록 강조는 Cyan 네온에 묻힌다. 보색인 호박색은 확실히 분리되고, 상용 게임의 상호작용 색 언어와도 맞는다.
+- **주황 네온의 심지가 노랗게 뜨는 것은 고치지 않았다.** 톤 매핑이 채널별이라 R이 먼저 1에 닿고 G가 따라 올라간다. 계산상 심지를 진짜 주황으로 만들려면 G를 sRGB 0.115까지 내려야 하는데, `NeonSignDesc.color`가 Emissive와 Point Light에 공유되므로 **그러면 벽에 비치는 빛이 순수 빨강이 된다.** 실제 네온 사진도 심지는 하얗게 뜨고 색은 주변 헤일로가 담당하므로 현재 상태를 정상으로 본다. 한계는 §5에 남긴다.
+
 ---
 
 ## 5. 현재 알려진 문제와 보류 항목
@@ -279,8 +328,9 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - 드로우콜마다 InputLayout, Shader, Sampler를 다시 바인딩한다.
 - 컬링이 없다. `CullMode`가 `D3D11_CULL_NONE`이고 프러스텀 컬링도 없다.
 - 파일 텍스처는 모두 `R8G8B8A8_UNORM_SRGB`로 만든다(색상 텍스처 전제). 데이터 텍스처(노멀/러프니스)용 선택 인자가 없고, MipMap과 UV Tiling 정책도 없다.
-- 톤 매핑이 채널별로 적용돼, ACES에서 한 채널이 먼저 1에 닿으면 색조가 이동한다(예: 주황 네온이 노란 쪽으로). 룩 재튜닝 대상이다.
-- 룩 재튜닝 전이다. 선형 공간에서 Ambient 0.4는 화면상 약 0.66으로 보이고 Point Light 감쇠도 넓게 퍼져 보인다. ImGui에서 바꾼 값은 저장되지 않으므로 최종값은 코드 초기값에 옮겨 적어야 한다.
+- 톤 매핑이 채널별로 적용돼, ACES에서 한 채널이 먼저 1에 닿으면 색조가 이동한다. 주황 네온의 심지가 노랗게 뜨는 것이 이 현상이다. 실제 네온도 심지는 하얗게 뜨므로 지금은 정상으로 두고 있으며, 근본 해결은 휘도 기준 톤 매핑이나 색조 보존 방식이다(§4 "룩 재튜닝").
+- **`NeonSignDesc.color`가 Emissive 색과 Point Light 색을 공유한다.** 원래는 "둘이 항상 같아야 한다"는 근거로 한 필드로 묶었는데, 톤 매핑을 거치면 심지에 보이는 색과 벽에 비치는 색이 달라져서 **둘을 동시에 만족시킬 수 없다**(주황이 대표 사례). 심지 색을 우선하면 벽 빛이 순수 빨강이 되고, 벽 빛을 우선하면 심지가 노랗다. **전환 조건**: 네온별 색을 정밀하게 잡아야 하면 `lightColor`를 별도 필드로 분리한다(기본값은 `color`).
+- ImGui에서 바꾼 값은 저장되지 않는다. 룩을 다시 조정하면 최종값을 코드 초기값(§3 "룩 재튜닝"의 표에 위치가 정리돼 있다)에 옮겨 적어야 한다.
 - 출력 인코드가 정확한 sRGB 곡선이 아니라 `1/2.2`제곱 근사다(가장 어두운 구간에서만 차이). `toneMappingPixelShader.hlsl`의 Reinhard 분기에서 `pow` 음수 경고(X3571)가 난다(실제 입력은 0 이상).
 - `Renderer::BeginFrame`에 옛 백버퍼 RTV 줄이 주석으로 남아 있고(`Renderer.cpp` 307·324행), `D3D11Utils`의 셰이더 생성 실패 로그에는 파일 이름과 줄바꿈이 없다.
 - **Bloom이 단일 해상도 반복 방식이다.** 반복으로 넓히면 σ가 √n로만 커져 수확이 체감한다(1→4회에서 2배, 4→8회에서 1.4배). 더 넓은 번짐이 필요하면 다단계 다운샘플/업샘플(mip 체인)로 바꿔야 한다 — 현대 엔진의 표준 방식이다.
@@ -321,27 +371,30 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 
 ## 6. 바로 다음 작업
 
-**로드맵 11번 거의 완료 — HDR 씬 타깃, 톤 매핑, 선형 색공간, Bloom까지 구현 완료 ✅. 남은 것은 룩 재튜닝뿐이다.**
+**로드맵 11번 완료 ✅ — HDR 씬 타깃, 톤 매핑, 선형 색공간, Bloom, 룩 재튜닝까지 전부 끝났다.**
 
-완료한 단계: Step 1 렌더 타깃 생성(`74aebd8`) → Step 2 HDR 타깃 2-pass(`0e75485`) → Step 3 톤 매핑 + Exposure(`d5d36d7`) → Step 4 선형 색공간(`e17b870`) → 3-d ACES(`86f17a4`) → Rim 강조 이동(`765b68c`) → Step 5 밝은 부분 추출·디버그 뷰(`5ddb2ab`) → Step 6 분리형 블러(`80b825f`) → Step 7 합성(`4df455b`) → 블러 반복(`89f8d64`). 설계 이유는 §4의 "HDR 씬 타깃, 후처리 패스와 선형 색공간"과 "Bloom 파이프라인", 기록은 §8 참고.
+완료한 단계: Step 1 렌더 타깃 생성(`74aebd8`) → Step 2 HDR 타깃 2-pass(`0e75485`) → Step 3 톤 매핑 + Exposure(`d5d36d7`) → Step 4 선형 색공간(`e17b870`) → 3-d ACES(`86f17a4`) → Rim 강조 이동(`765b68c`) → Step 5 밝은 부분 추출·디버그 뷰(`5ddb2ab`) → Step 6 분리형 블러(`80b825f`) → Step 7 합성(`4df455b`) → 블러 반복(`89f8d64`) → 룩 재튜닝(`050a1d9`). 설계 이유는 §4의 "HDR 씬 타깃, 후처리 패스와 선형 색공간", "Bloom 파이프라인", "룩 재튜닝", 기록은 §8 참고.
 
 진행 순서는 그래픽스 강의 연계로 정한 **11번(HDR+Bloom) → 10번(Normal/Roughness+Fresnel+Cube Mapping+IBL) → 9번(Shadow Mapping)**을 그대로 따른다.
 
 **다음에 이어서 할 작업 (순서)**
 
-1. **룩 재튜닝 — 로드맵 11번을 닫는 마지막 작업.** 값이 서로 영향을 주므로 이 순서로 맞춘다.
-   1. Strength 0으로 두고 Exposure·Ambient로 "어두운 골목"의 기본 밝기를 잡는다.
-   2. Bright 뷰를 보며 Threshold — 네온과 Rim만 남기고 벽이 보이지 않게 한다.
-   3. Blur 뷰를 보며 Blur Iterations로 번짐 폭을 정한다.
-   4. Final로 돌아와 Strength를 0부터 올린다.
-   5. 네온 세 개(Pink/Cyan/Orange)의 Emissive 세기 균형.
-   6. ACES ↔ Reinhard 최종 선택. ACES에서 주황 네온이 노란 쪽으로 뜨면 Emissive 색을 조정한다.
-   - **ImGui 값은 저장되지 않는다.** 확정값을 `PostProcessSettings` 기본값(Exposure/Threshold/Strength/Iterations/ToneMapper), `Renderer::Initialize`의 `ambientStrength`, `NeonSignDesc` 세 개의 세기·색에 옮겨 적는다.
-   - 참고 현재 상태: 선형 공간에서 Ambient 0.4는 화면상 약 0.66으로 보이고 Point Light 감쇠가 넓게 퍼져 보인다.
-2. 룩이 확정되면 `HDR_SCENE_TARGET` 브랜치를 `main`에 머지한다(§2 참고).
-3. 그다음 로드맵 10번 — Specular → Fresnel → Cube Map/Skybox → 환경 매핑 → IBL(CMFT) → Normal/Roughness Map. **시작 전에 데이터 텍스처용 sRGB 선택 인자를 먼저 추가해야 한다**(§5 참고). 지금은 모든 파일 텍스처가 `_SRGB`라 노멀 맵을 그대로 넣으면 벡터가 왜곡된다.
+1. **`HDR_SCENE_TARGET` 브랜치를 `main`에 머지한다.** 로드맵 11번이 닫혔으므로 §2에서 잡아둔 머지 지점에 도달했다. 16 commit 앞서 있다.
+2. **데이터 텍스처용 sRGB 선택 인자 추가.** 로드맵 10번의 **선행 조건**이다. 지금은 `D3D11Utils::CreateTexture`가 모든 파일 텍스처를 `R8G8B8A8_UNORM_SRGB`로 만들기 때문에 노멀 맵을 그대로 넣으면 GPU가 디코드해버려 벡터가 왜곡된다. 색상 텍스처인지 데이터 텍스처인지를 호출자가 고르게 인자를 하나 추가한다(§5 참고).
+3. **로드맵 10번 — 젖은 바닥 반사.** Specular → Fresnel → Cube Map/Skybox → 환경 매핑 → IBL(CMFT) → Normal/Roughness Map 순서다. 바닥에 네온이 번지는 느낌은 대부분 Point Light Specular에서 나오고, 정적 Cube Map은 골목 안 네온을 반사하지 못한다는 한계를 알고 진행한다. Bloom과 HDR이 이미 있으므로 젖은 표면의 하이라이트가 곧바로 번진다.
 
-그다음은 로드맵 10번(Specular → Fresnel → Cube Map/Skybox → 환경 매핑 → IBL(CMFT) → Normal/Roughness Map), 9번(Shadow Mapping) 순서다. 10번에서 바닥에 네온이 번지는 느낌은 대부분 Point Light Specular에서 나오고, 정적 Cube Map은 골목 안 네온을 반사하지 못한다는 한계를 알고 진행한다.
+**룩을 다시 조정하고 싶을 때의 순서** (값이 서로 영향을 주므로 이 순서를 지킨다)
+
+1. Strength 0으로 두고 Exposure·Ambient로 기본 밝기를 잡는다.
+2. Bright 뷰를 보며 Threshold — 네온과 Rim만 남기고 벽이 보이지 않게 한다.
+3. Blur 뷰를 보며 Blur Iterations로 번짐 폭을 정한다.
+4. Final로 돌아와 Strength를 0부터 올린다.
+5. 네온 세 개의 Emissive 세기 균형(채널별 휘도 가중치는 §4 참고).
+6. ACES ↔ Reinhard 최종 선택.
+
+확정값을 옮겨 적을 위치는 §3 "룩 재튜닝"의 표에 정리돼 있다.
+
+10번 다음이 9번(Shadow Mapping)이다.
 
 **참고 — Shadow Mapping (로드맵 9번)**: 설계 가이드가 이미 나와 있다. 오늘 만든 렌더 타깃 기반과 RenderDoc 확인 방식을 재사용한다.
 
@@ -366,8 +419,8 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
-10. Normal/Roughness Material과 젖은 바닥 반사 (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행 — 11번 다음 순서)
-11. HDR Scene Target, Bloom과 Tone Mapping ← 진행 중 (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 완료 ✅ 2026-09-15, Bloom Step 5~7과 블러 반복 완료 ✅ 2026-09-17. **룩 재튜닝만 남음**)
+10. Normal/Roughness Material과 젖은 바닥 반사 ← **다음 차례** (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행. 착수 전에 데이터 텍스처용 sRGB 선택 인자가 먼저 필요하다 — §6 참고)
+11. ✅ HDR Scene Target, Bloom과 Tone Mapping (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 2026-09-15, Bloom Step 5~7과 블러 반복·룩 재튜닝 2026-09-17에 완료)
 12. 안개, 비와 색조 보정
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류)
 14. 라이선스 정리와 1~2분 최종 연출
@@ -451,6 +504,26 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
   - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
+### 2026-09-17 — 룩 재튜닝, 로드맵 11번 완료 ✅
+
+- 완료한 작업 (`050a1d9`): 기능 검증용 임시값으로 남아 있던 조명·후처리 값을 밤 골목 기준으로 전부 다시 잡았다. 확정값은 §3 "룩 재튜닝", 결정 이유는 §4 "룩 재튜닝" 참고.
+  - 하늘광을 흰색 `1.0`에서 차가운 청색 `(0.45, 0.60, 1.0)` `0.18`로 낮추고 방향을 거의 수직인 단위 벡터로 바꿨다.
+  - `EnvironmentFillLight`를 보라색 `1.58`/range 6에서 청색 `0.55`/range 24로 바꿨다.
+  - Ambient `0.4` → `0.045`, Exposure `1.0` → `2.0`, Threshold `1.0` → `1.2`, Strength `0.5` → `0.8`, Iterations `1` → `5`.
+  - 네온 세 개의 Emissive를 올리고(3/8/5 → 18/7/15) Point Light를 내렸다(2.0/2.0/5.0 → 1.4/0.7/1.4).
+  - 전원 스위치 색을 다시 잡고 `ApplyVisualState`에 대기 표시등(Emissive)을 추가했다. Rim 강조 색을 청록 → 호박색, 세기 2.5 → 3.0.
+  - `EditorUI`의 Ambient 슬라이더를 로그 스케일(`0.001~1.0`)로 바꿨다.
+- 확인한 결과: 에이전트가 세 차례 빌드·실행하고 화면을 캡처해 확인했으며, 사용자가 최종 확인했다. 전원 Off에서 차가운 청색 골목과 끝벽 빨간 대기 표시등이 유도등처럼 보이고, On에서 네온 심지가 번지며 벽이 은은하게 물든다. 144 FPS 유지.
+  - 캡처를 보고 고친 것: ① 1차에서 벽이 빨강/청록 젤을 씌운 것처럼 진했다 → Point Light 세기를 절반으로 내렸다. ② 2차에서 스위치 대기 표시등이 평평하게 날아가 빨간 스티커처럼 보였다 → Emissive 세기 `0.5` → `0.20`.
+- 남아 있는 문제: §5 참고. 주황 네온 심지의 색조 이동(정상으로 판단), `NeonSignDesc.color`가 Emissive와 Point Light를 공유해 둘을 따로 잡을 수 없는 한계, 데이터 텍스처용 sRGB 선택 인자 없음.
+- 다음에 이어서 할 작업: §6 — `main` 머지 → sRGB 선택 인자 → 로드맵 10번.
+- 중요한 설계 결정과 이유: §4 "룩 재튜닝"에 정리했다. 핵심 요약:
+  - **값보다 세팅 논리가 먼저였다.** 흰색 태양 상시 On, 보라색 상시 조명, 선형 Ambient 0.4 세 가지를 고치지 않으면 어떤 값으로도 목표 룩에 도달할 수 없었다.
+  - 하늘광을 수직으로 눕히면 옆벽이 `dot = 0`이 돼 하늘광을 안 받는다. 바닥만 차갑게 빛나고 옆벽은 네온이 닿는 곳만 밝아지는 구도가 여기서 나온다.
+  - Emissive와 Point Light가 따로 노는 것(GI 부재)을 이용해 "네온은 밝고 벽은 은은하게"를 만들었다.
+  - 세기 균형은 감이 아니라 채널별 휘도 가중치로 환산해 맞췄다.
+  - 스위치 대기 표시등은 Threshold 아래로 잡아 번지지 않게 했다 — 번지면 표시등이 아니라 네온으로 읽힌다.
 
 ### 2026-09-17 — Bloom 구현과 Rim 강조 책임 이동 (로드맵 11번 Step 5~7) ✅
 
@@ -547,8 +620,9 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 
 ## 9. 다른 PC에서 확인할 체크리스트
 
-- `git pull` 후 HEAD가 최소 `89f8d64`인지 확인한다.
-- Play에서 상호작용 거리 안에서 스위치를 바라볼 때만 가장자리가 청록색으로 밝아지고(Rim 강조), HUD의 `[E] Interact`가 같은 타이밍으로 뜨는지 확인한다. ESC나 Alt+Tab으로 나가면 Editor에서 강조가 꺼져 있어야 한다.
+- `git pull` 후 HEAD가 최소 `050a1d9`인지 확인한다.
+- 룩 확인: 전원 Off에서 골목이 차가운 청색이고 끝벽의 빨간 대기 표시등이 보이는지, On에서 네온이 번지면서도 벽은 은은하게만 물드는지 확인한다. 모니터 밝기에 따라 다르게 보이므로 너무 어둡거나 밝으면 Exposure부터 조정한다(§6의 조정 순서 참고).
+- Play에서 상호작용 거리 안에서 스위치를 바라볼 때만 가장자리가 호박색으로 밝아지고(Rim 강조), HUD의 `[E] Interact`가 같은 타이밍으로 뜨는지 확인한다. ESC나 Alt+Tab으로 나가면 Editor에서 강조가 꺼져 있어야 한다.
 - Editor 패널 Post Process에서 Tone Mapper(Reinhard/ACES)와 Exposure를 바꾸면 화면이 즉시 바뀌고, 전원을 켰을 때 네온 세 개의 밝기가 서로 다르게 보이는지 확인한다.
 - Bloom 확인: 전원을 켠 뒤 Editor로 나와 Debug View를 Bright → Blur X → Blur → Final로 돌려본다. Bright에 네온과 Rim만, Blur X는 가로로만, Blur는 사방으로 번져야 한다. Strength 0이면 Bloom이 없는 화면과 같고, Blur Iterations를 올리면 번짐이 넓어진다.
 - 창 크기 변경·최대화·최소화 후 복원에도 화면이 정상인지 확인한다(HDR 씬 타깃 재생성).
@@ -560,6 +634,6 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - `InputSystem::WasKeyPressed`와 `EndFrame`이 연결됐는지 확인한다.
 - Play에서 스위치를 바라보며 상호작용 거리(Ray-BoundingBox 교차) 안에 있을 때 E로 전원과 스위치 색상이 On/Off 전환되는지 확인한다.
 - 등록된 네온 세 개(Pink/Cyan/Orange)와 연결 Point Light가 1.4초 간격으로 함께 켜지고 역순으로 꺼지는지 확인한다.
-- 시퀀스에 등록되지 않은 `EnvironmentFillLight`는 전원과 무관하게 항상 켜져 있는 것이 정상이다.
+- 시퀀스에 등록되지 않은 `EnvironmentFillLight`는 전원과 무관하게 항상 켜져 있는 것이 정상이다. 다만 도시 불빛이 새어 들어온 것을 흉내내는 값이라 **색이 눈에 띄면 안 된다** — 예전처럼 보라색 덩어리로 보이면 세팅이 되돌아간 것이다.
 - 대규모 Unreal식 명명 마이그레이션이나 범용 ECS를 시작하지 않는다.
 - 사용자가 요청하지 않으면 빌드, 실행, commit, push하지 않는다.
