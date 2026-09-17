@@ -20,10 +20,10 @@ namespace My
 
 	struct PostProcessSettings
 	{
-		float				 exposure{ 1.0f };
-		float				 threshold{ 1.0f };
-		float				 bloomStrength{ 0.5f };
-		int					 bloomBlurIterations{ 1 };
+		float				 exposure{ 2.0f };
+		float				 threshold{ 1.2f };
+		float				 bloomStrength{ 0.8f };
+		int					 bloomBlurIterations{ 5 };
 		ToneMapper			 toneMapper{ ToneMapper::ACES };
 		PostProcessDebugView debugView{ PostProcessDebugView::Final };
 	};

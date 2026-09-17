@@ -113,8 +113,10 @@ namespace My
 			m_directionalLight->intensity = lightIntensity;
 		}
 
+		// 밤 골목에서 쓸모 있는 구간이 0.01~0.1이라 선형 슬라이더로는 조절이 안 된다.
 		float ambientStrength = m_directionalLight->ambientStrength;
-		if (ImGui::SliderFloat("Ambient Strength", &ambientStrength, 0.0f, 1.0f))
+		if (ImGui::SliderFloat(
+				"Ambient Strength", &ambientStrength, 0.001f, 1.0f, "%.3f", ImGuiSliderFlags_Logarithmic))
 		{
 			m_directionalLight->ambientStrength = ambientStrength;
 		}

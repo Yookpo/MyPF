@@ -365,10 +365,10 @@ namespace My
 		desc1.glowPosition = { -1.95f, 2.2f, 6.0f };
 		desc1.glowScale = { 0.1f, 0.7f, 1.2f };
 		desc1.lightPosition = { -1.2f, 2.2f, 6.0f };
-		desc1.lightRange = 4.5f;
-		desc1.lightIntensity = 2.0f;
-		desc1.color = { 1.0f, 0.05f, 0.65f };
-		desc1.emissiveIntensity = 3.0f;
+		desc1.lightRange = 6.0f;
+		desc1.lightIntensity = 1.4f;
+		desc1.color = { 1.0f, 0.08f, 0.45f };
+		desc1.emissiveIntensity = 18.0f;
 
 		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc1))
 		{
@@ -380,10 +380,10 @@ namespace My
 		desc2.glowPosition = { 1.95f, 2.7f, 15.0f };
 		desc2.glowScale = { 0.1f, 0.7f, 1.5f };
 		desc2.lightPosition = { 1.2f, 2.7f, 15.0f };
-		desc2.lightRange = 4.5f;
-		desc2.lightIntensity = 2.0f;
-		desc2.color = { 0.0f, 0.86f, 1.00f };
-		desc2.emissiveIntensity = 8.0f;
+		desc2.lightRange = 6.5f;
+		desc2.lightIntensity = 0.7f;
+		desc2.color = { 0.10f, 0.85f, 1.00f };
+		desc2.emissiveIntensity = 7.0f;
 
 		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc2))
 		{
@@ -395,22 +395,24 @@ namespace My
 		desc3.glowPosition = { 0.0f, 2.8f, 19.9f };
 		desc3.glowScale = { 1.4f, 0.5f, 0.1f };
 		desc3.lightPosition = { 0.0f, 2.8f, 19.5f };
-		desc3.lightRange = 7.5f;
-		desc3.lightIntensity = 5.0f;
-		desc3.color = { 1.0f, 0.35f, 0.03f };
-		desc3.emissiveIntensity = 5.0f;
+		desc3.lightRange = 6.5f;
+		desc3.lightIntensity = 1.4f;
+		desc3.color = { 1.0f, 0.20f, 0.05f };
+		desc3.emissiveIntensity = 15.0f;
 
 		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc3))
 		{
 			return false;
 		}
 
-		// 약하게 항상 켜져 있는 환경 보조광
+		// 약하게 항상 켜져 있는 환경 보조광.
+		// 도시 불빛이 골목으로 새어 들어온 것을 흉내내는 값이라, 색이 드러나면 안 되고
+		// 벽이 완전히 검게 뭉개지지 않을 만큼만 넓고 약하게 깐다.
 		GameObject& EnvFillLight = m_scene.CreatePointLightObject("EnvironmentFillLight");
-		EnvFillLight.GetTransform().SetPosition(Vector3{ 0.0f, 2.5f, 10.0f });
-		EnvFillLight.GetPointLightComponent().SetColor(Vector3{ 0.55f, 0.10f, 1.0f });
-		EnvFillLight.GetPointLightComponent().SetRange(6.0f);
-		EnvFillLight.GetPointLightComponent().SetIntensity(1.58f);
+		EnvFillLight.GetTransform().SetPosition(Vector3{ 0.0f, 3.2f, 10.0f });
+		EnvFillLight.GetPointLightComponent().SetColor(Vector3{ 0.28f, 0.48f, 0.85f });
+		EnvFillLight.GetPointLightComponent().SetRange(24.0f);
+		EnvFillLight.GetPointLightComponent().SetIntensity(0.55f);
 		EnvFillLight.GetPointLightComponent().SetEnabled(true);
 
 		// Create floor
@@ -484,7 +486,7 @@ namespace My
 		, m_appMode{ AppMode::Editor }
 		, m_graphicsDevice{}
 		, m_renderer{}
-		, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }
+		, m_backgroundColor{ 0.020f, 0.028f, 0.055f, 1.0f }
 	{
 		g_appBase = this;
 	}

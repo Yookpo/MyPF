@@ -10,8 +10,12 @@ namespace My
 
 	PowerSwitch::PowerSwitch()
 		: m_gameObject{ nullptr }
-		, m_powerOffColor{ 0.35f, 0.05f, 0.05f }
-		, m_powerOnColor{ 0.15f, 0.8f, 0.25f }
+		, m_powerOffColor{ 0.30f, 0.12f, 0.10f }
+		, m_powerOnColor{ 0.22f, 0.85f, 0.55f }
+		, m_powerOffEmissiveColor{ 0.90f, 0.12f, 0.08f }
+		, m_powerOnEmissiveColor{ 0.25f, 1.0f, 0.55f }
+		, m_powerOffEmissiveIntensity{ 0.20f }
+		, m_powerOnEmissiveIntensity{ 0.30f }
 		, m_interactionRange{ 2.0f }
 		, m_isPowerOn{ false }
 		, m_isHighlighted{ false }
@@ -26,7 +30,8 @@ namespace My
 
 		m_gameObject = &gameObject;
 		Material* powerSwitchMat = m_gameObject->GetMeshComponent().GetMaterial();
-		powerSwitchMat->SetRimColor(Vector3(0.3f, 0.9f, 1.0f));
+		// 골목이 청록 계열이라 강조도 청록이면 네온에 묻힌다. 보색인 호박색을 쓴다.
+		powerSwitchMat->SetRimColor(Vector3(1.0f, 0.75f, 0.25f));
 		powerSwitchMat->SetRimPower(4.0f);
 
 		ApplyVisualState();
@@ -89,16 +94,20 @@ namespace My
 		if (m_isPowerOn)
 		{
 			powerSwitchMat->SetBaseColor(m_powerOnColor);
+			powerSwitchMat->SetEmissiveColor(m_powerOnEmissiveColor);
+			powerSwitchMat->SetEmissiveIntensity(m_powerOnEmissiveIntensity);
 		}
 		else
 		{
 			powerSwitchMat->SetBaseColor(m_powerOffColor);
+			powerSwitchMat->SetEmissiveColor(m_powerOffEmissiveColor);
+			powerSwitchMat->SetEmissiveIntensity(m_powerOffEmissiveIntensity);
 		}
 
 		// 상호작용거리가 된다면 Rim Intensity 적용
 		if (m_isHighlighted)
 		{
-			powerSwitchMat->SetRimIntensity(2.5f);
+			powerSwitchMat->SetRimIntensity(3.0f);
 		}
 		else
 		{
