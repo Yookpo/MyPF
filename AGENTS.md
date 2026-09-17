@@ -18,7 +18,9 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 현재 전체 진행률은 약 76%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅까지 완료했다. **로드맵 11번이 닫혔다.**
 
-**바로 다음 기능 책임:** `HDR_SCENE_TARGET` 브랜치를 `main`에 머지한 뒤, 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)으로 넘어간다. **착수 전에 `D3D11Utils::CreateTexture`에 데이터 텍스처용 sRGB 선택 인자를 먼저 추가해야 한다**(지금은 모든 파일 텍스처가 `_SRGB`라 노멀 맵을 넣으면 벡터가 왜곡된다). 그다음 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. **착수 전에 `D3D11Utils::CreateTexture`에 데이터 텍스처용 sRGB 선택 인자를 먼저 추가해야 한다**(지금은 모든 파일 텍스처가 `_SRGB`라 노멀 맵을 넣으면 벡터가 왜곡된다). 그다음 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+
+작업 브랜치는 `main` 하나다. 로드맵 11번은 `5794467`로 `main`에 머지됐고 기능 브랜치는 정리됐다.
 
 ## 2. 에이전트의 역할 — 가장 중요한 규칙
 
