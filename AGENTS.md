@@ -1,6 +1,6 @@
 # MyPF 작업 지침
 
-마지막 갱신: 2026-09-13
+마지막 갱신: 2026-09-17
 
 이 문서가 MyPF 프로젝트의 단일 진실 원본이다. 사용하는 도구(Claude Code, Codex 등)와 무관하게 적용된다.
 
@@ -14,11 +14,11 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 최종 결과물은 범용 엔진 자체가 아니라 `DX11 렌더링 기술 + 확장 가능한 구조 + 짧지만 완결된 플레이 경험`을 보여주는 포트폴리오다.
 
-남은 목표 기능: 그림자, 젖은 바닥 반사, HDR Scene Target·Bloom·Tone Mapping, 안개·비·색조 보정, 충돌과 이동 제한.
+남은 목표 기능: 그림자, 젖은 바닥 반사(Specular·Fresnel·Cube Map·IBL), 안개·비·색조 보정, 나머지 이동 제한.
 
-현재 전체 진행률은 약 65%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목, PowerSwitch, 다중 Point Light와 Emissive 순차 점등까지 완료했다.
+현재 전체 진행률은 약 76%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅까지 완료했다. **로드맵 11번이 닫혔다.**
 
-**바로 다음 기능 책임:** 남은 Point Light의 역할 분류(네온 연동 조명 / 환경 조명)와 실제 네온 배치 정리. 그다음이 Shadow Mapping이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+**바로 다음 기능 책임:** `HDR_SCENE_TARGET` 브랜치를 `main`에 머지한 뒤, 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)으로 넘어간다. **착수 전에 `D3D11Utils::CreateTexture`에 데이터 텍스처용 sRGB 선택 인자를 먼저 추가해야 한다**(지금은 모든 파일 텍스처가 `_SRGB`라 노멀 맵을 넣으면 벡터가 왜곡된다). 그다음 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
 
 ## 2. 에이전트의 역할 — 가장 중요한 규칙
 
@@ -65,6 +65,8 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 제출 경계는 두 개뿐이다. 오브젝트 단위는 `RenderItem`, 프레임 단위는 `FrameRenderData`.
 
+**색 공간 규칙:** 조명과 후처리 계산은 **선형 공간**에서 한다. 파일 텍스처는 sRGB 포맷으로 읽고, 사람이 고르는 색 상수(Material/Light/배경색)는 sRGB 값으로 두되 `Renderer`가 GPU에 올릴 때 선형으로 바꾼다. 모니터용 감마 인코드는 마지막 후처리(톤 매핑) 셰이더만 한다.
+
 리소스의 **실제 소유권과 비소유 참조를 항상 명확히 구분한다.**
 
 범용 ECS, 과도한 인터페이스, 사용처가 없는 추상화를 미리 만들지 않는다. 목표 기능을 진행한 뒤 실제 중복과 변경 압력이 확인될 때 구조를 확장한다.
@@ -78,25 +80,31 @@ AppBase
 ├─ GraphicsDevice                          Device/Context/SwapChain/RTV/DSV 소유
 ├─ GraphicsResourceManager --비소유--> GraphicsDevice
 │  ├─ BufferResource[]  → ID3D11Buffer ComPtr
-│  └─ TextureResource[] → Texture2D / SRV ComPtr
+│  └─ TextureResource[] → Texture2D / SRV / RTV ComPtr (+렌더 타깃 포맷)
 ├─ AssetManager --비소유--> GraphicsResourceManager
 │  └─ unique_ptr<Mesh / Texture / Material / Model> + 이름 캐시
 ├─ Renderer --비소유--> GraphicsDevice / GraphicsResourceManager
+│  └─ 렌더 타깃 TextureHandle 4개(HDR 씬 + Bloom Bright/BlurX/BlurY), Constant Buffer Handle 5개,
+│     셰이더(씬·전체 화면 VS·복사·톤 매핑·밝은 부분 추출·BlurX·BlurY), 샘플러 2개(WRAP/CLAMP)
 ├─ Scene
 │  └─ vector<unique_ptr<GameObject>>
 │     ├─ Transform
 │     ├─ MeshComponent        --비소유--> Mesh / Material
 │     ├─ ModelComponent       --비소유--> Model
-│     └─ PointLightComponent  (Has 플래그로 선택적)
+│     ├─ PointLightComponent  (Has 플래그로 선택적)
+│     └─ BoxCollisionComponent (Has 플래그로 선택적, 모양은 Transform에서 유도)
 ├─ InputSystem
 ├─ Camera / EditorCameraSnapshot / FirstPersonCameraController
 ├─ PowerSwitch        --비소유--> Scene 소유 GameObject / Material
 ├─ PointLightSequence --비소유--> Scene 소유 GameObject / 등록된 Material
-├─ DirectionalLight
-└─ EditorUI --비소유--> Scene / Camera / CameraController / DirectionalLight / BackgroundColor
+├─ DirectionalLight / PostProcessSettings (Exposure, ToneMapper)
+└─ EditorUI --비소유--> Scene / Camera / CameraController / DirectionalLight / BackgroundColor / PostProcessSettings
 
 AppBase --FrameRenderData--> Renderer::BeginFrame
 AppBase --RenderItem-------> Renderer::DrawRenderItem
+AppBase --EndScene()-------> Renderer (HDR 씬 타깃 → 톤 매핑 → 백버퍼)
+AppBase --Resize(w, h)-----> GraphicsDevice → Renderer (HDR 씬 타깃 재생성)
+PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호출
 ```
 
 `AppBase` 멤버 선언의 **역순으로 파괴**되므로 Scene/Renderer가 먼저 소멸하고 AssetManager → GraphicsResourceManager → GraphicsDevice가 뒤에 소멸한다. 참조하는 쪽이 항상 먼저 죽는다. **멤버 선언 순서를 바꾸지 않는다.**
@@ -106,8 +114,8 @@ AppBase --RenderItem-------> Renderer::DrawRenderItem
 | 시스템 | 소유하는 것 | 모르는 것 |
 |---|---|---|
 | `GraphicsDevice` | Device, Context, SwapChain, 기본 RTV/Depth Texture/DSV. Resize와 Present | 그 위 전부 |
-| `GraphicsResourceManager` | 실제 Buffer/Texture2D/SRV ComPtr. 생성·조회·업데이트 | Camera/Light/Material의 의미, Draw 순서 |
-| `Renderer` | Shader/InputLayout, Rasterizer/DepthStencil/Sampler State, 4개 Constant Buffer Handle | Scene, GameObject, Camera 클래스, ImGui |
+| `GraphicsResourceManager` | 실제 Buffer/Texture2D/SRV/RTV ComPtr. 생성·조회·업데이트, 렌더 타깃 생성과 같은 슬롯 재생성 | Camera/Light/Material의 의미, Draw 순서, 렌더 타깃의 용도 |
+| `Renderer` | Shader/InputLayout, Rasterizer/DepthStencil/Sampler State(WRAP·CLAMP), 5개 Constant Buffer Handle, 렌더 타깃 Handle 4개(포맷·크기 결정, Bloom은 화면 절반), 후처리 패스 체인(`EndScene`, `DrawFullScreenPass`), 색 상수 sRGB→선형 변환 | Scene, GameObject, Camera 클래스, ImGui |
 | `AssetManager` | Mesh/Texture/Material/Model의 `unique_ptr`와 이름 캐시 | Scene, Renderer |
 | `Scene` | `vector<unique_ptr<GameObject>>` | DX11, ImGui |
 | `InputSystem` | key state, 단발 입력(`WasKeyPressed`), 누적 MouseDelta | Camera, Scene |
@@ -118,31 +126,43 @@ AppBase --RenderItem-------> Renderer::DrawRenderItem
 
 ## 6. 현재 프레임 흐름
 
-1. Win32 메시지를 `InputSystem`과 `AppBase::MsgProc`가 처리한다. Resize와 focus 상실을 반영한다.
+1. Win32 메시지를 `InputSystem`과 `AppBase::MsgProc`가 처리한다. Resize는 `GraphicsDevice::Resize` → `Renderer::Resize`(HDR 씬 타깃을 같은 슬롯에서 재생성) 순서로 반영하고, focus 상실도 반영한다.
 2. `GameTimer::Tick()`으로 deltaTime을 계산한다.
 3. ImGui 프레임을 시작하고 `UpdateGui()`를 호출한다. Editor 모드는 `EditorUI::Draw`, Play 모드는 `AppBase::DrawPlayPanel`.
 4. Scene View 크기로 Camera Aspect와 Renderer Viewport를 갱신한다.
-5. Editor 모드는 마우스 우클릭을 누르고 있는 동안만 `FirstPersonCameraController`가 WASD 이동과 MouseDelta 회전을 적용한다(`AppBase::UpdateEditorCamera`). Play 모드는 ESC 확인 후 매 프레임 항상 적용한다.
-6. `WasKeyPressed('E')`가 참이면 `PowerSwitch`가 Ray-BoundingBox 교차로 상호작용 가능 여부를 판정하고 전원 상태와 스위치 색을 반전한다.
+5. Editor 모드는 마우스 우클릭을 누르고 있는 동안만 `FirstPersonCameraController`가 WASD 이동과 MouseDelta 회전을 적용한다(`AppBase::UpdateEditorCamera`). Play 모드는 ESC 확인 후 매 프레임 항상 적용하고, `PlayerCollision::Resolve`가 `Scene::GatherBoxColliders` 결과로 카메라 위치를 보정한다.
+6. Play 모드에서 `PowerSwitch::CanInteract`(Ray-BoundingBox 교차)가 참이면 스위치 Material의 Rim을 강조하고, `WasKeyPressed('E')`까지 참이면 전원 상태와 스위치 색을 반전한다.
 7. `PointLightSequence`가 새 목표를 받고, 누적 시간에 따라 등록된 `SequenceEntry`의 Point Light와 Emissive Material을 한 단계씩 함께 켜거나 역순으로 끈다.
 8. 커서를 Scene View 중앙으로 되돌린다.
-9. `AppBase`가 Camera, DirectionalLight, `Scene::GatherPointLights` 결과로 `FrameRenderData`를 만든다.
-10. `Renderer::BeginFrame`이 RTV/DSV를 Clear하고 CPU 조명을 GPU 상수 데이터로 변환해 Camera/Light Constant Buffer를 갱신한다.
-11. `AppBase`가 Scene을 순회해 `ModelPart` 또는 `MeshComponent`를 `RenderItem`으로 변환하고, `Renderer::DrawRenderItem`이 Object/Material Buffer와 Mesh/Texture를 바인딩해 `DrawIndexed`한다.
-12. ImGui DrawData를 렌더링하고 `Renderer::EndFrame`이 Present한다. `InputSystem::EndFrame`이 단발 키 상태를 초기화한다.
+9. `AppBase`가 Camera, DirectionalLight, `Scene::GatherPointLights` 결과, `PostProcessSettings`(Exposure, ToneMapper)로 `FrameRenderData`를 만든다.
+10. `Renderer::BeginFrame`이 HDR 씬 타깃(`R16G16B16A16_FLOAT`)과 DSV를 Clear·바인딩하고, 색 상수를 선형으로 바꿔 Camera/Light/PostProcess Constant Buffer를 갱신한다. Light 버퍼는 매 프레임 PS `b0`에 다시 건다.
+11. `AppBase`가 Scene을 순회해 `ModelPart` 또는 `MeshComponent`를 `RenderItem`으로 변환하고, `Renderer::DrawRenderItem`이 Object/Material Buffer와 Mesh/Texture를 바인딩해 `DrawIndexed`한다. 씬 셰이더는 1을 넘는 선형 HDR 값을 그대로 기록한다.
+12. `Renderer::EndScene`이 후처리 패스를 순서대로 실행한다. 뷰포트를 Bloom 타깃 크기(화면 절반)로 바꿔 ① 밝은 부분 추출(HDR → Bright) ② BlurX·BlurY를 반복 횟수만큼(첫 회차만 Bright에서 읽고 이후 직전 결과에서 누적)을 돌린 뒤 화면 뷰포트로 되돌리고, ③ 백버퍼를 깊이 버퍼 없이 출력으로 바꿔 톤 매핑 셰이더가 HDR(`t0`)과 Bloom(`t1`)을 `hdr * exposure + bloom * strength`로 합친 뒤 Reinhard/ACES → `1/2.2` 감마 인코드를 적용한다. 디버그 뷰가 Final이 아니면 마지막 패스만 복사 셰이더로 해당 중간 타깃을 보여준다. 각 패스는 출력 교체 → 입력 바인딩 → `Draw(3, 0)` → 입력 해제 순서를 지킨다.
+13. ImGui DrawData를 백버퍼에 렌더링하고 `Renderer::EndFrame`이 Present한다. `InputSystem::EndFrame`이 단발 키 상태를 초기화한다.
 
 ## 7. 코드를 읽어도 알 수 없는 함정
 
 새 기능을 안내하기 전에 이 목록을 확인한다. (전체 목록은 CODEX_HANDOFF.md)
 
-- **인코딩**: 과거 일부 파일의 한글 주석이 CP949로 저장돼 깨져 있었으나, 전체 소스를 UTF-8 BOM으로 통일하는 커밋(`5a5f463`)으로 해결됐다. 새로 쓰는 `.cpp`/`.h`도 **UTF-8 with BOM**으로 저장한다.
+- **인코딩**: 과거 일부 파일의 한글 주석이 CP949로 저장돼 깨져 있었으나, 전체 소스를 UTF-8 BOM으로 통일하는 커밋(`5a5f463`)으로 해결됐다. 새로 쓰는 `.cpp`/`.h`도 **UTF-8 with BOM**으로 저장한다. 저장소 루트 `.editorconfig`가 VS에서 저장할 때 `.cpp`/`.h`는 UTF-8 with BOM, `.hlsl`/`.hlsli`는 BOM 없는 UTF-8을 강제한다. 이 설정이 없을 때 새 파일이 CP949로 저장되는 문제가 반복됐고, 이미 있는 파일은 저장할 때 바뀐다.
 - **HLSL은 BOM 없는 UTF-8**: `5a5f463`이 `.hlsl`/`.hlsli`까지 UTF-8 BOM으로 바꿔버렸는데, HLSL 컴파일러(`fxc`/`D3DCompiler`)는 UTF-8 BOM을 인식하지 못하고 `error X3000: Illegal character in shader file`로 컴파일이 실패한다(2026-09-13 `fxc.exe`로 직접 재현·확인, `Shaders/*.hlsl`·`*.hlsli`를 BOM 없는 UTF-8로 다시 저장해 해결). `.cpp`/`.h`와 달리 `.hlsl`/`.hlsli`는 **BOM 없는 UTF-8**로 저장한다.
 - **셰이더 경로**: `L"Shaders\\simpleVertexShader.hlsl"` 상대 경로라 **작업 디렉터리가 `MyPF/`여야** 실행된다. exe를 직접 실행하면 실패한다.
-- **LDR 클리핑**: Pixel Shader 마지막 `saturate` 때문에 1을 넘는 Emissive Intensity가 잘린다. 현재 값 3, 8은 화면에서 구분되지 않는다. HDR Scene Target 단계에서 해결한다.
+- **HDR 규칙**: 씬 셰이더는 1을 넘는 선형 값을 float HDR 씬 타깃에 그대로 쓴다. 씬 셰이더에 `saturate`를 다시 넣거나, 셰이더에서 텍스처·색 상수에 `pow(2.2)`를 추가하면 안 된다(이중 처리). 모니터용 감마 인코드는 톤 매핑 셰이더에서만 한다.
+- **sRGB 텍스처 전제**: `D3D11Utils::CreateTexture`는 모든 파일 텍스처를 `R8G8B8A8_UNORM_SRGB`로 만든다. 노멀/러프니스 같은 데이터 텍스처를 추가하기 전에 sRGB 여부를 고르는 인자가 먼저 필요하다. 색 상수는 `Renderer::SrgbToLinear`를 거치고, 세기·거리·Exposure 같은 배율은 변환하지 않는다.
 - **에러 정책**: `Renderer::DrawRenderItem`은 Albedo Texture가 없으면 `false`를 반환하고, `AppBase::Render`가 이를 받아 `PostQuitMessage(-1)`로 앱을 종료한다. 기본 Material/Texture 정책이 없다.
 - **`PointLightSequence` 전제**: 자신만 조명 활성 상태를 바꾼다고 가정한다. 다른 코드가 직접 `SetEnabled`를 호출하면 내부 개수와 실제 상태가 어긋난다.
 - **`SequenceEntry` 수명**: Material을 비소유 포인터로 참조한다. 현재는 `AssetManager`가 수명을 보장한다는 전제를 쓴다.
 - **`GraphicsResourceManager`**: append-only다. 개별 삭제, 슬롯 재사용, generation이 없다. 삭제를 도입하는 날 핸들에 generation을 같이 넣어야 한다.
+- **렌더 타깃 raw pointer**: `GetRTV`/`GetSRV`가 돌려준 포인터는 `Renderer::Resize` 후 무효다. 멤버에 저장하지 말고 바인딩 직전에 핸들로 조회한다. 렌더 타깃은 리사이즈 시 append가 아니라 같은 슬롯에서 재생성된다.
+- **바인딩 규칙**: 같은 텍스처를 RTV와 SRV로 동시에 걸 수 없으므로 패스는 출력 교체 → 입력 바인딩 → Draw → 입력 해제 순서를 지킨다. 파이프라인은 상태 기계라 각 패스는 자기가 쓰는 샘플러·Input Layout·상수 버퍼를 직접 설정한다. 후처리가 PS `b0`를 쓰므로 `BeginFrame`의 Light 버퍼 `b0` 재바인딩을 지우면 두 번째 프레임부터 조명이 사라진다.
+- **Rim Power 0 금지**: `pow(1 - N·V, rimPower)`에서 지수가 0이면 정면 픽셀이 `pow(0, 0)`(NaN)이 된다. Rim을 끌 때는 Intensity만 0으로 한다.
+- **Directional Light의 `direction`은 단위 벡터여야 한다.** 셰이더가 `dot(-direction, normal)`을 쓸 뿐 `normalize`하지 않으므로 **벡터의 길이가 그대로 세기 배율이 된다.** 기본값이 `(0, -0.5, 1)`이던 시절에는 길이가 1.118이라 의도보다 12% 세게 들어가고 있었다. ImGui는 편집할 때만 정규화하므로 코드 초기값은 직접 맞춰야 한다. 참고로 방향을 수직에 가깝게 두면 법선이 수평인 옆벽은 `dot`이 0이 돼 하늘광을 전혀 받지 않는다 — 현재 룩이 이 성질에 의존한다.
+- **룩 값은 감이 아니라 휘도로 맞춘다.** Bloom 추출이 `dot(color, (0.2126, 0.7152, 0.0722))`로 판정하므로 같은 Intensity라도 색에 따라 밝기가 다르다(선형 변환 후 단위 세기당 휘도가 Cyan은 Pink의 2.4배). 네온 세기를 바꿀 때는 이 환산을 거친다. 확정값과 위치는 CODEX_HANDOFF.md §3 "룩 재튜닝" 참고.
+- **`Renderer::SetViewPort`는 `m_screenViewport` 멤버를 덮어쓴다.** 후처리 패스에서 이 함수를 부르면 복구할 화면 뷰포트가 사라져 이후 패스가 화면 일부에만 그려진다. Bloom처럼 타깃 크기가 다른 패스는 **지역 `D3D11_VIEWPORT` + `RSSetViewports`**를 쓰고, 구간이 끝나면 `m_screenViewport`로 되돌린다.
+- **`ComPtr::operator&`는 Release한다.** `PSSetSamplers(0, 1, &m_clampSamplerState)`처럼 쓰면 들고 있던 객체가 해제된다(WRL이 `&`를 출력 파라미터용으로 설계했기 때문). 이미 들고 있는 객체를 넘길 때는 `.GetAddressOf()`, 함수에 전달할 때는 `.Get()`을 쓴다. 컴파일도 경고도 통과하므로 증상으로 찾기 어렵다.
+- **중간 렌더 타깃은 Clear하지 않는다.** 전체 화면 패스가 매번 전부 덮어쓰기 때문인데, 그래서 **패스 순서가 틀리면 이전 프레임 내용을 읽는다.** 반복 블러의 첫 회차가 BlurY에서 읽으면 프레임 간 되먹임(잔상)이 생긴다. "이번 프레임에 이 텍스처를 누가 먼저 쓰는가"를 항상 확인한다.
+- **바인딩한 슬롯 수만큼 해제한다.** 합성 패스가 `t0`·`t1` 두 장을 걸므로 해제도 두 슬롯이어야 한다. `t1`이 걸린 채 다음 프레임이 시작되면 그 텍스처를 출력으로 걸 때 충돌한다.
+- **RenderDoc은 빌드하지 않는다**: RenderDoc Launch는 지정한 exe를 그대로 실행하므로 C++ 수정 후 빌드를 잊으면 옛 코드가 캡처된다. 셰이더만 바꿨다면 앱 재실행으로 충분하다.
 - **단위 혼용**: `Camera`는 Yaw/Pitch를 도(degree)로 다루는데 `Transform`의 회전과 Inspector 라벨은 라디안이다.
 - **`invTranspose` 계산**: `Renderer::DrawRenderItem`의 `Translation(Vector3(0))` 호출은 이미 전치된 행렬에서 아무 효과가 없다. 결과는 우연히 맞지만 의도와 코드가 다르다.
 - **Vertex Color**: `Vertex`에 존재하고 VS가 PS로 넘기지만 최종 색에 사용되지 않는다.
@@ -159,6 +179,7 @@ AppBase --RenderItem-------> Renderer::DrawRenderItem
 - C++20, HLSL Shader Model 5.0 런타임 컴파일
 - Assimp는 양쪽 PC의 사용자 vcpkg 환경에 설치돼 있다
 - `imgui.ini`, `.vs`, `x64` 등 로컬 산출물은 commit에서 제외한다
+- 그래픽스 디버거는 RenderDoc을 쓴다. Launch 설정은 Executable `MyPF/x64/Debug/MyPF.exe`, Working Directory `MyPF/`이다
 
 ## 9. 코드 스타일
 

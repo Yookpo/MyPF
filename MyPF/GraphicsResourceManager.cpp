@@ -71,6 +71,30 @@ namespace My
 		return tResource.textureSRV.Get();
 	}
 
+	ID3D11RenderTargetView* GraphicsResourceManager::GetRTV(TextureHandle textureHandle) const
+	{
+		if (!m_graphicsDevice)
+		{
+			return nullptr;
+		}
+
+		if (!textureHandle.IsValid())
+		{
+			return nullptr;
+		}
+
+		uint32_t HandleIndex = textureHandle.GetIndex();
+
+		if (HandleIndex >= m_textures.size())
+		{
+			return nullptr;
+		}
+
+		const TextureResource& tResource = m_textures[HandleIndex];
+
+		return tResource.textureRTV.Get();
+	}
+
 	TextureHandle GraphicsResourceManager::CreateTexture(const std::string& filename)
 	{
 		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice() || filename.empty())
@@ -90,6 +114,66 @@ namespace My
 		m_textures.push_back(std::move(tResource));
 
 		return TextureHandle(newIndex);
+	}
+
+	TextureHandle GraphicsResourceManager::CreateRenderTarget(uint32_t width, uint32_t height, DXGI_FORMAT format)
+	{
+		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice())
+		{
+			return TextureHandle{};
+		}
+
+		TextureResource tResource{};
+		tResource.textureFormat = format;
+
+		if (!D3D11Utils::CreateRenderTargetTexture(m_graphicsDevice->GetDevice(), width, height,
+				tResource.textureFormat, tResource.texture, tResource.textureRTV, tResource.textureSRV))
+		{
+			return TextureHandle{};
+		}
+
+		uint32_t newIndex = static_cast<uint32_t>(m_textures.size());
+		m_textures.push_back(std::move(tResource));
+
+		return TextureHandle(newIndex);
+	}
+
+	bool GraphicsResourceManager::ResizeRenderTarget(TextureHandle textureHandle, uint32_t width, uint32_t height)
+	{
+		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice())
+		{
+			return false;
+		}
+
+		if (!textureHandle.IsValid() || textureHandle.GetIndex() >= m_textures.size())
+		{
+			return false;
+		}
+
+		TextureResource& slot = m_textures[textureHandle.GetIndex()];
+
+		// 파일 텍스처는 안본다
+		if (!slot.textureRTV.Get())
+		{
+			return false;
+		}
+
+		ComPtr<ID3D11Texture2D>			 tex;
+		ComPtr<ID3D11ShaderResourceView> texSRV;
+		ComPtr<ID3D11RenderTargetView>	 texRTV;
+
+		// 리사이즈된 객체를 임시객체로 변환
+		if (!D3D11Utils::CreateRenderTargetTexture(
+				m_graphicsDevice->GetDevice(), width, height, slot.textureFormat, tex, texRTV, texSRV))
+		{
+			return false;
+		}
+
+		slot.texture = std::move(tex);
+		slot.textureSRV = std::move(texSRV);
+		slot.textureRTV = std::move(texRTV);
+
+		return true;
 	}
 
 	BufferHandle GraphicsResourceManager::CreateIndexBuffer(const std::vector<uint32_t>& indices)

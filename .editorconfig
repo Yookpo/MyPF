@@ -1,0 +1,8 @@
+root = true
+
+[*.{cpp,h}]
+charset = utf-8-bom
+
+# HLSL 컴파일러(fxc/D3DCompiler)는 UTF-8 BOM을 인식하지 못해 X3000 에러로 컴파일이 실패한다.
+[*.{hlsl,hlsli}]
+charset = utf-8

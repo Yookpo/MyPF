@@ -74,6 +74,6 @@ float4 main(PS_INPUT input) : SV_TARGET
     
     float3 finalColor = ambientColor + diffuseColor + pointLightColor + emissive + rim;
     
-    return float4(saturate(finalColor), 1.0f);
+    return float4(finalColor, 1.0f);
 }
 

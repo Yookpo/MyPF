@@ -108,6 +108,7 @@ namespace My
 
 		return true;
 	}
+
 	bool D3D11Utils::CreateVertexShaderAndInputLayout(ID3D11Device* device, const wstring& fileName,
 		const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader,
 		ComPtr<ID3D11InputLayout>& m_inputLayout)
@@ -147,6 +148,43 @@ namespace My
 
 		return true;
 	}
+
+	bool D3D11Utils::CreateVertexShader(
+		ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11VertexShader>& vertexShader)
+	{
+		if (!device)
+		{
+			return false;
+		}
+
+		ComPtr<ID3DBlob> shaderBlob;
+		ComPtr<ID3DBlob> errorBlob;
+
+		UINT compileFlags = 0;
+#if defined(DEBUG) || defined(_DEBUG)
+		compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+		HRESULT hr = D3DCompileFromFile(fileName.c_str(), 0, D3D_COMPILE_STANDARD_FILE_INCLUDE, "main", "vs_5_0",
+			compileFlags, 0, &shaderBlob, &errorBlob);
+
+		CheckResult(hr, errorBlob.Get());
+
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(L"Shader Compile() failed");
+			return false;
+		}
+
+		if (FAILED(device->CreateVertexShader(
+				shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), NULL, &vertexShader)))
+		{
+			OutputDebugStringW(L"CreateVertexShader() failed");
+			return false;
+		}
+
+		return true;
+	}
+
 	bool D3D11Utils::CreatePixelShader(
 		ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader)
 	{
@@ -308,7 +346,10 @@ namespace My
 		txtDesc.Width = width;
 		txtDesc.Height = height;
 		txtDesc.MipLevels = txtDesc.ArraySize = 1;
-		txtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+		//"파일 텍스처는 모두 색상 텍스처라 sRGB로 읽는다. 노멀/러프니스 맵이 생기면 인자로 분리한다"
+		txtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+
 		txtDesc.SampleDesc.Count = 1;
 		txtDesc.Usage = D3D11_USAGE_IMMUTABLE;
 		txtDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
@@ -330,6 +371,50 @@ namespace My
 		if (FAILED(device->CreateShaderResourceView(texture.Get(), nullptr, textureResourceView.GetAddressOf())))
 		{
 			OutputDebugStringW(L"CreateSRV Failed");
+			return false;
+		}
+
+		return true;
+	}
+
+	bool D3D11Utils::CreateRenderTargetTexture(ID3D11Device* device, uint32_t width, uint32_t height,
+		DXGI_FORMAT format, ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11RenderTargetView>& renderTargetView,
+		ComPtr<ID3D11ShaderResourceView>& shaderResourceView)
+	{
+		if (!device || width == 0 || height == 0)
+		{
+			OutputDebugStringW(L"device is NULL or Width,Height ==0\n");
+			return false;
+		}
+
+		// 텍스처 생성
+		D3D11_TEXTURE2D_DESC desc{};
+		desc.Width = width;
+		desc.Height = height;
+		desc.MipLevels = desc.ArraySize = 1;
+		desc.Format = format;
+		desc.SampleDesc.Count = 1;
+		desc.Usage = D3D11_USAGE_DEFAULT; // GPU가 매 프레임 다시 그린다
+		desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+		HRESULT hr = device->CreateTexture2D(&desc, nullptr, texture.GetAddressOf());
+		if (FAILED(hr))
+		{
+			OutputDebugStringW(L"RenderTarget Texture Create Failed\n");
+			return false;
+		}
+
+		// RTV 생성
+		if (FAILED(device->CreateRenderTargetView(texture.Get(), nullptr, renderTargetView.GetAddressOf())))
+		{
+			OutputDebugStringW(L"CreateRTV() failed\n");
+			return false;
+		}
+
+		// SRV 생성
+		if (FAILED(device->CreateShaderResourceView(texture.Get(), nullptr, shaderResourceView.GetAddressOf())))
+		{
+			OutputDebugStringW(L"CreateSRV() failed\n");
 			return false;
 		}
 

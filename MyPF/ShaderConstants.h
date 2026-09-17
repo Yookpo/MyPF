@@ -56,4 +56,17 @@ namespace My
 		float	rimPower;		   // 4
 		Vector3 pad2;			   // 12	-> 64
 	};
+
+	struct PostProcessConstantData
+	{
+		float		  exposure;		 // 4
+		float		  threshold;	 // 4
+		std::uint32_t toneMapper;	 // 4
+		float		  pad;			 // 4
+		float		  dx;			 // 4
+		float		  dy;			 // 4
+		float		  bloomStrength; // 4
+		float		  pad2;			 // 4 -> 32
+	};
+
 } // namespace My

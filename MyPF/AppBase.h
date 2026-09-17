@@ -8,6 +8,7 @@
 #include "Camera.h"
 #include "FirstPersonCameraController.h"
 #include "DirectionalLight.h"
+#include "PostProcessSettings.h"
 #include "PointLight.h"
 #include "GraphicsDevice.h"
 #include "GraphicsResourceManager.h"
@@ -91,7 +92,8 @@ namespace My
 		FirstPersonCameraController m_firstPersonCameraController;
 		bool						m_isEditorCameraNavigating{ false };
 
-		DirectionalLight m_directionalLight;
+		PostProcessSettings m_postProcessSettings;
+		DirectionalLight	m_directionalLight;
 
 		std::array<float, 4> m_backgroundColor;
 	};

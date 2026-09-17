@@ -1,4 +1,4 @@
-#include "EditorUI.h"
+﻿#include "EditorUI.h"
 
 #include "Camera.h"
 #include "DirectionalLight.h"
@@ -8,6 +8,7 @@
 #include "Material.h"
 #include "MeshComponent.h"
 #include "PointLightComponent.h"
+#include "PostProcessSettings.h"
 #include "Scene.h"
 #include "Transform.h"
 
@@ -19,19 +20,21 @@ namespace My
 	}
 
 	void EditorUI::Initialize(Scene& scene, Camera& camera, FirstPersonCameraController& cameraController,
-		DirectionalLight& directionalLight, std::array<float, 4>& backgroundColor)
+		DirectionalLight& directionalLight, std::array<float, 4>& backgroundColor,
+		PostProcessSettings& postProcessSettings)
 	{
 		m_scene = &scene;
 		m_camera = &camera;
 		m_cameraController = &cameraController;
 		m_directionalLight = &directionalLight;
 		m_backgroundColor = &backgroundColor;
+		m_postProcessSettings = &postProcessSettings;
 	}
 
 	bool EditorUI::Draw(float screenHeight)
 	{
 		if (m_scene == nullptr || m_camera == nullptr || m_cameraController == nullptr || m_directionalLight == nullptr
-			|| m_backgroundColor == nullptr)
+			|| m_backgroundColor == nullptr || m_postProcessSettings == nullptr)
 		{
 			return false;
 		}
@@ -61,6 +64,7 @@ namespace My
 		ImGui::Separator();
 		DrawEnvironmentPanel();
 		DrawDirectionalLightPanel();
+		DrawPostProcessPanel();
 		DrawEditorCameraPanel();
 
 		ImGui::Separator();
@@ -109,10 +113,62 @@ namespace My
 			m_directionalLight->intensity = lightIntensity;
 		}
 
+		// 밤 골목에서 쓸모 있는 구간이 0.01~0.1이라 선형 슬라이더로는 조절이 안 된다.
 		float ambientStrength = m_directionalLight->ambientStrength;
-		if (ImGui::SliderFloat("Ambient Strength", &ambientStrength, 0.0f, 1.0f))
+		if (ImGui::SliderFloat(
+				"Ambient Strength", &ambientStrength, 0.001f, 1.0f, "%.3f", ImGuiSliderFlags_Logarithmic))
 		{
 			m_directionalLight->ambientStrength = ambientStrength;
+		}
+	}
+
+	void EditorUI::DrawPostProcessPanel()
+	{
+		if (!ImGui::CollapsingHeader("Post Process", ImGuiTreeNodeFlags_DefaultOpen))
+		{
+			return;
+		}
+
+		// Order must match the ToneMapper enum values.
+		const char* const toneMapperNames[] = { "Reinhard", "ACES" };
+		int				  toneMapperIndex = static_cast<int>(m_postProcessSettings->toneMapper);
+		if (ImGui::Combo("Tone Mapper", &toneMapperIndex, toneMapperNames, IM_ARRAYSIZE(toneMapperNames)))
+		{
+			m_postProcessSettings->toneMapper = static_cast<ToneMapper>(toneMapperIndex);
+		}
+
+		float exposure = m_postProcessSettings->exposure;
+		if (ImGui::SliderFloat("Exposure", &exposure, 0.1f, 10.0f, "%.2f", ImGuiSliderFlags_Logarithmic))
+		{
+			m_postProcessSettings->exposure = exposure;
+		}
+
+		ImGui::SeparatorText("Bloom");
+
+		float threshold = m_postProcessSettings->threshold;
+		if (ImGui::SliderFloat("Threshold", &threshold, 0.0f, 5.0f, "%.2f"))
+		{
+			m_postProcessSettings->threshold = threshold;
+		}
+
+		float bloomStrength = m_postProcessSettings->bloomStrength;
+		if (ImGui::SliderFloat("Strength", &bloomStrength, 0.0f, 2.0f, "%.2f"))
+		{
+			m_postProcessSettings->bloomStrength = bloomStrength;
+		}
+
+		int iterations = m_postProcessSettings->bloomBlurIterations;
+		if (ImGui::SliderInt("Blur Iterations", &iterations, 1, 10))
+		{
+			m_postProcessSettings->bloomBlurIterations = iterations;
+		}
+
+		// Order must match the PostProcessDebugView enum values.
+		const char* const debugViewNames[] = { "Final", "Bright", "Blur X", "Blur" };
+		int				  debugViewIndex = static_cast<int>(m_postProcessSettings->debugView);
+		if (ImGui::Combo("Debug View", &debugViewIndex, debugViewNames, IM_ARRAYSIZE(debugViewNames)))
+		{
+			m_postProcessSettings->debugView = static_cast<PostProcessDebugView>(debugViewIndex);
 		}
 	}
 

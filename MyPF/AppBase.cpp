@@ -48,6 +48,7 @@ namespace My
 				if (m_graphicsDevice.GetDevice() && (m_screenWidth > 0 && m_screenHeight > 0))
 				{
 					m_graphicsDevice.Resize(m_screenWidth, m_screenHeight);
+					m_renderer.Resize(m_screenWidth, m_screenHeight);
 				}
 
 				break;
@@ -101,7 +102,8 @@ namespace My
 		}
 
 		m_firstPersonCameraController.Initialize(m_camera, m_inputSystem);
-		m_editorUI.Initialize(m_scene, m_camera, m_firstPersonCameraController, m_directionalLight, m_backgroundColor);
+		m_editorUI.Initialize(m_scene, m_camera, m_firstPersonCameraController, m_directionalLight, m_backgroundColor,
+			m_postProcessSettings);
 		m_pointLightSequence.Initialize();
 
 		// Init GeryBox Scene
@@ -121,7 +123,7 @@ namespace My
 
 		if (!RegisterClassEx(&wc))
 		{
-			std::cerr << "RegisterClassEx() failed." << endl;
+			OutputDebugStringW(L"RegisterClassEx() failed\n");
 			return false;
 		}
 
@@ -138,7 +140,7 @@ namespace My
 
 		if (!m_mainWindow)
 		{
-			std::cerr << "CreateWindow() failed.\n";
+			OutputDebugStringW(L"CreateWindow() failed\n");
 			return false;
 		}
 
@@ -192,6 +194,7 @@ namespace My
 		m_inputSystem.Reset();
 		m_camera = m_editorCameraSnapshot;
 		m_appMode = AppMode::Editor;
+		m_powerSwitch.SetHighlighted(false);
 
 		return;
 	}
@@ -304,29 +307,57 @@ namespace My
 			return false;
 		}
 
-		const Texture* greyBoxTex = m_assetManager.LoadTexture("wall.jpg");
+		const Texture* wallAlbedoTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\cyberpunk_wall_albedo_v1.png");
 
-		if (!greyBoxTex)
+		if (!wallAlbedoTex)
 		{
 			return false;
 		}
 
-		const Texture* neonTex = m_assetManager.LoadTexture("neonFlat.jpg");
+		const Texture* floorAlbedoTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\wet_asphalt_floor_albedo_v1.png");
+
+		if (!floorAlbedoTex)
+		{
+			return false;
+		}
+
+		const Texture* neonTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\neon_diffuser_albedo_v1.png");
 
 		if (!neonTex)
 		{
 			return false;
 		}
 
-		auto greyBoxMat = m_assetManager.CreateMaterial("greyBoxMat");
+		const Texture* powerSwitchTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\power_switch_panel_albedo_v1.png");
 
-		if (!greyBoxMat)
+		if (!powerSwitchTex)
 		{
 			return false;
 		}
 
-		greyBoxMat->SetAlbedoTexture(greyBoxTex);
-		greyBoxMat->SetBaseColor(Vector3(0.5f, 0.5f, 0.5f));
+		auto wallMat = m_assetManager.CreateMaterial("wallMat");
+
+		if (!wallMat)
+		{
+			return false;
+		}
+
+		wallMat->SetAlbedoTexture(wallAlbedoTex);
+		wallMat->SetBaseColor(Vector3(1.0f));
+
+		auto floorMat = m_assetManager.CreateMaterial("floorMat");
+
+		if (!floorMat)
+		{
+			return false;
+		}
+
+		floorMat->SetAlbedoTexture(floorAlbedoTex);
+		floorMat->SetBaseColor(Vector3(1.0f));
 
 		// Neon test
 		NeonSignDesc desc1{};
@@ -334,10 +365,10 @@ namespace My
 		desc1.glowPosition = { -1.95f, 2.2f, 6.0f };
 		desc1.glowScale = { 0.1f, 0.7f, 1.2f };
 		desc1.lightPosition = { -1.2f, 2.2f, 6.0f };
-		desc1.lightRange = 4.5f;
-		desc1.lightIntensity = 2.0f;
-		desc1.color = { 1.0f, 0.05f, 0.65f };
-		desc1.emissiveIntensity = 3.0f;
+		desc1.lightRange = 6.0f;
+		desc1.lightIntensity = 1.4f;
+		desc1.color = { 1.0f, 0.08f, 0.45f };
+		desc1.emissiveIntensity = 18.0f;
 
 		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc1))
 		{
@@ -349,10 +380,10 @@ namespace My
 		desc2.glowPosition = { 1.95f, 2.7f, 15.0f };
 		desc2.glowScale = { 0.1f, 0.7f, 1.5f };
 		desc2.lightPosition = { 1.2f, 2.7f, 15.0f };
-		desc2.lightRange = 4.5f;
-		desc2.lightIntensity = 2.0f;
-		desc2.color = { 0.0f, 0.86f, 1.00f };
-		desc2.emissiveIntensity = 8.0f;
+		desc2.lightRange = 6.5f;
+		desc2.lightIntensity = 0.7f;
+		desc2.color = { 0.10f, 0.85f, 1.00f };
+		desc2.emissiveIntensity = 7.0f;
 
 		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc2))
 		{
@@ -364,22 +395,24 @@ namespace My
 		desc3.glowPosition = { 0.0f, 2.8f, 19.9f };
 		desc3.glowScale = { 1.4f, 0.5f, 0.1f };
 		desc3.lightPosition = { 0.0f, 2.8f, 19.5f };
-		desc3.lightRange = 7.5f;
-		desc3.lightIntensity = 5.0f;
-		desc3.color = { 1.0f, 0.35f, 0.03f };
-		desc3.emissiveIntensity = 5.0f;
+		desc3.lightRange = 6.5f;
+		desc3.lightIntensity = 1.4f;
+		desc3.color = { 1.0f, 0.20f, 0.05f };
+		desc3.emissiveIntensity = 15.0f;
 
 		if (!NeonSignFactory::Create(m_scene, m_assetManager, m_pointLightSequence, greyBoxMesh, neonTex, desc3))
 		{
 			return false;
 		}
 
-		// 약하게 항상 켜져 있는 환경 보조광
+		// 약하게 항상 켜져 있는 환경 보조광.
+		// 도시 불빛이 골목으로 새어 들어온 것을 흉내내는 값이라, 색이 드러나면 안 되고
+		// 벽이 완전히 검게 뭉개지지 않을 만큼만 넓고 약하게 깐다.
 		GameObject& EnvFillLight = m_scene.CreatePointLightObject("EnvironmentFillLight");
-		EnvFillLight.GetTransform().SetPosition(Vector3{ 0.0f, 2.5f, 10.0f });
-		EnvFillLight.GetPointLightComponent().SetColor(Vector3{ 0.55f, 0.10f, 1.0f });
-		EnvFillLight.GetPointLightComponent().SetRange(6.0f);
-		EnvFillLight.GetPointLightComponent().SetIntensity(1.58f);
+		EnvFillLight.GetTransform().SetPosition(Vector3{ 0.0f, 3.2f, 10.0f });
+		EnvFillLight.GetPointLightComponent().SetColor(Vector3{ 0.28f, 0.48f, 0.85f });
+		EnvFillLight.GetPointLightComponent().SetRange(24.0f);
+		EnvFillLight.GetPointLightComponent().SetIntensity(0.55f);
 		EnvFillLight.GetPointLightComponent().SetEnabled(true);
 
 		// Create floor
@@ -391,7 +424,7 @@ namespace My
 		m_editorUI.SetSelectedObject(floor);
 
 		floor->GetMeshComponent().SetMesh(greyBoxMesh);
-		floor->GetMeshComponent().SetMaterial(greyBoxMat);
+		floor->GetMeshComponent().SetMaterial(floorMat);
 
 		// Create Wall
 		GameObject* startWall = &m_scene.CreateGameObject("startWall"); // 시작 지점 -> 뒤로 벗어나지 못하게 막음
@@ -413,9 +446,9 @@ namespace My
 		rightWall->GetMeshComponent().SetMesh(greyBoxMesh);
 		endWall->GetMeshComponent().SetMesh(greyBoxMesh);
 
-		leftWall->GetMeshComponent().SetMaterial(greyBoxMat);
-		rightWall->GetMeshComponent().SetMaterial(greyBoxMat);
-		endWall->GetMeshComponent().SetMaterial(greyBoxMat);
+		leftWall->GetMeshComponent().SetMaterial(wallMat);
+		rightWall->GetMeshComponent().SetMaterial(wallMat);
+		endWall->GetMeshComponent().SetMaterial(wallMat);
 
 		leftWall->AddBoxCollisionComponent();
 		rightWall->AddBoxCollisionComponent();
@@ -429,16 +462,13 @@ namespace My
 
 		// Switch Mat
 		auto powerSwitchMat = m_assetManager.CreateMaterial("powerSwitchMat");
-		powerSwitchMat->SetRimColor(Vector3(0.3f, 0.9f, 1.0f));
-		powerSwitchMat->SetRimIntensity(2.5f);
-		powerSwitchMat->SetRimPower(4.0f);
 
 		if (!powerSwitchMat)
 		{
 			return false;
 		}
 
-		powerSwitchMat->SetAlbedoTexture(greyBoxTex);
+		powerSwitchMat->SetAlbedoTexture(powerSwitchTex);
 
 		powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
 		powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);
@@ -456,7 +486,7 @@ namespace My
 		, m_appMode{ AppMode::Editor }
 		, m_graphicsDevice{}
 		, m_renderer{}
-		, m_backgroundColor{ 0.047f, 0.031f, 0.125f, 1.0f }
+		, m_backgroundColor{ 0.020f, 0.028f, 0.055f, 1.0f }
 	{
 		g_appBase = this;
 	}
@@ -497,10 +527,14 @@ namespace My
 		Vector3 resolvedPos = PlayerCollision::Resolve(m_camera.GetPosition(), m_scene.GatherBoxColliders(), 0.3f);
 		m_camera.SetPosition(resolvedPos);
 
+		bool isInteract = m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward());
+
+		m_powerSwitch.SetHighlighted(isInteract);
+
 		// E키를 눌러 조명을 키거나 끈다
 		if (m_inputSystem.WasKeyPressed('E'))
 		{
-			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
+			if (isInteract)
 			{
 				if (m_powerSwitch.Toggle())
 				{
@@ -525,10 +559,11 @@ namespace My
 		frameRenderData.pointLightCount =
 			m_scene.GatherPointLights(frameRenderData.pointLights.data(), frameRenderData.pointLights.size());
 		frameRenderData.cameraPosition = m_camera.GetPosition();
+		frameRenderData.postProcess = m_postProcessSettings;
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{
-			OutputDebugStringW(L"Draw camera failed, Program shutting down");
+			OutputDebugStringW(L"Draw camera failed, Program shutting down\n");
 			PostQuitMessage(-1);
 			return;
 		}
@@ -557,7 +592,7 @@ namespace My
 
 					if (!m_renderer.DrawRenderItem(renderItem))
 					{
-						OutputDebugStringW(L"Draw RenderItem failed, Program shutting down");
+						OutputDebugStringW(L"Draw RenderItem failed, Program shutting down\n");
 						PostQuitMessage(-1);
 						return;
 					}
@@ -576,18 +611,25 @@ namespace My
 
 				if (!m_renderer.DrawRenderItem(renderItem))
 				{
-					OutputDebugStringW(L"Draw RenderItem failed, Program shutting down");
+					OutputDebugStringW(L"Draw RenderItem failed, Program shutting down\n");
 					PostQuitMessage(-1);
 					return;
 				}
 			}
 		}
 
+		if (!m_renderer.EndScene())
+		{
+			OutputDebugStringW(L"EndScene failed, Program shutting down\n");
+			PostQuitMessage(-1);
+			return;
+		}
+
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
 		if (!m_renderer.EndFrame())
 		{
-			OutputDebugStringW(L"Rendering failed, Program shutting down");
+			OutputDebugStringW(L"Rendering failed, Program shutting down\n");
 			PostQuitMessage(-1);
 		}
 	}
@@ -634,7 +676,7 @@ namespace My
 
 			ImGui::Separator();
 			ImGui::Text("Power: %s", m_powerSwitch.IsPowerOn() ? "On" : "Off");
-			if (m_powerSwitch.CanInteract(m_camera.GetPosition(), m_camera.GetForward()))
+			if (m_powerSwitch.IsHighlighted())
 			{
 				ImGui::TextUnformatted("[E] Interact");
 			}

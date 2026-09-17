@@ -1,4 +1,6 @@
-﻿#include "Renderer.h"
+﻿#include <cmath>
+#include <algorithm>
+#include "Renderer.h"
 #include "Mesh.h"
 #include "Material.h"
 #include "Texture.h"
@@ -71,13 +73,78 @@ namespace My
 		m_materialConstantData.emissiveIntensity = 0.0f;
 		m_materialConstantData.rimColor = Vector3(1.0f);
 		m_materialConstantData.rimIntensity = 0.0f;
-		m_materialConstantData.rimIntensity = 3.0f;
+		m_materialConstantData.rimPower = 3.0f;
 		m_materialBufferHandle = m_resourceManager->CreateConstantBuffer(m_materialConstantData);
 
 		if (!m_materialBufferHandle.IsValid())
 		{
 			return false;
 		}
+
+		m_postProcessConstantData.exposure = 1.0f;
+		m_postProcessBufferHandle = m_resourceManager->CreateConstantBuffer(m_postProcessConstantData);
+
+		if (!m_postProcessBufferHandle.IsValid())
+		{
+			return false;
+		}
+
+		m_hdrSceneTargetHandle = m_resourceManager->CreateRenderTarget(
+			static_cast<uint32_t>(screenWidth), static_cast<uint32_t>(screenHeight), DXGI_FORMAT_R16G16B16A16_FLOAT);
+
+		if (!m_hdrSceneTargetHandle.IsValid())
+		{
+			return false;
+		}
+
+		m_bloomWidth = static_cast<uint32_t>((std::max)(1, screenWidth / 2));
+		m_bloomHeight = static_cast<uint32_t>((std::max)(1, screenHeight / 2));
+
+		m_bloomBrightTargetHandle =
+			m_resourceManager->CreateRenderTarget(m_bloomWidth, m_bloomHeight, DXGI_FORMAT_R16G16B16A16_FLOAT);
+
+		if (!m_bloomBrightTargetHandle.IsValid())
+		{
+			return false;
+		}
+
+		m_bloomBlurXTargetHandle =
+			m_resourceManager->CreateRenderTarget(m_bloomWidth, m_bloomHeight, DXGI_FORMAT_R16G16B16A16_FLOAT);
+
+		if (!m_bloomBlurXTargetHandle.IsValid())
+		{
+			return false;
+		}
+
+		m_bloomBlurYTargetHandle =
+			m_resourceManager->CreateRenderTarget(m_bloomWidth, m_bloomHeight, DXGI_FORMAT_R16G16B16A16_FLOAT);
+
+		if (!m_bloomBlurYTargetHandle.IsValid())
+		{
+			return false;
+		}
+
+		// debug
+		std::wstring msg = L"HDR Scene Target created: " + std::to_wstring(screenWidth) + L" x "
+			+ std::to_wstring(screenHeight) + L", index " + std::to_wstring(m_hdrSceneTargetHandle.GetIndex()) + L"\n";
+		OutputDebugStringW(msg.c_str());
+
+		// debug
+		std::wstring msg1 = L"Bloom Bright Target created: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBrightTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg1.c_str());
+
+		std::wstring msg2 = L"Bloom BlurX created: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBlurXTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg2.c_str());
+
+		// debug
+		std::wstring msg3 = L"Bloom BlurY created: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBlurYTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg3.c_str());
 
 		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
 															   D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -96,6 +163,42 @@ namespace My
 			return false;
 		}
 
+		if (!D3D11Utils::CreateVertexShader(Device, L"Shaders\\fullscreenVertexShader.hlsl", m_fullscreenVertexShader))
+		{
+			OutputDebugStringW(L"fullscreenVertexShader Created Failed\n");
+			return false;
+		}
+
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\copyPixelShader.hlsl", m_copyPixelShader))
+		{
+			OutputDebugStringW(L"copyPixelShader Created Failed\n");
+			return false;
+		}
+
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\toneMappingPixelShader.hlsl", m_toneMappingPixelShader))
+		{
+			OutputDebugStringW(L"toneMappingPixelShader Created Failed\n");
+			return false;
+		}
+
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\brightPassPixelShader.hlsl", m_brightPassPixelShader))
+		{
+			OutputDebugStringW(L"brightPassPixelShader Created Failed\n");
+			return false;
+		}
+
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\blurXPixelShader.hlsl", m_blurXPixelShader))
+		{
+			OutputDebugStringW(L"blurXPixelShader Created Failed\n");
+			return false;
+		}
+
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\blurYPixelShader.hlsl", m_blurYPixelShader))
+		{
+			OutputDebugStringW(L"blurYPixelShader Created Failed\n");
+			return false;
+		}
+
 		// Sampler 만들기
 		D3D11_SAMPLER_DESC sampDesc;
 		ZeroMemory(&sampDesc, sizeof(sampDesc));
@@ -111,6 +214,78 @@ namespace My
 			return false;
 		}
 
+		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+		if (FAILED(Device->CreateSamplerState(&sampDesc, m_clampSamplerState.GetAddressOf())))
+		{
+			return false;
+		}
+
+		return true;
+	}
+
+	bool Renderer::Resize(int screenWidth, int screenHeight)
+	{
+		if (screenWidth <= 0 || screenHeight <= 0)
+		{
+			return true;
+		}
+
+		if (!m_resourceManager || !m_hdrSceneTargetHandle.IsValid() || !m_bloomBrightTargetHandle.IsValid())
+		{
+			return true;
+		}
+
+		if (!m_resourceManager->ResizeRenderTarget(
+				m_hdrSceneTargetHandle, static_cast<uint32_t>(screenWidth), static_cast<uint32_t>(screenHeight)))
+		{
+			OutputDebugStringW(L"ResizeRenderTarget() Failed\n");
+			return false;
+		}
+
+		m_bloomWidth = static_cast<uint32_t>((std::max)(1, screenWidth / 2));
+		m_bloomHeight = static_cast<uint32_t>((std::max)(1, screenHeight / 2));
+
+		if (!m_resourceManager->ResizeRenderTarget(m_bloomBrightTargetHandle, m_bloomWidth, m_bloomHeight))
+		{
+			OutputDebugStringW(L"Bloom Bright Target resize failed\n");
+			return false;
+		}
+
+		// debug
+		std::wstring msg = L"HDR Scene Target resized: " + std::to_wstring(screenWidth) + L" x "
+			+ std::to_wstring(screenHeight) + L", index " + std::to_wstring(m_hdrSceneTargetHandle.GetIndex()) + L"\n";
+		OutputDebugStringW(msg.c_str());
+
+		std::wstring msg1 = L"Bloom Bright Target resized: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBrightTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg1.c_str());
+
+		if (!m_resourceManager->ResizeRenderTarget(m_bloomBlurXTargetHandle, m_bloomWidth, m_bloomHeight))
+		{
+			OutputDebugStringW(L"Bloom BlurX resize failed\n");
+			return false;
+		}
+
+		if (!m_resourceManager->ResizeRenderTarget(m_bloomBlurYTargetHandle, m_bloomWidth, m_bloomHeight))
+		{
+			OutputDebugStringW(L"Bloom BlurY resize failed\n");
+			return false;
+		}
+
+		// debug
+		std::wstring msg2 = L"Bloom BlurX resized: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBlurXTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg2.c_str());
+
+		std::wstring msg3 = L"Bloom BlurY Target resized: " + std::to_wstring(m_bloomWidth) + L" x "
+			+ std::to_wstring(m_bloomHeight) + L", index " + std::to_wstring(m_bloomBlurYTargetHandle.GetIndex())
+			+ L"\n";
+		OutputDebugStringW(msg3.c_str());
+
 		return true;
 	}
 
@@ -118,24 +293,36 @@ namespace My
 	{
 		if (!m_graphicsDevice)
 		{
-			OutputDebugStringW(L"GraphicsDevice is Empty");
+			OutputDebugStringW(L"GraphicsDevice is Empty\n");
 			return false;
 		}
 
-		ID3D11DeviceContext*	Context = m_graphicsDevice->GetContext();
-		ID3D11RenderTargetView* RTV = m_graphicsDevice->GetRTV();
+		if (!m_resourceManager)
+		{
+			OutputDebugStringW(L"ResourceManager is Empty\n");
+			return false;
+		}
+
+		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
+		// ID3D11RenderTargetView* RTV = m_graphicsDevice->GetRTV(); // 백버퍼에서 가져온다
+		ID3D11RenderTargetView* sceneRTV = m_resourceManager->GetRTV(m_hdrSceneTargetHandle);
 		ID3D11DepthStencilView* DSV = m_graphicsDevice->GetDSV();
 
-		if (!Context || !RTV || !DSV)
+		if (!Context || !sceneRTV || !DSV)
 		{
 			return false;
 		}
 
-		Context->ClearRenderTargetView(RTV, m_backgroundColor.data());
+		Vector3 backgroundLinear =
+			SrgbToLinear(Vector3(m_backgroundColor[0], m_backgroundColor[1], m_backgroundColor[2]));
+		const std::array<float, 4> clearColor = { backgroundLinear.x, backgroundLinear.y, backgroundLinear.z,
+			m_backgroundColor[3] };
+
+		Context->ClearRenderTargetView(sceneRTV, clearColor.data());
 		Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 		// 비교: Depth Buffer를 사용하지 않는 경우
 		// m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
-		Context->OMSetRenderTargets(1, &RTV, DSV);
+		Context->OMSetRenderTargets(1, &sceneRTV, DSV);
 		Context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
 		// 카메라
@@ -154,7 +341,7 @@ namespace My
 		// Directional Light
 		m_lightConstantData.direction = frameRenderData.directionalLight.direction;
 		m_lightConstantData.direction.Normalize();
-		m_lightConstantData.color = frameRenderData.directionalLight.color;
+		m_lightConstantData.color = SrgbToLinear(frameRenderData.directionalLight.color);
 		m_lightConstantData.intensity = frameRenderData.directionalLight.intensity;
 		m_lightConstantData.ambientStrength = frameRenderData.directionalLight.ambientStrength;
 		// Point Light
@@ -166,7 +353,7 @@ namespace My
 
 			destinationLight.position = sourceLight.position;
 			destinationLight.range = sourceLight.range;
-			destinationLight.color = sourceLight.color;
+			destinationLight.color = SrgbToLinear(sourceLight.color);
 			destinationLight.intensity = sourceLight.intensity;
 			destinationLight.isEnabled = sourceLight.isEnabled ? 1u : 0u;
 		}
@@ -176,6 +363,21 @@ namespace My
 			return false;
 		}
 
+		m_postProcessConstantData.exposure = frameRenderData.postProcess.exposure;
+		m_postProcessConstantData.toneMapper = static_cast<std::uint32_t>(frameRenderData.postProcess.toneMapper);
+		m_postProcessConstantData.threshold = frameRenderData.postProcess.threshold;
+		m_postProcessConstantData.dx = static_cast<float>(1.0f / m_bloomWidth);
+		m_postProcessConstantData.dy = static_cast<float>(1.0f / m_bloomHeight);
+		m_postProcessConstantData.bloomStrength = frameRenderData.postProcess.bloomStrength;
+
+		if (!m_resourceManager->UpdateBuffer(m_postProcessBufferHandle, m_postProcessConstantData))
+		{
+			return false;
+		}
+
+		m_debugView = frameRenderData.postProcess.debugView;
+		m_bloomBlurIterations = frameRenderData.postProcess.bloomBlurIterations;
+
 		ID3D11Buffer* lightconstantBuffer = m_resourceManager->GetBuffer(m_lightBufferHandle);
 		if (!lightconstantBuffer)
 		{
@@ -183,6 +385,176 @@ namespace My
 		}
 
 		Context->PSSetConstantBuffers(0, 1, &lightconstantBuffer);
+
+		return true;
+	}
+
+	void Renderer::DrawFullScreenPass(ID3D11RenderTargetView* target, ID3D11PixelShader* pixelShader,
+		ID3D11ShaderResourceView* sourceSRV, ID3D11SamplerState* sampler, ID3D11ShaderResourceView* sourceSRV2)
+	{
+		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
+		ID3D11Buffer*			  postProcessConstantBuffer = m_resourceManager->GetBuffer(m_postProcessBufferHandle);
+		ID3D11ShaderResourceView* nullSRVs[2] = {
+			nullptr,
+		};
+		ID3D11ShaderResourceView* srv[2] = { sourceSRV, sourceSRV2 };
+
+		context->OMSetRenderTargets(1, &target, nullptr);
+		context->PSSetShader(pixelShader, 0, 0);
+		context->PSSetShaderResources(0, 2, srv);
+		context->PSSetSamplers(0, 1, &sampler);
+
+		context->IASetInputLayout(nullptr);
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		context->VSSetShader(m_fullscreenVertexShader.Get(), 0, 0);
+		context->PSSetConstantBuffers(0, 1, &postProcessConstantBuffer);
+
+		// 그리기
+		context->Draw(3, 0);
+
+		// 입력 해제
+		context->PSSetShaderResources(0, 2, nullSRVs);
+	}
+
+	bool Renderer::EndScene()
+	{
+		if (!m_graphicsDevice)
+		{
+			OutputDebugStringW(L"m_graphicsDevice is NULL\n");
+			return false;
+		}
+
+		if (!m_graphicsDevice->GetContext())
+		{
+			OutputDebugStringW(L"Context is NULL\n");
+			return false;
+		}
+
+		if (!m_graphicsDevice->GetRTV())
+		{
+			OutputDebugStringW(L"BackBuffer is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetSRV(m_hdrSceneTargetHandle))
+		{
+			OutputDebugStringW(L"HDR SRV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetSRV(m_bloomBrightTargetHandle))
+		{
+			OutputDebugStringW(L"Bloom SRV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetRTV(m_bloomBrightTargetHandle))
+		{
+			OutputDebugStringW(L"Bloom RTV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetRTV(m_bloomBlurXTargetHandle))
+		{
+			OutputDebugStringW(L"BloomBlurX RTV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetRTV(m_bloomBlurYTargetHandle))
+		{
+			OutputDebugStringW(L"BloomBlurY RTV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetSRV(m_bloomBlurXTargetHandle))
+		{
+			OutputDebugStringW(L"BloomBlurX SRV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetSRV(m_bloomBlurYTargetHandle))
+		{
+			OutputDebugStringW(L"BloomBlurY SRV is NULL\n");
+			return false;
+		}
+
+		if (!m_resourceManager->GetBuffer(m_postProcessBufferHandle))
+		{
+			OutputDebugStringW(L"PostProcessBuffer is NULL\n");
+			return false;
+		}
+
+		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
+		ID3D11RenderTargetView*	  backRTV = m_graphicsDevice->GetRTV();
+		ID3D11RenderTargetView*	  bloomRTV = m_resourceManager->GetRTV(m_bloomBrightTargetHandle);
+		ID3D11ShaderResourceView* bloomSRV = m_resourceManager->GetSRV(m_bloomBrightTargetHandle);
+		ID3D11RenderTargetView*	  blurXRTV = m_resourceManager->GetRTV(m_bloomBlurXTargetHandle);
+		ID3D11ShaderResourceView* blurXSRV = m_resourceManager->GetSRV(m_bloomBlurXTargetHandle);
+		ID3D11RenderTargetView*	  blurYRTV = m_resourceManager->GetRTV(m_bloomBlurYTargetHandle);
+		ID3D11ShaderResourceView* blurYSRV = m_resourceManager->GetSRV(m_bloomBlurYTargetHandle);
+		ID3D11ShaderResourceView* hdrSRV = m_resourceManager->GetSRV(m_hdrSceneTargetHandle);
+
+		// 블룸전용 뷰포트
+		D3D11_VIEWPORT bloomViewPort{};
+		bloomViewPort.TopLeftX = bloomViewPort.TopLeftY = 0;
+		bloomViewPort.Width = static_cast<FLOAT>(m_bloomWidth);
+		bloomViewPort.Height = static_cast<FLOAT>(m_bloomHeight);
+		bloomViewPort.MinDepth = 0;
+		bloomViewPort.MaxDepth = 1;
+
+		context->RSSetViewports(1, &bloomViewPort);
+
+		DrawFullScreenPass(bloomRTV, m_brightPassPixelShader.Get(), hdrSRV, m_samplerState.Get());
+		for (int i = 0; i < m_bloomBlurIterations; i++)
+		{
+			auto src = (i == 0) ? bloomSRV : blurYSRV;
+			DrawFullScreenPass(blurXRTV, m_blurXPixelShader.Get(), src, m_clampSamplerState.Get());
+			DrawFullScreenPass(blurYRTV, m_blurYPixelShader.Get(), blurXSRV, m_clampSamplerState.Get());
+		}
+
+		// 뷰포트 복구
+		context->RSSetViewports(1, &m_screenViewport);
+
+		// 패스 시작 전 : 무엇을 쓸 지 선택. 디버그 뷰는 가공 없이 복사한다.
+		ID3D11PixelShader*		  finalPS = m_toneMappingPixelShader.Get();
+		ID3D11ShaderResourceView* finalSRV = hdrSRV;
+		switch (m_debugView)
+		{
+			case PostProcessDebugView::Bright:
+				finalPS = m_copyPixelShader.Get();
+				finalSRV = bloomSRV;
+				break;
+			case PostProcessDebugView::BlurX:
+				finalPS = m_copyPixelShader.Get();
+				finalSRV = blurXSRV;
+				break;
+			case PostProcessDebugView::Blur:
+				finalPS = m_copyPixelShader.Get();
+				finalSRV = blurYSRV;
+				break;
+			default: // Final
+				break;
+		}
+
+		// 톤 매핑 패스
+		DrawFullScreenPass(backRTV, finalPS, finalSRV, m_samplerState.Get(), blurYSRV);
+
+		return true;
+	}
+
+	bool Renderer::EndFrame()
+	{
+		if (!m_graphicsDevice)
+		{
+			OutputDebugStringW(L"GraphicsDevice is Empty\n");
+			return false;
+		}
+
+		if (!m_graphicsDevice->Present())
+		{
+			OutputDebugStringW(L"m_graphicsDevice::Present failed\n");
+			return false;
+		}
 
 		return true;
 	}
@@ -233,10 +605,10 @@ namespace My
 		}
 
 		// 머터리얼 변환
-		m_materialConstantData.baseColor = drawMat.GetBaseColor();
-		m_materialConstantData.emissiveColor = drawMat.GetEmissiveColor();
+		m_materialConstantData.baseColor = SrgbToLinear(drawMat.GetBaseColor());
+		m_materialConstantData.emissiveColor = SrgbToLinear(drawMat.GetEmissiveColor());
 		m_materialConstantData.emissiveIntensity = drawMat.GetEffectiveEmissiveIntensity();
-		m_materialConstantData.rimColor = drawMat.GetRimColor();
+		m_materialConstantData.rimColor = SrgbToLinear(drawMat.GetRimColor());
 		m_materialConstantData.rimIntensity = drawMat.GetRimIntensity();
 		m_materialConstantData.rimPower = drawMat.GetRimPower();
 		if (!m_resourceManager->UpdateBuffer(m_materialBufferHandle, m_materialConstantData))
@@ -326,23 +698,6 @@ namespace My
 		return true;
 	}
 
-	bool Renderer::EndFrame()
-	{
-		if (!m_graphicsDevice)
-		{
-			OutputDebugStringW(L"GraphicsDevice is Empty");
-			return false;
-		}
-
-		if (!m_graphicsDevice->Present())
-		{
-			OutputDebugStringW(L"m_graphicsDevice::Present failed");
-			return false;
-		}
-
-		return true;
-	}
-
 	void Renderer::SetViewPort(float topLeftX, float topLeftY, float screenWidth, float screenHeight)
 	{
 		if (!m_graphicsDevice)
@@ -369,6 +724,17 @@ namespace My
 		m_screenViewport.MaxDepth = 1.0f; // Note: important for depth buffering
 
 		Context->RSSetViewports(1, &m_screenViewport);
+	}
+
+	Vector3 Renderer::SrgbToLinear(const Vector3& sRgbcolor)
+	{
+		Vector3 linearColor{ 0.0f };
+
+		linearColor.x = std::pow(sRgbcolor.x, 2.2f);
+		linearColor.y = std::pow(sRgbcolor.y, 2.2f);
+		linearColor.z = std::pow(sRgbcolor.z, 2.2f);
+
+		return linearColor;
 	}
 
 	bool Renderer::CreateRasterizerState()

@@ -30,6 +30,9 @@ namespace My
 			const vector<D3D11_INPUT_ELEMENT_DESC>& inputElements, ComPtr<ID3D11VertexShader>& m_vertexShader,
 			ComPtr<ID3D11InputLayout>& m_inputLayout);
 
+		static bool CreateVertexShader(
+			ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11VertexShader>& vertexShader);
+
 		static bool CreatePixelShader(
 			ID3D11Device* device, const wstring& fileName, ComPtr<ID3D11PixelShader>& m_pixelShader);
 
@@ -80,5 +83,10 @@ namespace My
 
 		static bool CreateTexture(ID3D11Device* device, const std::string& filename, ComPtr<ID3D11Texture2D>& texture,
 			ComPtr<ID3D11ShaderResourceView>& textureResourceView);
+
+		// 텍스처, RTV, SRV를 만듦
+		static bool CreateRenderTargetTexture(ID3D11Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format,
+			ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11RenderTargetView>& renderTargetView,
+			ComPtr<ID3D11ShaderResourceView>& shaderResourceView);
 	};
 } // namespace My
