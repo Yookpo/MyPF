@@ -1,7 +1,8 @@
-#pragma once
+﻿#pragma once
 #include <unordered_map>
 #include <memory>
 #include <string>
+#include "TextureType.h"
 
 namespace My
 {
@@ -21,7 +22,7 @@ namespace My
 		~AssetManager();
 
 		bool		   Initialize(GraphicsResourceManager&);
-		const Texture* LoadTexture(const std::string&);
+		const Texture* LoadTexture(const std::string&, TextureType);
 		const Mesh*	   CreateMesh(const std::string&, const MeshData&);
 		Material*	   CreateMaterial(const std::string&);
 		const Model*   LoadModel(const std::string&);

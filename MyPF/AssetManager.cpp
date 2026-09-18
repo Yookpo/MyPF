@@ -1,6 +1,7 @@
 ﻿#include "AssetManager.h"
 #include "GraphicsResourceManager.h"
 #include "Texture.h"
+#include "TextureType.h"
 #include "Mesh.h"
 #include "Material.h"
 #include "ModelData.h"
@@ -25,7 +26,7 @@ namespace My
 		return true;
 	}
 
-	const Texture* AssetManager::LoadTexture(const std::string& path)
+	const Texture* AssetManager::LoadTexture(const std::string& path, TextureType texType)
 	{
 		if (!m_resourceManager || path.empty())
 		{
@@ -40,7 +41,7 @@ namespace My
 		}
 
 		auto texture = std::make_unique<Texture>();
-		if (!texture->Initialize(*m_resourceManager, path))
+		if (!texture->Initialize(*m_resourceManager, path, texType))
 		{
 			OutputDebugStringW(L"AssetManager::LoadTexture() failed");
 			return nullptr;
@@ -142,7 +143,7 @@ namespace My
 
 			if (!importedMesh.albedoTexturePath.empty())
 			{
-				const Texture* albedoTexture = LoadTexture(importedMesh.albedoTexturePath);
+				const Texture* albedoTexture = LoadTexture(importedMesh.albedoTexturePath, TextureType::Albedo);
 
 				if (!albedoTexture)
 				{

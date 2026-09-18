@@ -272,6 +272,9 @@
     <ClInclude Include="PostProcessSettings.h">
       <Filter>Rendering</Filter>
     </ClInclude>
+    <ClInclude Include="TextureType.h">
+      <Filter>Assets</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Shaders\simplePixelShader.hlsl">

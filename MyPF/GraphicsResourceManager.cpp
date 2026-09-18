@@ -95,7 +95,7 @@ namespace My
 		return tResource.textureRTV.Get();
 	}
 
-	TextureHandle GraphicsResourceManager::CreateTexture(const std::string& filename)
+	TextureHandle GraphicsResourceManager::CreateTexture(const std::string& filename, DXGI_FORMAT format)
 	{
 		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice() || filename.empty())
 		{
@@ -105,7 +105,7 @@ namespace My
 		TextureResource tResource{};
 
 		if (!D3D11Utils::CreateTexture(
-				m_graphicsDevice->GetDevice(), filename, tResource.texture, tResource.textureSRV))
+				m_graphicsDevice->GetDevice(), filename, format, tResource.texture, tResource.textureSRV))
 		{
 			return TextureHandle{};
 		}

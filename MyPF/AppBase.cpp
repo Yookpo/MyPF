@@ -7,6 +7,7 @@
 #include "Model.h"
 #include "NeonSign.h"
 #include "PlayerCollision.h"
+#include "TextureType.h"
 
 namespace My
 {
@@ -307,32 +308,32 @@ namespace My
 			return false;
 		}
 
-		const Texture* wallAlbedoTex =
-			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\cyberpunk_wall_albedo_v1.png");
+		const Texture* wallAlbedoTex = m_assetManager.LoadTexture(
+			"Assets\\Textures\\CyberpunkAlley\\cyberpunk_wall_albedo_v1.png", TextureType::Albedo);
 
 		if (!wallAlbedoTex)
 		{
 			return false;
 		}
 
-		const Texture* floorAlbedoTex =
-			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\wet_asphalt_floor_albedo_v1.png");
+		const Texture* floorAlbedoTex = m_assetManager.LoadTexture(
+			"Assets\\Textures\\CyberpunkAlley\\wet_asphalt_floor_albedo_v1.png", TextureType::Albedo);
 
 		if (!floorAlbedoTex)
 		{
 			return false;
 		}
 
-		const Texture* neonTex =
-			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\neon_diffuser_albedo_v1.png");
+		const Texture* neonTex = m_assetManager.LoadTexture(
+			"Assets\\Textures\\CyberpunkAlley\\neon_diffuser_albedo_v1.png", TextureType::Albedo);
 
 		if (!neonTex)
 		{
 			return false;
 		}
 
-		const Texture* powerSwitchTex =
-			m_assetManager.LoadTexture("Assets\\Textures\\CyberpunkAlley\\power_switch_panel_albedo_v1.png");
+		const Texture* powerSwitchTex = m_assetManager.LoadTexture(
+			"Assets\\Textures\\CyberpunkAlley\\power_switch_panel_albedo_v1.png", TextureType::Albedo);
 
 		if (!powerSwitchTex)
 		{

@@ -26,7 +26,7 @@ namespace My
 		ID3D11ShaderResourceView* GetSRV(TextureHandle) const;
 		ID3D11RenderTargetView*	  GetRTV(TextureHandle) const;
 
-		TextureHandle CreateTexture(const std::string& filename);
+		TextureHandle CreateTexture(const std::string& filename, DXGI_FORMAT format);
 		TextureHandle CreateRenderTarget(uint32_t width, uint32_t height, DXGI_FORMAT format);
 		bool		  ResizeRenderTarget(TextureHandle textureHandle, uint32_t width, uint32_t height);
 

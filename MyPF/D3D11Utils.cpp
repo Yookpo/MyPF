@@ -316,8 +316,8 @@ namespace My
 		return true;
 	}
 
-	bool D3D11Utils::CreateTexture(ID3D11Device* device, const std::string& filename, ComPtr<ID3D11Texture2D>& texture,
-		ComPtr<ID3D11ShaderResourceView>& textureResourceView)
+	bool D3D11Utils::CreateTexture(ID3D11Device* device, const std::string& filename, DXGI_FORMAT format,
+		ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11ShaderResourceView>& textureResourceView)
 	{
 		int width, height, channels;
 
@@ -347,8 +347,7 @@ namespace My
 		txtDesc.Height = height;
 		txtDesc.MipLevels = txtDesc.ArraySize = 1;
 
-		//"파일 텍스처는 모두 색상 텍스처라 sRGB로 읽는다. 노멀/러프니스 맵이 생기면 인자로 분리한다"
-		txtDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		txtDesc.Format = format;
 
 		txtDesc.SampleDesc.Count = 1;
 		txtDesc.Usage = D3D11_USAGE_IMMUTABLE;

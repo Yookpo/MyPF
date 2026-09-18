@@ -1,5 +1,6 @@
-#pragma once
+﻿#pragma once
 #include "TextureHandle.h"
+#include "TextureType.h"
 #include <string>
 
 namespace My
@@ -13,11 +14,11 @@ namespace My
 		Texture(const Texture&) = delete;
 		Texture& operator=(const Texture&) = delete;
 
-		bool Initialize(GraphicsResourceManager&, const std::string&);
+		bool Initialize(GraphicsResourceManager& resourceManager, const std::string& fileName, TextureType texType);
 
 		TextureHandle GetTextureHandle() const { return m_textureHandle; }
 
 	private:
-		TextureHandle m_textureHandle;
+		TextureHandle	   m_textureHandle;
 	};
 } // namespace My
