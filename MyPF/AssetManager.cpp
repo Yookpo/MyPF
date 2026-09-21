@@ -33,8 +33,10 @@ namespace My
 			return nullptr;
 		}
 
+		TextureKey texKey{ path, texType };
+
 		// 캐시 검색 -> 캐시 히트시 기존 Texture 반환
-		auto iter = m_textures.find(path);
+		auto iter = m_textures.find(texKey);
 		if (iter != m_textures.end())
 		{
 			return (iter->second).get();
@@ -48,7 +50,7 @@ namespace My
 		}
 
 		const Texture* loadedTex = texture.get();
-		m_textures.emplace(path, std::move(texture));
+		m_textures.emplace(texKey, std::move(texture));
 
 		return loadedTex;
 	}
