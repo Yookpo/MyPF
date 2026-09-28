@@ -1,6 +1,6 @@
 # MyPF 작업 지침
 
-마지막 갱신: 2026-09-21
+마지막 갱신: 2026-09-28
 
 이 문서가 MyPF 프로젝트의 단일 진실 원본이다. 사용하는 도구(Claude Code, Codex 등)와 무관하게 적용된다.
 
@@ -18,7 +18,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 현재 전체 진행률은 약 76%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅까지 완료했다. **로드맵 11번이 닫혔다.**
 
-**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택 Step 1은 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키). 남은 선행 확인은 데이터 텍스처를 실제로 읽어보는 Step 2와 밉맵 검토다(CODEX_HANDOFF.md §6). 그다음 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 그다음 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
 
 작업 브랜치는 `main` 하나다. 로드맵 11번은 `5794467`로 `main`에 머지됐고 기능 브랜치는 정리됐다.
 
@@ -151,6 +151,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **셰이더 경로**: `L"Shaders\\simpleVertexShader.hlsl"` 상대 경로라 **작업 디렉터리가 `MyPF/`여야** 실행된다. exe를 직접 실행하면 실패한다.
 - **HDR 규칙**: 씬 셰이더는 1을 넘는 선형 값을 float HDR 씬 타깃에 그대로 쓴다. 씬 셰이더에 `saturate`를 다시 넣거나, 셰이더에서 텍스처·색 상수에 `pow(2.2)`를 추가하면 안 된다(이중 처리). 모니터용 감마 인코드는 톤 매핑 셰이더에서만 한다.
 - **텍스처 색공간은 용도로 고른다**: `AssetManager::LoadTexture`가 `TextureType`(`Albedo`/`NormalMap`/`Data`)을 **필수 인자**로 받고, `Texture.cpp`의 `ToDxgiFormat`이 유일한 변환 지점이다(`Albedo`만 `_SRGB`). 기본값이 없으므로 새 텍스처를 추가할 때 반드시 용도를 명시한다. **색공간을 직접 지정하려 들지 말 것** — 용도가 원본이고 색공간은 파생값이다. 데이터 텍스처를 `Albedo`로 읽으면 GPU가 디코드해 값이 왜곡되며(평평한 노멀이 약 39° 기울어진다), 필터링보다 디코드가 먼저라 셰이더에서 되돌릴 수 없다. 색 상수는 `Renderer::SrgbToLinear`를 거치고, 세기·거리·Exposure 같은 배율은 변환하지 않는다.
+- **파일 텍스처는 전부 밉 체인을 갖는다**: `D3D11Utils::CreateTexture`가 `USAGE_DEFAULT` + `BIND_RENDER_TARGET` + `MISC_GENERATE_MIPS`로 빈 텍스처를 만들고 레벨 0을 `UpdateSubresource`로 채운 뒤 `GenerateMips`를 부른다. 그래서 이 함수는 **Device와 Context를 둘 다** 받는다. 초기 데이터 방식(`CreateTexture2D(desc, &initData)`)으로 되돌리면 `MipLevels = 0`과 함께 쓸 수 없다. 밉에서 법선을 평균하면 길이가 짧아지므로 **노멀 맵을 샘플한 뒤 셰이더에서 반드시 `normalize`**한다.
 - **에러 정책**: `Renderer::DrawRenderItem`은 Albedo Texture가 없으면 `false`를 반환하고, `AppBase::Render`가 이를 받아 `PostQuitMessage(-1)`로 앱을 종료한다. 기본 Material/Texture 정책이 없다.
 - **`PointLightSequence` 전제**: 자신만 조명 활성 상태를 바꾼다고 가정한다. 다른 코드가 직접 `SetEnabled`를 호출하면 내부 개수와 실제 상태가 어긋난다.
 - **`SequenceEntry` 수명**: Material을 비소유 포인터로 참조한다. 현재는 `AssetManager`가 수명을 보장한다는 전제를 쓴다.

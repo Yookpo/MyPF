@@ -1,6 +1,6 @@
 # MyPF 진행 기록 및 작업 인계
 
-마지막 갱신: 2026-09-21
+마지막 갱신: 2026-09-28
 
 노트북과 데스크톱에서 Git으로 공유하는 MyPF의 실제 구현 상태와 다음 작업을 기록한다.
 
@@ -34,7 +34,7 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `0d0eac2` — 텍스처 캐시 키를 (경로, 용도)로 변경
+- 문서 갱신 기준 HEAD: `f91b0e6` — 파일 텍스처에 밉맵 생성 (GenerateMips)
 - 현재 작업 트리: 브랜치 **`main`**, 이 문서 커밋 후 clean. `origin/main`보다 앞서 있다(push 전). commit/push는 사용자가 요청할 때만 한다.
 - **로드맵 11번 작업을 `main`에 머지했다(2026-09-17).** `--no-ff`로 머지해 "HDR + Bloom 작업 덩어리"의 경계를 히스토리에 남겼다. 33개 파일, +1416/-155, 충돌 없음.
 - 로컬 기능 브랜치 `HDR_SCENE_TARGET`/`WORK_CLAUDE`는 삭제됐고 원격에는 남아 있다(`origin/HDR_SCENE_TARGET` = `3c0edda`, `origin/WORK_CLAUDE` = `9d195bd`). 둘 다 내용이 `main`에 전부 포함된 것을 `git merge-base --is-ancestor`로 확인했으므로 원격 브랜치는 지워도 잃는 것이 없다.
@@ -44,6 +44,8 @@
 최근 기능 commit:
 
 ```text
+f91b0e6 파일 텍스처에 밉맵 생성 (GenerateMips)
+6256ed2 D3D11Utils 로그에 줄바꿈 추가
 0d0eac2 텍스처 캐시 키를 (경로, 용도)로 변경
 ddb29c7 텍스처 타입 생성
 5794467 Merge branch 'HDR_SCENE_TARGET' - 로드맵 11번 (HDR + Tone Mapping + Bloom)
@@ -166,9 +168,9 @@ Rim 색은 `(1.0, 0.75, 0.25)` 호박색, Power 4.0, 강조 시 Intensity 3.0이
 - `EditorUI`의 Ambient 슬라이더를 로그 스케일(`0.001~1.0`, `%.3f`)로 바꿨다. 쓸모 있는 구간이 0.01~0.1인데 선형 `0~1`로는 조절 자체가 불가능했다.
 - 확인: 전원 Off에서 차가운 청색 골목과 끝벽 빨간 대기 표시등이 유도등처럼 보이고, On에서 네온 심지가 번지며 벽이 은은하게 물든다. 세 번 빌드·실행하며 ① 벽이 과하게 물드는 문제(Point Light 세기 절반으로) ② 표시등이 평평하게 날아가는 문제(Emissive 0.5 → 0.20)를 고쳤다. 144 FPS 유지.
 
-### 텍스처 색공간 선택 (로드맵 10번 선행 조건, Step 1 완료)
+### 텍스처 색공간 선택과 밉맵 (로드맵 10번 선행 조건, 전부 완료)
 
-`ddb29c7`(경로)과 `0d0eac2`(캐시 키)로 커밋됐다. 호출자가 **용도**를 말하면 색공간이 따라 정해지는 경로를 뚫었다.
+`ddb29c7`(경로), `0d0eac2`(캐시 키), `f91b0e6`(밉맵)으로 커밋됐다. 호출자가 **용도**를 말하면 색공간이 따라 정해지는 경로를 뚫었다.
 
 - `TextureType.h` — `enum class TextureType { Albedo, NormalMap, Data }`. GPU로 가지 않는 CPU 전용 값이라 숫자를 명시하지 않았다(`PostProcessDebugView`와 같은 부류, `ToneMapper`와는 반대)
 - 네 계층에 정보가 흐른다. **의미는 위, 표현은 아래**이고 `Texture.cpp`가 경계다
@@ -187,6 +189,10 @@ Rim 색은 `(1.0, 0.75, 0.25)` 호박색, Power 4.0, 강조 시 Intensity 3.0이
 
 - **캐시 키** (`0d0eac2`): `AssetManager`의 텍스처 캐시가 `TextureKey = std::pair<std::string, TextureType>`를 키로 쓴다. 같은 파일을 다른 용도로 부르면 **별개 리소스**가 된다. 해시는 `AssetManager` 안의 private 함자 `TextureKeyHash`가 `hash_combine` 관용구로 두 해시를 섞어 만든다. `LoadTexture`가 키를 지역 변수로 한 번 만들어 `find`와 `emplace`에 같이 넘긴다. Mesh/Material/Model 캐시는 여전히 이름 하나가 키다
 - 확인: 임시 테스트로 **같은 경로 + 같은 용도 → 같은 포인터**(캐시 유지)와 **같은 경로 + 다른 용도 → 다른 포인터**(용도 분리)를 둘 다 확인한 뒤 테스트 코드를 제거했다
+- **데이터 텍스처 실제 확인** (Step 2, 코드 변경 없음): 같은 벽 텍스처를 `Data`로 읽어 오른쪽 벽에만 붙이고 전원 Off(좌우 조명 동일)로 비교해 **`Data` 쪽이 뿌옇게 밝게** 나오는 것을 확인했다. 원본 $v$가 `Albedo`에선 화면에 $v$로, `Data`에선 $v^{1/2.2}$로 나가서 어두운 곳일수록 많이 뜬다
+- **밉맵** (`f91b0e6`): 모든 파일 텍스처가 1×1까지 전체 밉 체인을 갖는다. `D3D11Utils::CreateTexture`가 `ID3D11DeviceContext`를 받아(`GraphicsResourceManager`가 내부에서 넘김) ① `USAGE_DEFAULT`, `BIND_SHADER_RESOURCE | BIND_RENDER_TARGET`, `MISC_GENERATE_MIPS`, `MipLevels = 0`으로 **빈 텍스처를 만들고** ② 생성 결과를 검사한 뒤 `UpdateSubresource`로 **레벨 0만 채우고** ③ SRV를 만든 뒤 `GenerateMips`로 나머지를 GPU가 만든다. 샘플러는 원래 `MIN_MAG_MIP_LINEAR`/`MaxLOD = FLOAT32_MAX`였다
+- 확인: 골목 입구에서 먼 바닥을 본 같은 위치 스크린샷으로 비교 — **중·원거리 바닥의 날카로운 흰 점이 사라지고 부드러운 회청색이 됐고, 밝기는 유지됐다**(선형 평균). 가까운 바닥은 그대로다. RenderDoc Texture Viewer에서 밉 레벨들이 생성되고 높은 레벨이 원본보다 어둡지 않음을 확인했다
+- 비용: 파일 텍스처 VRAM이 $1 + \tfrac14 + \tfrac1{16} + \cdots = \tfrac43$배, 로딩 때 밉 생성 한 번
 
 ### Greybox 골목과 상호작용
 
@@ -353,12 +359,13 @@ Rim 색은 `(1.0, 0.75, 0.25)` 호박색, Power 4.0, 강조 시 Intensity 3.0이
 - `Renderer` Material 경로는 유효한 Albedo Texture를 전제로 하며 기본 Material/Texture 정책이 없다. 없으면 앱이 종료된다.
 - 드로우콜마다 InputLayout, Shader, Sampler를 다시 바인딩한다.
 - 컬링이 없다. `CullMode`가 `D3D11_CULL_NONE`이고 프러스텀 컬링도 없다.
-- `D3D11Utils::CreateTexture`의 `MipLevels = 1`이라 밉맵이 없다. 노멀 맵을 쓰면 멀리서 스페큘러 에일리어싱(표면이 지글거리며 반짝임)이 생긴다. UV Tiling 정책도 없어서 20m 벽에 텍스처 한 장이 늘어난다.
+- **UV Tiling 정책이 없다.** 바닥 4m × 20m, 옆벽 20m에 텍스처 한 장이 통째로 늘어나서, 골목 방향(z)으로 텍셀이 5배 길게 펴진 **줄무늬**가 가까운 바닥·벽에 보인다. 밉맵과 무관한 문제다(가까운 곳은 레벨 0을 읽는다). Material에 UV 스케일이 필요하다.
+- **비등방 필터링이 없다.** 밉맵 뒤 먼 바닥이 약간 뭉개진다. 지금은 보류 — §6의 로드맵 10번 항목 참고.
 - 톤 매핑이 채널별로 적용돼, ACES에서 한 채널이 먼저 1에 닿으면 색조가 이동한다. 주황 네온의 심지가 노랗게 뜨는 것이 이 현상이다. 실제 네온도 심지는 하얗게 뜨므로 지금은 정상으로 두고 있으며, 근본 해결은 휘도 기준 톤 매핑이나 색조 보존 방식이다(§4 "룩 재튜닝").
 - **`NeonSignDesc.color`가 Emissive 색과 Point Light 색을 공유한다.** 원래는 "둘이 항상 같아야 한다"는 근거로 한 필드로 묶었는데, 톤 매핑을 거치면 심지에 보이는 색과 벽에 비치는 색이 달라져서 **둘을 동시에 만족시킬 수 없다**(주황이 대표 사례). 심지 색을 우선하면 벽 빛이 순수 빨강이 되고, 벽 빛을 우선하면 심지가 노랗다. **전환 조건**: 네온별 색을 정밀하게 잡아야 하면 `lightColor`를 별도 필드로 분리한다(기본값은 `color`).
 - ImGui에서 바꾼 값은 저장되지 않는다. 룩을 다시 조정하면 최종값을 코드 초기값(§3 "룩 재튜닝"의 표에 위치가 정리돼 있다)에 옮겨 적어야 한다.
 - 출력 인코드가 정확한 sRGB 곡선이 아니라 `1/2.2`제곱 근사다(가장 어두운 구간에서만 차이). `toneMappingPixelShader.hlsl`의 Reinhard 분기에서 `pow` 음수 경고(X3571)가 난다(실제 입력은 0 이상).
-- `Renderer::BeginFrame`에 옛 백버퍼 RTV 줄이 주석으로 남아 있고(`Renderer.cpp` 307·324행), `D3D11Utils`의 셰이더 생성 실패 로그에는 파일 이름과 줄바꿈이 없다.
+- `Renderer::BeginFrame`에 옛 백버퍼 RTV 줄이 주석으로 남아 있고(`Renderer.cpp` 307·324행), `D3D11Utils`의 실패 로그에는 파일 이름이 없다(줄바꿈은 `6256ed2`로 해결).
 - **Bloom이 단일 해상도 반복 방식이다.** 반복으로 넓히면 σ가 √n로만 커져 수확이 체감한다(1→4회에서 2배, 4→8회에서 1.4배). 더 넓은 번짐이 필요하면 다단계 다운샘플/업샘플(mip 체인)로 바꿔야 한다 — 현대 엔진의 표준 방식이다.
 - **임계값이 하드 컷이다.** 경계 근처 픽셀이 카메라가 조금만 움직여도 켜졌다 꺼졌다 할 수 있다(시간적 불안정). 소프트 니(soft knee)로 부드럽게 하거나, 다운샘플 시 Karis 평균으로 반딧불이(firefly)를 억제하는 대응이 없다.
 - Bloom 타깃 세 개를 앱 생명주기 내내 들고 있다. 상용 엔진은 프레임 내에서만 사는 일시적 리소스로 풀링·에일리어싱한다. 지금 규모(절반 해상도 float16 3장)에서는 문제가 아니다.
@@ -408,13 +415,19 @@ Rim 색은 `(1.0, 0.75, 0.25)` 호박색, Power 4.0, 강조 시 Intensity 3.0이
 
 그래픽스 강의의 기하 파이프라인 챕터를 녹일 자리는 §7 "강의 연계 아이디어"에 후보 목록으로 정리해뒀다 — 특히 **법선 시각화 디버그 툴은 로드맵 10번을 진행하는 동안 바로 써먹는다.**
 
-**텍스처 색공간 선택 (로드맵 10번 선행 조건) — Step 1 완료 ✅ (`ddb29c7` 경로, `0d0eac2` 캐시 키)**
+**텍스처 색공간 선택 (로드맵 10번 선행 조건) — Step 1~3 전부 완료 ✅ (`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵)**
 
 왜 필요했는지: 모든 파일 텍스처가 `_SRGB`이면 노멀 맵을 넣었을 때 GPU가 디코드해 벡터가 왜곡된다. 평평한 면의 `(128, 128, 255)`가 `0.502^2.2 = 0.2195`가 되고 셰이더의 `N * 2 - 1`을 거치면 **0이어야 할 X·Y가 -0.561**(약 39° 기울어진 법선)이 된다. 셰이더에서 되돌릴 수 없는 이유는 sRGB 디코드가 **텍스처 필터링보다 먼저** 일어나기 때문이다. 구조와 결정 이유는 §3·§4의 "텍스처 색공간 선택" 참고.
 
-1. **Step 2 — 데이터 텍스처를 실제로 읽어 확인. ← 바로 다음 작업.** 같은 PNG를 `Albedo`/`Data`로 각각 불러 화면에서 비교한다. **`Data`로 읽은 쪽이 뿌옇게 밝아 보여야 정상이다** — 디코드를 건너뛰어 셰이더가 감마 인코딩된(더 밝은) 값을 그대로 받고, 톤 매핑 셰이더의 출력 인코딩이 한 번 더 밝히기 때문이다. 로드맵 11번 Step 4에서 "출력 인코드만 먼저 넣어 일부러 만든 뿌연 화면"과 같은 현상이다. RenderDoc Texture Viewer의 Format 표기(`_UNORM` vs `_UNORM_SRGB`)로도 확인한다. 확인용 코드는 확인 후 제거한다.
-2. **밉맵(`MipLevels = 1`) 검토.** 같은 함수를 건드리는 김에. 노멀 맵은 밉맵이 없으면 멀리서 스페큘러 에일리어싱이 심하다. 로드맵 10번에서 반드시 만난다.
-3. **로드맵 10번 — 젖은 바닥 반사.** Specular → Fresnel → Cube Map/Skybox → 환경 매핑 → IBL(CMFT) → Normal/Roughness Map 순서다. 바닥에 네온이 번지는 느낌은 대부분 Point Light Specular에서 나오고, 정적 Cube Map은 골목 안 네온을 반사하지 못한다는 한계를 알고 진행한다. Bloom과 HDR이 이미 있으므로 젖은 표면의 하이라이트가 곧바로 번진다.
+- ✅ **Step 2 — 데이터 텍스처를 실제로 읽어 확인** (2026-09-21, 코드 변경 없음). 오른쪽 벽에만 `Data`로 읽은 벽 텍스처를 붙인 임시 Material(`testWallMat`, 새 이름 — `CreateMaterial`이 이름으로 캐시하고 세 벽이 `wallMat`을 공유하므로)을 전원 Off 상태(좌우 조명 동일)에서 비교해 **`Data` 쪽이 뿌옇게 밝게** 나오는 것을 확인했다. 디코드를 건너뛰면 셰이더가 감마 인코딩된 값을 그대로 받고 출력 인코딩이 한 번 더 밝히기 때문이다. 확인 후 임시 코드를 제거했다.
+
+- ✅ **Step 3 — 밉맵** (`f91b0e6`, 2026-09-28). 모든 파일 텍스처가 `GenerateMips`로 전체 밉 체인을 갖는다. 구조는 §3, 결정 이유는 §4 "텍스처 색공간 선택", 기록은 §8.
+
+1. **로드맵 10번 — 젖은 바닥 반사. ← 바로 다음 작업.**
+   - **노멀 맵 메모**: 밉에서 법선을 평균하면 길이가 1보다 짧아진다(방향이 다른 단위 벡터의 평균). 노멀 맵을 샘플한 뒤 셰이더에서 **반드시 `normalize`**한다.
+   - **비등방 필터링**: 밉맵 뒤 먼 바닥이 약간 뭉개진다. 비스듬히 보는 바닥은 픽셀 하나가 덮는 영역이 골목 방향으로 길쭉해서, 트라이리니어가 긴 축 기준으로 레벨을 골라 옆 방향까지 과하게 흐려지기 때문이다. 샘플러를 `D3D11_FILTER_ANISOTROPIC` + `MaxAnisotropy` 8~16으로 바꾸면 개선된다. 지금은 거슬리지 않아 보류했고, 젖은 바닥 반사로 먼 바닥 디테일이 중요해지면 적용한다.
+   - Cube Map/IBL 단계에서 큐브맵을 **DDS + DirectXTK `DDSTextureLoader`**로 읽고, `TextureType`이 `DDS_LOADER_FORCE_SRGB`/`IGNORE_SRGB`를 고르는 규칙을 같이 설계한다(§4 "텍스처 파이프라인 방향").
+   - 순서: Specular → Fresnel → Cube Map/Skybox → 환경 매핑 → IBL(CMFT) → Normal/Roughness Map 순서다. 바닥에 네온이 번지는 느낌은 대부분 Point Light Specular에서 나오고, 정적 Cube Map은 골목 안 네온을 반사하지 못한다는 한계를 알고 진행한다. Bloom과 HDR이 이미 있으므로 젖은 표면의 하이라이트가 곧바로 번진다.
 
 **참고 — 로드맵 10번용 테스트 에셋 (2026-09-17 논의, 도입 보류)**
 
@@ -615,6 +628,26 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
 
+### 2026-09-28 — 텍스처 밉맵, 텍스처 파이프라인 방향 결정 (로드맵 10번 선행 조건 완료) ✅
+
+- 완료한 작업:
+  - (`f91b0e6`) 모든 파일 텍스처에 `GenerateMips`로 전체 밉 체인을 만든다. 3-a 현상 관찰 → 3-b `D3D11Utils::CreateTexture`에 Context 인자 → 3-c 업로드 방식 변경(`MipLevels = 1`인 채) → 3-d 밉 켜기 → 3-e RenderDoc 확인 순서로 진행했다. 구조는 §3, 결정 이유는 §4 "텍스처 색공간 선택".
+  - (`6256ed2`) `D3D11Utils.cpp`의 모든 `OutputDebugStringW`(19곳)에 줄바꿈을 붙였다. 3-b 중 사용자가 같이 정리한 것이라 밉맵 커밋과 분리했다.
+  - Step 2(데이터 텍스처 실제 확인)는 2026-09-21에 코드 변경 없이 끝냈다(§3).
+  - 그래픽스 강의 폴더를 분석해 **텍스처 파이프라인 방향**을 정했다 — 지금은 PNG + `GenerateMips`, 큐브맵은 로드맵 10번에서 DDS, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때(§4 "텍스처 파이프라인 방향").
+- 확인한 결과:
+  - 같은 위치(골목 입구, 시선 약간 아래) 스크린샷 비교에서 중·원거리 바닥의 날카로운 흰 점이 사라지고 부드러운 회청색이 됐다. **먼 곳이 어두워지지 않았다** — 선형 공간 평균의 신호다. RenderDoc에서 밉 레벨 생성과 높은 레벨의 밝기 유지를 확인했다.
+  - 3-a 스크린샷에서 **서로 다른 문제 둘**을 구분했다. 중·원거리 흰 점(에일리어싱, 이번 대상)과 가까운 바닥·벽의 z 방향 줄무늬(UV 타일링, 이번에 못 고침). 섞어 보면 "밉맵이 줄무늬를 못 고쳤다"로 오판한다.
+  - 리뷰 중 잡은 문제: ① `UpdateSubresource`의 원본 데이터 자리에 `img` 대신 **`&format`**(스택의 4바이트 enum 주소)을 넘겼다 — 드라이버가 거기서 16MB를 읽어 크래시나 노이즈 텍스처가 된다. 매개변수가 `const void*`라 **어떤 포인터든 암묵 변환되어 컴파일러가 못 잡는다** ② `CreateTexture2D`·`CreateShaderResourceView` 실패 경로에서 `img`가 샜다 ③ 누수를 고치며 `UpdateSubresource`를 **`hr` 검사보다 앞**으로 옮겨, 생성 실패 시 `nullptr` 리소스에 복사하는 상태가 됐다 — 성공 경로에선 멀쩡해서 화면으로는 안 드러난다 ④ 주석 처리한 `initData` 블록이 남아 있었다.
+- 남아 있는 문제: §5 참고. UV Tiling 정책 없음(가까운 곳 줄무늬), 비등방 필터링 보류(먼 바닥 약간 뭉개짐), 실패 로그에 파일 이름 없음.
+- 다음에 이어서 할 작업: §6 — 로드맵 10번(젖은 바닥 반사). 노멀 맵 샘플 뒤 `normalize` 필수.
+- 중요한 설계 결정과 이유: §4 "텍스처 색공간 선택"과 "텍스처 파이프라인 방향"에 정리했다. 핵심 요약:
+  - **밉을 로드맵 10번보다 먼저** — 스페큘러·노멀 맵·Bloom이 들어온 뒤엔 원인 후보가 넷이 된다.
+  - **GPU `GenerateMips`** — `_SRGB` 포맷에서 평균이 선형 공간에서 계산된다. CPU로 줄이면 밉이 어두워진다.
+  - **Context는 `D3D11Utils`까지만** — `GraphicsResourceManager` 공개 시그니처를 지켜 `Texture`가 DX11을 모르게 둔다.
+  - **"만든 것은 확인한 뒤에 쓰고, 빌린 것은 다 쓴 즉시 돌려준다"** — `HRESULT`는 다음 줄을 실행해도 되는지 알려주는 신호라 그 줄보다 먼저 본다. `img` 수명을 짧게 잡을수록 챙길 반환 경로가 준다(자동화하면 RAII).
+  - **큐브맵·IBL엔 DDS가 필수** — specular IBL의 밉은 평균이 아니라 거칠기별 컨볼루션이라 `GenerateMips`로 못 만든다. DDS를 들이면 `TextureType`이 `FORCE_SRGB`/`IGNORE_SRGB`를 골라 "용도가 원본" 원칙을 지킨다.
+
 ### 2026-09-21 — 텍스처 캐시 키 (Step 1 완료) ✅
 
 - 완료한 작업 (`0d0eac2`): `AssetManager`의 텍스처 캐시 키를 경로에서 `(경로, TextureType)`으로 바꿨다. 1-e 이후 텍스처가 용도를 갖게 됐는데 캐시만 경로로 조회해서, 같은 파일을 다른 용도로 요청하면 먼저 로드된(포맷이 다른) 리소스가 조용히 돌아오던 문제다. 이로써 텍스처 색공간 선택 Step 1이 끝났다.
@@ -693,6 +726,50 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 - **해시는 `hash_combine` 관용구로 섞는다.** MSVC의 `std::hash`는 정수·열거형도 FNV-1a로 섞지만 GCC·Clang은 값을 그대로 쓴다. 코드가 `std::hash`의 구현을 가정하면 안 되므로, 어느 쪽이든 잘 섞이는 방식을 쓴다.
 - **해시 함자는 `AssetManager` 안에 private으로 중첩했다.** 이 캐시 말고는 쓸 곳이 없다는 의도가 드러나고 `My` 네임스페이스에 이름이 늘지 않는다. 키 별칭 `TextureKey`는 네임스페이스 수준에 뒀다.
 - **Mesh/Material/Model 캐시는 바꾸지 않았다.** 그쪽은 여전히 이름 하나가 곧 정체성이다. 문제가 없는 곳까지 일반화하지 않는다.
+- **밉맵을 로드맵 10번보다 먼저 넣었다.** 먼 곳에서 픽셀 하나가 텍셀 여러 개를 덮는데 한 점만 읽어 반짝이는 에일리어싱은 지금은 "먼 바닥이 좀 지글거린다" 수준이지만, 스페큘러 하이라이트(작고 밝음)·노멀 맵(픽셀마다 법선이 다름)·HDR Bloom(1을 넘는 값이 번짐)이 들어오면 **번지며 깜빡이는** 문제가 된다. 그때 원인을 가리려면 변수가 넷이 되니 변수가 적은 지금 막았다.
+- **밉은 GPU `GenerateMips`로 만든다.** CPU에서 줄이면 `_SRGB` 바이트를 그대로 평균해 **밉이 어두워진다**(0.9와 0.1을 그대로 평균하면 0.5, 빛의 양으로는 $0.5^{2.2} \approx 0.22$인데 원래 평균은 약 0.40). `GenerateMips`는 SRV로 읽고 RTV로 쓰는 렌더링이라 `_SRGB` 포맷이면 **읽을 때 디코드, 쓸 때 인코드되어 평균이 선형 공간에서 계산된다.** 색공간을 `TextureType`으로 제대로 나눠둔 결정이 여기서 한 번 더 효과를 봤다. 오프라인 DDS는 §4 "텍스처 파이프라인 방향" 참고.
+- **Context는 `D3D11Utils`까지만 내려보낸다.** `UpdateSubresource`·`GenerateMips`는 Device(리소스를 만든다)가 아니라 Context(GPU에게 일을 시킨다)의 함수라 `D3D11Utils::CreateTexture`에 `ID3D11DeviceContext*`를 `device` 바로 뒤에 추가했다(`UpdateBuffer`와 같은 "Device/Context → 입력 → 출력" 순서). `GraphicsResourceManager::CreateTexture`의 공개 시그니처는 바꾸지 않고 내부에서 `m_graphicsDevice->GetContext()`를 넘긴다 — 공개 시그니처에 넣으면 `Texture`가 DX11을 알게 되어 1-d의 경계가 무너진다.
+- **초기 데이터 대신 `UpdateSubresource`로 올린다.** `CreateTexture2D`에 초기 데이터를 넘기면 모든 밉 레벨의 데이터가 필요한데 우리는 레벨 0뿐이다. 빈 텍스처(`USAGE_DEFAULT` — `IMMUTABLE`은 생성 후 못 바꾼다)를 만들고 레벨 0만 채운 뒤 나머지는 GPU에 맡긴다.
+- **업로드 변경(3-c)과 밉 켜기(3-d)를 나눠서 진행했다.** 한 번에 했다가 화면이 검게 나오면 업로드와 밉 생성 중 어디가 틀렸는지 가릴 수 없다. 3-c에서 `MipLevels = 1`인 채로 화면이 그대로인지 먼저 봤다.
+- **모든 파일 텍스처에 밉을 만든다.** 노멀·러프니스 맵은 오히려 더 필요하다. 밉이 필요 없는 텍스처(UI 등)가 생기면 그때 `TextureType`에 규칙을 붙인다(언리얼 `MipGenSettings`의 `NoMipmaps` 자리).
+
+### 텍스처 파이프라인 방향 — PNG / DDS / 쿠킹 (2026-09-28 결정)
+
+그래픽스 강의 폴더(`Hong_Graphics2/Graphics_Part2/08_ShaderToys_*`, `Hong_Graphics3/HongGraphicsPart3`)를 분석하고 정한 방향이다. **지금은 PNG로 가고, 필요가 생길 때마다 한 칸씩 옮긴다.**
+
+**강의가 실제로 하는 것** — DDS는 **큐브맵에만** 쓴다. 일반 2D 텍스처는 `stbi_load` → `CreateTexture2D`에 `MipLevels = 1`, `IMMUTABLE`로 우리와 같다(밉 없음). 큐브맵은 DirectXTex의 `texassemble`로 여섯 면을 DDS로 묶고 DirectXTK `CreateDDSTextureFromFileEx` + `D3D11_RESOURCE_MISC_TEXTURECUBE`로 읽는다. 강의 에셋 헤더를 직접 읽어보면 `*_specularIBL.dds`는 1024² 큐브에 **밉 11장, BC6H**(HDR 압축), `*_diffuseIBL.dds`는 128² 큐브에 밉 8장이다.
+
+**큐브맵·IBL에 DDS가 필수인 이유** — specular IBL의 밉은 텍셀 평균이 아니라 **거칠기별로 풍경을 컨볼루션한 결과**다. 셰이더가 러프니스로 레벨을 골라 읽는다. 반구 적분이라 실시간에 할 수 없어 오프라인 도구(CMFT, IBLBaker 등)로 계산해 밉 레벨에 저장하며, 이걸 담을 수 있는 포맷이 DDS다. `GenerateMips`(2×2 평균)로는 만들 수 없고, HDR이라 PNG에도 담을 수 없다.
+
+**단계별 경로**
+
+| 시점 | 할 일 | 이유 |
+|---|---|---|
+| 지금 (색공간 Step 3) | 2D 텍스처는 PNG + `GenerateMips` | 텍스처 4장. 파이프라인을 만들 이유가 아직 없다(§3 원칙). 밉을 직접 만들어봐야 쿠킹 도구가 무엇을 대신하는지 안다 |
+| 로드맵 10번 | **큐브맵만 DDS** — DirectXTK `DDSTextureLoader` | 위 이유로 사실상 유일한 선택. DirectXTK는 이미 vcpkg에 설치돼 있어(`SimpleMath.h`와 같은 폴더) **새 의존성이 없다** |
+| 에셋이 늘어날 때 | 2D 텍스처도 **오프라인 쿠킹 → DDS** | VRAM·로딩이 실제 문제가 되는 시점 |
+
+**DDS 도입 시 색공간 규칙** — DDS는 포맷 안에 색공간이 박혀 있다(`BC7_UNORM_SRGB` vs `BC7_UNORM`). 그대로 읽으면 파일도 색공간을 결정해 **결정권자가 둘**이 되고, 노멀 맵을 실수로 `_SRGB`로 구우면 `TextureType::NormalMap`으로 불러도 sRGB로 읽힌다. 설치된 DirectXTK의 `DDS_LOADER_FORCE_SRGB`(0x1) / `DDS_LOADER_IGNORE_SRGB`(0x2)를 **`TextureType`이 고르게** 해서 PNG 경로의 `ToDxgiFormat`과 같은 원칙(용도가 원본)을 지킨다. 로드맵 10번에서 이 규칙을 같이 설계한다.
+
+**최종 형태 (전환 조건이 왔을 때)**
+
+```
+Assets/Source/   사람이 다루는 원본 PNG/EXR  (용도 접미사: _D, _N, _R ...)
+      │  cook_textures 스크립트가 texconv를 호출. 접미사로 포맷·옵션 선택
+      ▼
+Assets/Cooked/   엔진이 읽는 BC 압축 + 밉 포함 DDS
+      ▼
+LoadTexture(path, TextureType)
+   .dds → DDSTextureLoader (TextureType이 FORCE/IGNORE_SRGB 선택)
+   .png → stb + GenerateMips (빠른 실험용으로 유지)
+```
+
+- 쿠킹 단계에서는 파일명 추론이 **안전하다.** 런타임 추론을 거부한 이유(§4 "텍스처 색공간 선택")는 사람이 검토할 단계가 없어서였는데, 쿠킹은 오프라인이라 결과를 확인할 수 있다. 언리얼이 임포트 시점에 파일명으로 추측해도 되는 이유와 같다. 런타임 결정권은 여전히 `TextureType`에 있다.
+- 용도별 포맷(2048², 밉 포함): Albedo **BC7_UNORM_SRGB** ≈5.3MB / NormalMap **BC5_UNORM** ≈5.3MB / Data **BC4_UNORM** ≈2.7MB / HDR 큐브맵 **BC6H**. 현재 PNG RGBA8은 ≈21.3MB라 4~8배 줄어든다.
+- `NormalMap`을 `Data`와 나눠둔 결정이 여기서 쓰인다. BC5는 X·Y만 저장해 **셰이더가 $z = \sqrt{1 - x^2 - y^2}$로 복원**해야 하고, OpenGL 규약(`nor_gl`) 노멀 맵은 **쿠킹 시 `texconv -inverty`**로 G 채널을 뒤집으면 셰이더를 건드리지 않아도 된다. 둘 다 `NormalMap` 한 곳에만 붙는다.
+- 도구: 여섯 면 묶기 `texassemble`, 포맷 변환·압축 `texconv`(둘 다 DirectXTex), IBL 필터링 CMFT. **현재 셋 다 설치돼 있지 않다.**
+
+**2D 텍스처를 쿠킹으로 옮기는 전환 조건** — 텍스처가 10~20장을 넘을 때 / 로드맵 8번에서 실제 골목 에셋을 들일 때 / VRAM이나 로딩 시간이 실제 문제로 측정될 때. 원본 → 쿠킹 → 런타임 파이프라인은 에셋 파이프라인 이해를 보여주는 포트폴리오 이야깃거리이기도 하지만, 데모(로드맵 9·10·12번)가 먼저다.
 
 ### 2026-09-17 — Bloom 구현과 Rim 강조 책임 이동 (로드맵 11번 Step 5~7) ✅
 
@@ -789,7 +866,8 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 
 ## 9. 다른 PC에서 확인할 체크리스트
 
-- `git pull` 후 `main`의 HEAD가 최소 `0d0eac2` 이후(이 문서의 커밋)인지 확인한다. 로드맵 11번과 텍스처 색공간 작업은 전부 `main`에 있으므로 기능 브랜치를 체크아웃할 필요가 없다.
+- `git pull` 후 `main`의 HEAD가 최소 `f91b0e6` 이후(이 문서의 커밋)인지 확인한다.
+- 밉맵 확인: 골목 입구에서 먼 바닥을 보며 천천히 걸었을 때 흰 점이 깜빡이지 않고 부드럽게 흐려져 있어야 한다. 가까운 바닥의 z 방향 줄무늬는 UV 타일링 문제라 정상이다. 로드맵 11번과 텍스처 색공간 작업은 전부 `main`에 있으므로 기능 브랜치를 체크아웃할 필요가 없다.
 - 룩 확인: 전원 Off에서 골목이 차가운 청색이고 끝벽의 빨간 대기 표시등이 보이는지, On에서 네온이 번지면서도 벽은 은은하게만 물드는지 확인한다. 모니터 밝기에 따라 다르게 보이므로 너무 어둡거나 밝으면 Exposure부터 조정한다(§6의 조정 순서 참고).
 - Play에서 상호작용 거리 안에서 스위치를 바라볼 때만 가장자리가 호박색으로 밝아지고(Rim 강조), HUD의 `[E] Interact`가 같은 타이밍으로 뜨는지 확인한다. ESC나 Alt+Tab으로 나가면 Editor에서 강조가 꺼져 있어야 한다.
 - Editor 패널 Post Process에서 Tone Mapper(Reinhard/ACES)와 Exposure를 바꾸면 화면이 즉시 바뀌고, 전원을 켰을 때 네온 세 개의 밝기가 서로 다르게 보이는지 확인한다.
