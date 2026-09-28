@@ -33,13 +33,13 @@ namespace My
 	{
 		if (!device)
 		{
-			OutputDebugStringW(L"Device is empty. must be initialized");
+			OutputDebugStringW(L"Device is empty. must be initialized\n");
 			return false;
 		}
 
 		if (screenWidth <= 0 || screenHeight <= 0)
 		{
-			OutputDebugStringW(L"Screen size must be over 0");
+			OutputDebugStringW(L"Screen size must be over 0\n");
 			return false;
 		}
 
@@ -70,12 +70,12 @@ namespace My
 
 		if (FAILED(device->CreateTexture2D(&depthStencilBufferDesc, 0, depthStencilBuffer.GetAddressOf())))
 		{
-			OutputDebugStringW(L"CreateTexture2D() failed");
+			OutputDebugStringW(L"CreateTexture2D() failed\n");
 			return false;
 		}
 		if (FAILED(device->CreateDepthStencilView(depthStencilBuffer.Get(), 0, depthStencilView.GetAddressOf())))
 		{
-			OutputDebugStringW(L"CreateDepthStencilView() failed");
+			OutputDebugStringW(L"CreateDepthStencilView() failed\n");
 			return false;
 		}
 
@@ -90,7 +90,7 @@ namespace My
 	{
 		if (!device)
 		{
-			OutputDebugStringW(L"Device is empty. must be initialized");
+			OutputDebugStringW(L"Device is empty. must be initialized\n");
 			return false;
 		}
 
@@ -102,7 +102,7 @@ namespace My
 		depthStencilDesc.DepthFunc = D3D11_COMPARISON_FUNC::D3D11_COMPARISON_LESS;
 		if (FAILED(device->CreateDepthStencilState(&depthStencilDesc, depthStencilState.GetAddressOf())))
 		{
-			OutputDebugStringW(L"CreateDepthStencilState() failed");
+			OutputDebugStringW(L"CreateDepthStencilState() failed\n");
 			return false;
 		}
 
@@ -128,21 +128,21 @@ namespace My
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(L"Shader Compile() failed");
+			OutputDebugStringW(L"Shader Compile() failed\n");
 			return false;
 		}
 
 		if (FAILED(device->CreateVertexShader(
 				shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), NULL, &m_vertexShader)))
 		{
-			OutputDebugStringW(L"CreateVertexShader() failed");
+			OutputDebugStringW(L"CreateVertexShader() failed\n");
 			return false;
 		}
 
 		if (FAILED(device->CreateInputLayout(inputElements.data(), static_cast<UINT>(inputElements.size()),
 				shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), &m_inputLayout)))
 		{
-			OutputDebugStringW(L"CreateInputLayout() failed");
+			OutputDebugStringW(L"CreateInputLayout() failed\n");
 			return false;
 		}
 
@@ -171,14 +171,14 @@ namespace My
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(L"Shader Compile() failed");
+			OutputDebugStringW(L"Shader Compile() failed\n");
 			return false;
 		}
 
 		if (FAILED(device->CreateVertexShader(
 				shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), NULL, &vertexShader)))
 		{
-			OutputDebugStringW(L"CreateVertexShader() failed");
+			OutputDebugStringW(L"CreateVertexShader() failed\n");
 			return false;
 		}
 
@@ -202,14 +202,14 @@ namespace My
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(L"Shader Compile() failed");
+			OutputDebugStringW(L"Shader Compile() failed\n");
 			return false;
 		}
 
 		if (FAILED(device->CreatePixelShader(
 				shaderBlob->GetBufferPointer(), shaderBlob->GetBufferSize(), NULL, &m_pixelShader)))
 		{
-			OutputDebugStringW(L"CreatePixelShader() failed");
+			OutputDebugStringW(L"CreatePixelShader() failed\n");
 			return false;
 		}
 
@@ -239,7 +239,7 @@ namespace My
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(L"D3D11Utils::CreateImmutableBuffer() failed");
+			OutputDebugStringW(L"D3D11Utils::CreateImmutableBuffer() failed\n");
 			return false;
 		}
 
@@ -284,7 +284,7 @@ namespace My
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(L"D3D11Utils::CreateConstantBuffer() failed");
+			OutputDebugStringW(L"D3D11Utils::CreateConstantBuffer() failed\n");
 			return false;
 		}
 
@@ -305,7 +305,7 @@ namespace My
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(L"D3D11Utils::UpdateBuffer() Map failed");
+			OutputDebugStringW(L"D3D11Utils::UpdateBuffer() Map failed\n");
 			return false;
 		}
 
@@ -325,7 +325,7 @@ namespace My
 
 		if (img == nullptr)
 		{
-			OutputDebugStringW(L"Image Load Failed");
+			OutputDebugStringW(L"Image Load Failed\n");
 			return false;
 		}
 
@@ -363,13 +363,13 @@ namespace My
 
 		if (FAILED(hr))
 		{
-			OutputDebugStringW(L"CreateTexture Failed");
+			OutputDebugStringW(L"CreateTexture Failed\n");
 			return false;
 		}
 
 		if (FAILED(device->CreateShaderResourceView(texture.Get(), nullptr, textureResourceView.GetAddressOf())))
 		{
-			OutputDebugStringW(L"CreateSRV Failed");
+			OutputDebugStringW(L"CreateSRV Failed\n");
 			return false;
 		}
 
