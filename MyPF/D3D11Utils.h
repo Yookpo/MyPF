@@ -83,8 +83,9 @@ namespace My
 
 		// 색상 텍스처 - _SRGB
 		// 데이터 텍스처 - _UNORM
-		static bool CreateTexture(ID3D11Device* device, const std::string& filename, DXGI_FORMAT format,
-			ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11ShaderResourceView>& textureResourceView);
+		static bool CreateTexture(ID3D11Device* device, ID3D11DeviceContext* context, const std::string& filename,
+			DXGI_FORMAT format, ComPtr<ID3D11Texture2D>& texture,
+			ComPtr<ID3D11ShaderResourceView>& textureResourceView);
 
 		// 텍스처, RTV, SRV를 만듦
 		static bool CreateRenderTargetTexture(ID3D11Device* device, uint32_t width, uint32_t height, DXGI_FORMAT format,

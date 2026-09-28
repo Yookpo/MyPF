@@ -316,9 +316,15 @@ namespace My
 		return true;
 	}
 
-	bool D3D11Utils::CreateTexture(ID3D11Device* device, const std::string& filename, DXGI_FORMAT format,
-		ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11ShaderResourceView>& textureResourceView)
+	bool D3D11Utils::CreateTexture(ID3D11Device* device, ID3D11DeviceContext* context, const std::string& filename,
+		DXGI_FORMAT format, ComPtr<ID3D11Texture2D>& texture, ComPtr<ID3D11ShaderResourceView>& textureResourceView)
 	{
+		if (!device || !context)
+		{
+			OutputDebugStringW(L"device or context is not initialized\n");
+			return false;
+		}
+
 		int width, height, channels;
 
 		unsigned char* img = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
@@ -345,33 +351,39 @@ namespace My
 		D3D11_TEXTURE2D_DESC txtDesc = {};
 		txtDesc.Width = width;
 		txtDesc.Height = height;
-		txtDesc.MipLevels = txtDesc.ArraySize = 1;
+		txtDesc.MipLevels = 0; // 1x1 가능한 전부
+		txtDesc.ArraySize = 1;
 
 		txtDesc.Format = format;
 
 		txtDesc.SampleDesc.Count = 1;
-		txtDesc.Usage = D3D11_USAGE_IMMUTABLE;
-		txtDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+		txtDesc.Usage = D3D11_USAGE_DEFAULT;
 
-		D3D11_SUBRESOURCE_DATA initData;
-		ZeroMemory(&initData, sizeof(initData));
-		initData.pSysMem = img;
-		initData.SysMemPitch = txtDesc.Width * sizeof(uint8_t) * 4;
+		// GenerateMips는 레벨 N을 SRV로 읽어 레벨 N+1에 RTV로 그린다
+		txtDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+		txtDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
-		HRESULT hr = device->CreateTexture2D(&txtDesc, &initData, texture.GetAddressOf());
-		stbi_image_free(img);
+
+		HRESULT hr = device->CreateTexture2D(&txtDesc, nullptr, texture.GetAddressOf());
 
 		if (FAILED(hr))
 		{
 			OutputDebugStringW(L"CreateTexture Failed\n");
+			stbi_image_free(img);
 			return false;
 		}
+
+		// 빈 텍스처를 만들어 레벨0만 채우고, GPU에서 남은 mip을 채운다
+		context->UpdateSubresource(texture.Get(), 0, nullptr, img, txtDesc.Width * sizeof(uint8_t) * 4, 0);
+		stbi_image_free(img);
 
 		if (FAILED(device->CreateShaderResourceView(texture.Get(), nullptr, textureResourceView.GetAddressOf())))
 		{
 			OutputDebugStringW(L"CreateSRV Failed\n");
 			return false;
 		}
+
+		context->GenerateMips(textureResourceView.Get());
 
 		return true;
 	}

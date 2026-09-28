@@ -97,15 +97,15 @@ namespace My
 
 	TextureHandle GraphicsResourceManager::CreateTexture(const std::string& filename, DXGI_FORMAT format)
 	{
-		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice() || filename.empty())
+		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice() || !m_graphicsDevice->GetContext() || filename.empty())
 		{
 			return TextureHandle{};
 		}
 
 		TextureResource tResource{};
 
-		if (!D3D11Utils::CreateTexture(
-				m_graphicsDevice->GetDevice(), filename, format, tResource.texture, tResource.textureSRV))
+		if (!D3D11Utils::CreateTexture(m_graphicsDevice->GetDevice(), m_graphicsDevice->GetContext(), filename, format,
+				tResource.texture, tResource.textureSRV))
 		{
 			return TextureHandle{};
 		}
