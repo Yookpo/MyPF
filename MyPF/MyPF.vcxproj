@@ -276,6 +276,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="ImGui\imgui.ini" />
+    <None Include="Shaders\Common.hlsli" />
     <None Include="Shaders\Lighting.hlsli" />
     <None Include="Shaders\PostProcess.hlsli" />
   </ItemGroup>

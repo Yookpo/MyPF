@@ -326,6 +326,18 @@ namespace My
 			material->SetEmissiveIntensity(emissiveIntensity);
 		}
 
+		float roughness = material->GetRoughness();
+		if (ImGui::SliderFloat("Roughness", &roughness, 0.05f, 1.0f))
+		{
+			material->SetRoughness(roughness);
+		}
+
+		float specular = material->GetSpecular();
+		if (ImGui::SliderFloat("Specular", &specular, 0.0f, 1.0f))
+		{
+			material->SetSpecular(specular);
+		}
+
 		Vector3 rimColor = material->GetRimColor();
 		if (ImGui::ColorEdit3("Rim Color", &rimColor.x))
 		{

@@ -1,3 +1,4 @@
+﻿#include <algorithm>
 #include "Material.h"
 #include "Texture.h"
 
@@ -41,6 +42,17 @@ namespace My
 	void Material::SetEmissiveMultiplier(float newEmissiveMultiplier)
 	{
 		m_runtimeEmissiveMultiplier = newEmissiveMultiplier;
+	}
+
+	void Material::SetRoughness(float newRoughness)
+	{
+		// roughness가 0에 가까우면 exponent가 무한대가 될 수도 있음
+		m_roughness = std::clamp(newRoughness, 0.05f, 1.0f);
+	}
+
+	void Material::SetSpecular(float newSpecular)
+	{
+		m_specular = std::clamp(newSpecular, 0.0f, 1.0f);
 	}
 
 } // namespace My

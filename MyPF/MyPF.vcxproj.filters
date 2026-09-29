@@ -312,5 +312,8 @@
     <None Include="Shaders\PostProcess.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Shaders\Common.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

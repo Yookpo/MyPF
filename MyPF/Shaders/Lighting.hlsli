@@ -1,3 +1,8 @@
+#ifndef LIGHTING_HLSLI
+#define LIGHTING_HLSLI
+
+#include "Common.hlsli"
+
 #define NUM_POINT_LIGHTS 8
 
 struct PointLight
@@ -9,6 +14,17 @@ struct PointLight
     uint isEnabled;
     float3 pad;
 };
+
+cbuffer LightConstantBuffer : register(b0)
+{
+    float3 direction;
+    float intensity;
+    float3 color;
+    float ambientStrength;
+    uint pointLightCount;
+    float3 lightPad;
+    PointLight pointLights[NUM_POINT_LIGHTS];
+}
 
 float CalcAttenuation(float lightDistance, float range)
 {
@@ -50,5 +66,7 @@ float3 ComputePointLight(PointLight pointLight, float3 pos, float3 normal, float
     float aten = CalcAttenuation(d, pointLight.range);
 
     return surfaceColor * pointLight.color * pointLight.intensity * diffuse * aten;
-    
 }
+
+
+#endif

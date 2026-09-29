@@ -68,12 +68,13 @@ namespace My
 		}
 
 		m_materialConstantData.baseColor = Vector3(1.0f);
-		m_materialConstantData.pad = 0.0f;
+		m_materialConstantData.roughness = 0.5f;
 		m_materialConstantData.emissiveColor = Vector3(1.0f);
 		m_materialConstantData.emissiveIntensity = 0.0f;
 		m_materialConstantData.rimColor = Vector3(1.0f);
 		m_materialConstantData.rimIntensity = 0.0f;
 		m_materialConstantData.rimPower = 3.0f;
+		m_materialConstantData.specular = 0.5f;
 		m_materialBufferHandle = m_resourceManager->CreateConstantBuffer(m_materialConstantData);
 
 		if (!m_materialBufferHandle.IsValid())
@@ -611,6 +612,8 @@ namespace My
 		m_materialConstantData.rimColor = SrgbToLinear(drawMat.GetRimColor());
 		m_materialConstantData.rimIntensity = drawMat.GetRimIntensity();
 		m_materialConstantData.rimPower = drawMat.GetRimPower();
+		m_materialConstantData.roughness = drawMat.GetRoughness();
+		m_materialConstantData.specular = drawMat.GetSpecular();
 		if (!m_resourceManager->UpdateBuffer(m_materialBufferHandle, m_materialConstantData))
 		{
 			return false;
@@ -639,7 +642,7 @@ namespace My
 			cameraConstantBuffer,
 		};
 
-		ID3D11Buffer* pixelConstantBuffers[2] = { materialConstantBuffer, cameraConstantBuffer };
+		ID3D11Buffer* pixelConstantBuffers[2] = { cameraConstantBuffer, materialConstantBuffer };
 
 		TextureHandle albedoHandle = albedoTexture->GetTextureHandle();
 		if (!albedoHandle.IsValid())
@@ -655,6 +658,7 @@ namespace My
 			return false;
 		}
 
+		// VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material
 		Context->IASetInputLayout(m_inputLayout.Get());
 		Context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 		Context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -665,7 +669,7 @@ namespace My
 		Context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
 		Context->PSSetShaderResources(0, 1, &albedoSRV);
-		Context->PSSetConstantBuffers(1, 2, pixelConstantBuffers); // PS의 b0=Light, b1=Material, b2=Camera
+		Context->PSSetConstantBuffers(1, 2, pixelConstantBuffers);
 		Context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
 		Context->DrawIndexed(drawMesh.GetIndexCount(), 0, 0);

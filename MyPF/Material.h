@@ -19,6 +19,8 @@ namespace My
 			, m_rimColor{ 1.0f }
 			, m_rimIntensity{ 0.0f }
 			, m_rimPower{ 3.0f }
+			, m_roughness{ 0.5f }
+			, m_specular{ 0.5f }
 		{
 		}
 		Material(const Material&) = delete;
@@ -49,6 +51,14 @@ namespace My
 		float GetEmissiveMultiplier() const { return m_runtimeEmissiveMultiplier; }
 		float GetEffectiveEmissiveIntensity() const { return m_emissiveIntensity * m_runtimeEmissiveMultiplier; }
 
+		// 표면 거칠기, 0 = 거울, 1 = 완전 무광
+		void  SetRoughness(float);
+		float GetRoughness() const { return m_roughness; }
+
+		// 비금속의 정면 반사율
+		void  SetSpecular(float);
+		float GetSpecular() const { return m_specular; }
+
 	private:
 		const Texture* m_albedoTexture;
 		Vector3		   m_baseColor;
@@ -58,6 +68,8 @@ namespace My
 		Vector3		   m_rimColor;
 		float		   m_rimIntensity;
 		float		   m_rimPower;
+		float		   m_roughness;
+		float		   m_specular;
 	};
 
 } // namespace My

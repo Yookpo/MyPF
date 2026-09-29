@@ -6,6 +6,7 @@
 namespace My
 {
 	using DirectX::SimpleMath::Matrix;
+	using DirectX::SimpleMath::Vector2;
 	using DirectX::SimpleMath::Vector3;
 
 	struct ObjectConstantData
@@ -48,13 +49,14 @@ namespace My
 	struct MaterialConstantData
 	{
 		Vector3 baseColor;		   // 12
-		float	pad;			   // 4
+		float	roughness;		   // 4
 		Vector3 emissiveColor;	   // 12
 		float	emissiveIntensity; // 4
 		Vector3 rimColor;		   // 12
 		float	rimIntensity;	   // 4
 		float	rimPower;		   // 4
-		Vector3 pad2;			   // 12	-> 64
+		float	specular;		   // 4
+		Vector2 pad2;			   // 8	-> 64
 	};
 
 	struct PostProcessConstantData
