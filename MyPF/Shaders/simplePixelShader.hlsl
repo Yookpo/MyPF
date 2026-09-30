@@ -4,7 +4,6 @@
 Texture2D albedoTexture : register(t0);
 SamplerState linearSampler : register(s0);
 
-
 cbuffer MaterialConstantBuffer : register(b2)
 {
     float3 baseColor;
@@ -20,14 +19,16 @@ cbuffer MaterialConstantBuffer : register(b2)
 
 float4 main(PS_INPUT input) : SV_TARGET
 {
+    IncidentLight dirLight = GetDirectionalLight();
+    
     float3 normal = normalize(input.normal);
-    float diffuse = saturate(dot(-direction, normal)); // directional Light의 diffuseColor
+    float diffuse = saturate(dot(normal, dirLight.direction));
     
     float3 albedo = albedoTexture.Sample(linearSampler, input.uv).rgb;
     float3 surfaceColor = albedo * baseColor;
     
     float3 ambientColor = surfaceColor * ambientStrength;
-    float3 diffuseColor = surfaceColor * color * intensity * diffuse;
+    float3 diffuseColor = surfaceColor * dirLight.radiance * diffuse;
     float3 emissive = emissiveColor * emissiveIntensity;
     
     float3 viewDir = normalize(cameraPos - input.posWorld);
@@ -37,7 +38,8 @@ float4 main(PS_INPUT input) : SV_TARGET
     float3 pointLightColor = float3(0, 0, 0);
     for (uint i = 0; i < pointLightCount; i++)
     {
-        pointLightColor += ComputePointLight(pointLights[i], input.posWorld, normal, surfaceColor);
+        IncidentLight pointLight = GetPointLight(i, input.posWorld);
+        pointLightColor += surfaceColor * pointLight.radiance * saturate(dot(normal, pointLight.direction));
     }
     
     float3 finalColor = ambientColor + diffuseColor + pointLightColor + emissive + rim;
