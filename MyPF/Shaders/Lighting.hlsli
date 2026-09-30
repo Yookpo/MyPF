@@ -23,6 +23,13 @@ struct IncidentLight
     float3 radiance; // 도착한 빛의 양 = color * intensity * 감쇠
 };
 
+// 쉐이딩할 표면 한 점의 속성
+struct SurfaceData
+{
+    float3 normal; // 월드 공간, unit vec
+    float3 albedo; // 선형 공간 표면 색 = 텍스처 * baseColor
+};
+
 cbuffer LightConstantBuffer : register(b0)
 {
     float3 dirLightDirection;
@@ -94,5 +101,14 @@ IncidentLight GetPointLight(uint index, float3 posWorld)
     outPointLight.radiance = pointLight.color * pointLight.intensity * CalcAttenuation(d, pointLight.range);
     
     return outPointLight;
+}
+
+// 빛 하나가 표면에 만드는 직접광. 모든 빛 종류가 이 함수를 지난다
+float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light)
+{
+    float diffuse = saturate(dot(surface.normal, light.direction));
+    float3 directColor = surface.albedo * light.radiance * diffuse;
+    
+    return directColor;
 }
 #endif

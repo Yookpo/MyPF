@@ -22,27 +22,37 @@ float4 main(PS_INPUT input) : SV_TARGET
     IncidentLight dirLight = GetDirectionalLight();
     
     float3 normal = normalize(input.normal);
-    float diffuse = saturate(dot(normal, dirLight.direction));
+    float3 texColor = albedoTexture.Sample(linearSampler, input.uv).rgb;
+    float3 surfaceColor = texColor * baseColor;
     
-    float3 albedo = albedoTexture.Sample(linearSampler, input.uv).rgb;
-    float3 surfaceColor = albedo * baseColor;
+    SurfaceData surfaceData;
+    surfaceData.albedo = surfaceColor;
+    surfaceData.normal = normal;
     
-    float3 ambientColor = surfaceColor * ambientStrength;
-    float3 diffuseColor = surfaceColor * dirLight.radiance * diffuse;
+    // 직접광 누적 변수
+ 
+    // 1. 방향광 결과로 시작
+    float3 directLighting = ComputeDirectLighting(surfaceData, dirLight);
+    
+    // 2. 누적 -> 점광원
+    for (uint i = 0; i < pointLightCount; i++)
+    {
+        IncidentLight pointLight = GetPointLight(i, input.posWorld);
+        directLighting += ComputeDirectLighting(surfaceData, pointLight);
+    }
+    
+    // 3. 간접광
+    float3 ambientColor = surfaceData.albedo * ambientStrength;
+    
+    // 4. 연출 항 (물리 조명은 아님)
     float3 emissive = emissiveColor * emissiveIntensity;
     
     float3 viewDir = normalize(cameraPos - input.posWorld);
     float rimFactor = pow(1.0 - saturate(dot(normal, viewDir)), rimPower);
     float3 rim = rimColor * rimIntensity * rimFactor;
     
-    float3 pointLightColor = float3(0, 0, 0);
-    for (uint i = 0; i < pointLightCount; i++)
-    {
-        IncidentLight pointLight = GetPointLight(i, input.posWorld);
-        pointLightColor += surfaceColor * pointLight.radiance * saturate(dot(normal, pointLight.direction));
-    }
-    
-    float3 finalColor = ambientColor + diffuseColor + pointLightColor + emissive + rim;
+    // 합성
+    float3 finalColor = ambientColor + directLighting + emissive + rim;
     
     return float4(finalColor, 1.0f);
 }
