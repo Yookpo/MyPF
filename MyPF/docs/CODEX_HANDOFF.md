@@ -1,6 +1,6 @@
 # MyPF 진행 기록 및 작업 인계
 
-마지막 갱신: 2026-09-28
+마지막 갱신: 2026-09-29
 
 노트북과 데스크톱에서 Git으로 공유하는 MyPF의 실제 구현 상태와 다음 작업을 기록한다.
 
@@ -26,7 +26,7 @@
 | Model 파이프라인 | 약 65% | FBX/OBJ/glTF BaseColor 로드 완료. aiNode/PBR은 남음 |
 | Scene/ImGui 편집 | 약 72% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유, Post Process 패널(Exposure/Tone Mapper/Bloom 3종/Debug View) 완료 |
 | 1인칭 입력/카메라 | 약 90% | Editor/Play, WASD/마우스/ESC/focus와 단발 키 입력, 플레이어-벽 충돌 완료 |
-| 조명/Material | 약 82% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅 완료. Specular는 없음 |
+| 조명/Material | 약 82% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅 완료. Material Roughness/Specular 값 경로(셰이더 미사용)와 셰이더 구조 정리(빛 쪽 완료, 표면 쪽 진행 중) 진행. Specular 항은 아직 없음 |
 | 실제 골목/상호작용 | 약 85% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백·대기 표시등·호박색 Rim 강조(PowerSwitch 소유), 순차 점등 완료 |
 | 고급 렌더링/연출 | 약 55% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성), 룩 재튜닝 완료. Shadow/Wet/Fog/Rain은 없음 |
 
@@ -34,8 +34,9 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `f91b0e6` — 파일 텍스처에 밉맵 생성 (GenerateMips)
-- 현재 작업 트리: 브랜치 **`main`**, 이 문서 커밋 후 clean. `origin/main`보다 앞서 있다(push 전). commit/push는 사용자가 요청할 때만 한다.
+- 문서 갱신 기준 HEAD: `f0273c2` — 셰이더 빛 쪽 정리 (IncidentLight, GetDirectionalLight, GetPointLight)
+- 현재 작업 트리: 브랜치 **`main`**, 이 문서 커밋 후 clean. `origin/main`(`8e4cadc`)보다 앞서 있다(push 전). commit/push는 사용자가 요청할 때만 한다.
+- `8e4cadc`는 메시지는 카메라 이동이지만 **10-1a(Material Roughness/Specular 값 경로), R-1(`Common.hlsli` 신설), R-2(카메라 cbuffer 공유와 슬롯 재배치)**를 함께 담고 있다(11개 파일).
 - **로드맵 11번 작업을 `main`에 머지했다(2026-09-17).** `--no-ff`로 머지해 "HDR + Bloom 작업 덩어리"의 경계를 히스토리에 남겼다. 33개 파일, +1416/-155, 충돌 없음.
 - 로컬 기능 브랜치 `HDR_SCENE_TARGET`/`WORK_CLAUDE`는 삭제됐고 원격에는 남아 있다(`origin/HDR_SCENE_TARGET` = `3c0edda`, `origin/WORK_CLAUDE` = `9d195bd`). 둘 다 내용이 `main`에 전부 포함된 것을 `git merge-base --is-ancestor`로 확인했으므로 원격 브랜치는 지워도 잃는 것이 없다.
 - `MyPF/imgui.ini`와 `MyPF/ImGui/imgui.ini`는 `.gitignore`에 등록하고 `git rm --cached`로 인덱스에서 제거했다(로컬 파일은 유지) — 이제부터는 변경돼도 `git status`에 아예 안 잡힌다(2026-09-14).
@@ -44,6 +45,8 @@
 최근 기능 commit:
 
 ```text
+f0273c2 셰이더 빛 쪽 정리 - IncidentLight, GetDirectionalLight, GetPointLight
+8e4cadc 카메라 cbuffer를 Common으로 옮기기 (+ Material Roughness/Specular, Common.hlsli)
 f91b0e6 파일 텍스처에 밉맵 생성 (GenerateMips)
 6256ed2 D3D11Utils 로그에 줄바꿈 추가
 0d0eac2 텍스처 캐시 키를 (경로, 용도)로 변경
@@ -110,6 +113,8 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - 32바이트 Material Constant Buffer의 C++/HLSL 일치와 `Renderer` 전달
 - Pixel Shader가 조명 결과와 별도로 Emissive를 최종 색에 더함
 - Rim Lighting: `Material`에 `rimColor`/`rimIntensity`(기본 0)/`rimPower` 추가, Pixel Shader가 처음으로 카메라 월드 위치를 받아(`CameraConstantData`→`register(b2)`) `pow(1-saturate(dot(normal,viewDir)), rimPower)` 기반 가장자리 발광을 `finalColor`에 가산. ImGui Material Inspector에 Rim 슬라이더 3종 추가. 설계 배경은 §4 "Rim Lighting과 카메라 위치 전달" 참고
+- (`8e4cadc`) `Material`에 `roughness`(기본 0.5, `[0.05, 1]`로 clamp — 0이면 Blinn-Phong 지수가 무한대)와 `specular`(기본 0.5, `[0, 1]`)를 추가했다. `MaterialConstantData`는 64바이트를 유지한 채 기존 패딩 자리(`baseColor` 뒤, `rimPower` 뒤)를 채웠다. 둘 다 배율이라 `SrgbToLinear`를 거치지 않는다. Inspector에 슬라이더가 있다. **셰이더는 아직 이 값을 쓰지 않는다**(10-1b부터 사용)
+- **셰이더 공통 파일 구조** (`8e4cadc`, `f0273c2`): `Common.hlsli` = 모든 씬 셰이더가 쓰는 선언(`PI`, `VS_INPUT`/`PS_INPUT`, 카메라 cbuffer `b1`). `Lighting.hlsli` = 빛 쪽(`PointLight`, `IncidentLight`, Light cbuffer `b0`, `CalcAttenuation`, `GetDirectionalLight()`, `GetPointLight(index, posWorld)`). Material cbuffer(`b2`)는 `simplePixelShader.hlsl`에 남는다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**. 설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리"
 
 ### HDR 렌더링과 선형 색공간
 
@@ -293,6 +298,21 @@ Rim 색은 `(1.0, 0.75, 0.25)` 호박색, Power 4.0, 강조 시 Intensity 3.0이
 - **Rim 데이터는 새 컴포넌트가 아니라 `Material`의 필드로 저장한다**(`rimColor`/`rimIntensity`/`rimPower`, 기본 `rimIntensity = 0`). Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`를 들고 있는 `Material`의 책임 범위에 속한다고 판단했고, 기본값을 0으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별 opt-in" 패턴을 그대로 재사용했다 — `BoxCollisionComponent` 같은 Has 플래그 컴포넌트가 필요 없다.
 - **Pixel Shader가 처음으로 카메라 월드 위치를 받도록 Constant Buffer 경로를 새로 텄다.** 기존에는 `view`/`projection`을 Vertex Shader만 알았다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 픽셀별 월드 위치 기준으로 Pixel Shader에서 계산해야 해서, `CameraConstantData`에 `cameraPosition`(+정렬용 `pad`, 총 144바이트)을 추가하고 같은 버퍼를 `simplePixelShader.hlsl`의 `register(b2)`에도 바인딩했다.
 - `Renderer::DrawRenderItem`의 Pixel Shader Constant Buffer 바인딩(`PSSetConstantBuffers(1, 2, { materialConstantBuffer, cameraConstantBuffer })`)은 기존 Vertex Shader 바인딩(`VSSetConstantBuffers(0, 2, ...)`)과 동일한 형태를 그대로 따라, 셰이더 슬롯 규칙(PS의 b0=Light, b1=Material, b2=Camera)을 일관되게 유지했다.
+- **(2026-09-29 변경)** 위 슬롯 배치는 더 이상 유효하지 않다. 카메라 cbuffer를 `Common.hlsli` 한 벌로 합치면서 **VS·PS 모두 b1=Camera, PS b2=Material**로 바꿨다. 아래 "셰이더 구조 — 빛 쪽과 표면 쪽 분리" 참고.
+
+### 셰이더 구조 — 빛 쪽과 표면 쪽 분리 (로드맵 10-1 선행, 2026-09-29)
+
+Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`main` 인라인)과 점광원(`ComputePointLight`) 두 곳에 있어서, 그대로 Specular를 넣으면 같은 식을 두 번(스포트라이트가 생기면 세 번) 써야 했기 때문이다. 강의 Ch13이 조명 계산을 `Common`에서 분리한 것과 같은 방향이다.
+
+- **`Common.hlsli`에 넣는 기준은 "include하는 모든 셰이더가 쓰는가"다.** 정점 구조체와 카메라는 VS·PS·앞으로의 스카이박스가 모두 쓰지만, Material은 씬 PS만 쓰고 **셰이더마다 모양이 다르다**(스카이박스는 없음, 젖은 바닥은 필드가 더 붙음). Material cbuffer는 "이 셰이더와 C++ 사이의 계약"이라 그 셰이더 파일에 둔다. 강의 Ch13도 `GlobalConstants`(카메라+조명)만 `Common`에 두고 `MaterialConstants`는 `BasicPS.hlsl`에 있다. Unity URP도 `UnityPerMaterial`은 셰이더별 `LitInput.hlsl`에 있다. **전환 조건**: 같은 Material 레이아웃을 쓰는 두 번째 셰이더가 생기면 `Common`이 아니라 조명 받는 셰이더들만 include하는 `LitInput.hlsli`로 뺀다.
+- **Light cbuffer도 `Common`이 아니라 `Lighting.hlsli`다.** VS가 쓰지 않는다. 그리고 `GetDirectionalLight`/`GetPointLight`가 cbuffer 값을 직접 읽으므로 **데이터와 그 데이터를 읽는 함수가 같은 파일**에 있어야 한다. PS가 cbuffer보다 `Lighting`을 먼저 include하므로, cbuffer가 PS에 남아 있으면 `Lighting` 안의 함수에서 미선언 이름이 된다.
+- **슬롯 규칙: b1 = 모든 스테이지가 공유하는 프레임 데이터(카메라), b0 = 스테이지별 데이터.** 처음에는 VS를 b2로 옮기는 안을 냈으나, 사용자가 "b1로 두면 배열 하나로 한 번에 보낼 수 있지 않나"를 제안했고 비교해 보니 변경량이 비슷하면서 **두 스테이지 모두 빈 슬롯 없이 연속 바인딩**이 된다. 강의 Ch13의 `GlobalConstants : register(b1)`과도 같다. 후처리는 PS b0만 쓰므로 b1·b2 재배치의 영향이 없다(`Renderer.cpp`의 `*SetConstantBuffers` 네 곳 확인).
+- **cbuffer 멤버 이름은 셰이더 전역이다.** C++ 구조체 멤버와 달리 cbuffer는 이름공간을 만들지 않는다(그래서 `view`를 접두사 없이 읽는다). 공유 include의 cbuffer 멤버는 include하는 모든 셰이더에서 이름을 차지하므로 고유하게 짓는다 — `cameraPad`, `lightPad`, `dirLightDirection`/`dirLightColor`/`dirLightIntensity`. 반면 `struct` 멤버(`PointLight.pad`)는 범위가 구조체 안이라 겹쳐도 된다. C++ 쪽은 이름이 아니라 **순서와 크기**로 매칭되므로 HLSL 이름만 바꿔도 된다.
+- **`IncidentLight { direction, radiance }` — 빛과 BRDF 사이의 계약.** 빛 종류마다 다른 것은 "표면→빛 방향"과 "도착한 빛의 양" 둘뿐이고, 그 뒤 표면 계산은 같다. 빛 M종 × 표면 항 N개를 M+N으로 줄인다. 이름은 Three.js의 `IncidentLight`와 같고, `radiance`는 강의 Ch13 `Light.radiance`와 같다. 감쇠(나중엔 그림자)는 `radiance`에 미리 곱한다 — 표면 계산은 "왜 약해졌는지"를 알 필요가 없다.
+- **방향 규약은 `IncidentLight.direction` = 표면 → 빛(L), 단위 벡터.** cbuffer의 방향광 `direction`은 빛이 나아가는 방향이라 부호 반전이 필요한데, 이 반전과 `normalize`를 `GetDirectionalLight()` **한 곳**에서만 한다. 그래서 AGENTS §7의 "direction 길이가 세기 배율이 되는" 함정이 사라졌다.
+- **`GetDirectionalLight()`는 인자가 없고 `GetPointLight(index, posWorld)`는 위치를 받는다.** 시그니처 차이가 곧 물리 차이다(무한히 먼 광원 vs 위치에 따라 방향·감쇠가 바뀌는 광원). `PointLight` 구조체가 아니라 `index`를 받아 `pointLights[]` 접근이 `Lighting.hlsli` 안에만 있게 했다 — 저장 방식을 StructuredBuffer나 타일 목록으로 바꿔도 `main`은 그대로다. Unity URP `GetAdditionalLight(uint i, float3 positionWS)`와 같은 시그니처다.
+- **조기 반환에도 `direction`은 안전한 단위 벡터 `(0,1,0)`.** radiance가 0이어도 `NaN * 0 = NaN`이라, `direction`이 0벡터면 뒤에서 `normalize`나 `pow`를 거칠 때 NaN 픽셀이 생기고 Bloom이 번지게 한다. 결과 변수를 **맨 앞에서 안전값으로 초기화**하고, 계산은 지역 변수(`toLight`)로 하며, **모든 검사를 통과한 뒤에만** 결과 필드를 채운다.
+- **표면 쪽은 `SurfaceData`(D 단계)로 묶는다.** 필드는 쓰일 때 추가한다(지금은 `normal`, `albedo` 예정, roughness/specular는 10-1b). 필드 이름을 `baseColor`가 아니라 `albedo`로 하는 이유는 전역 Material 멤버 `baseColor`(배율)와 뜻이 다르기 때문이다. 이름은 Unity URP `SurfaceData`.
 
 ### HDR 씬 타깃, 후처리 패스와 선형 색공간
 
@@ -370,8 +390,9 @@ Rim 색은 `(1.0, 0.75, 0.25)` 호박색, Power 4.0, 강조 시 Intensity 3.0이
 - **임계값이 하드 컷이다.** 경계 근처 픽셀이 카메라가 조금만 움직여도 켜졌다 꺼졌다 할 수 있다(시간적 불안정). 소프트 니(soft knee)로 부드럽게 하거나, 다운샘플 시 Karis 평균으로 반딧불이(firefly)를 억제하는 대응이 없다.
 - Bloom 타깃 세 개를 앱 생명주기 내내 들고 있다. 상용 엔진은 프레임 내에서만 사는 일시적 리소스로 풀링·에일리어싱한다. 지금 규모(절반 해상도 float16 3장)에서는 문제가 아니다.
 - **`BlendState`가 아예 없다.** 현재 전부 불투명 렌더링이라 투명·가산 합성이 불가능하다. 비·연기·먼지·스파크 같은 입자 계열을 넣으려면 알파/가산 State 두 개와 투명 패스 분리(깊이 쓰기 off + 뒤→앞 정렬)가 먼저 필요하다. `D3D11Utils`에 `CreateGeometryShader`와 Hull/Domain 경로도 없다. 상세는 §7 "강의 연계 아이디어" 참고.
-- Material에 Normal / Metallic / Roughness가 없다.
-- 스페큘러 항이 없다. 젖은 바닥 반사의 전제가 빠져 있다.
+- Material에 Normal / Metallic이 없다. Roughness / Specular 값은 있으나(`8e4cadc`) 셰이더가 아직 쓰지 않는다.
+- 스페큘러 항이 없다. 젖은 바닥 반사의 전제가 빠져 있다. 셰이더 구조 정리(D 단계) 뒤 10-1b에서 넣는다.
+- **셰이더 구조 정리가 중간 상태다.** `main`에 방향광과 점광원의 diffuse 식 `surfaceColor * radiance * saturate(dot(N, L))`이 두 번 있다 — D 단계에서 `ComputeDirectLighting`으로 합칠 예정인 **의도된 중복**이다.
 - Vertex Color가 최종 Pixel Color에 사용되지 않는다.
 - 셰이더가 런타임 컴파일인데 핫 리로드가 없다.
 - `D3D11Utils::CreateDepthBuffer`는 아무도 호출하지 않는 죽은 코드다.
@@ -423,7 +444,17 @@ Rim 색은 `(1.0, 0.75, 0.25)` 호박색, Power 4.0, 강조 시 Intensity 3.0이
 
 - ✅ **Step 3 — 밉맵** (`f91b0e6`, 2026-09-28). 모든 파일 텍스처가 `GenerateMips`로 전체 밉 체인을 갖는다. 구조는 §3, 결정 이유는 §4 "텍스처 색공간 선택", 기록은 §8.
 
-1. **로드맵 10번 — 젖은 바닥 반사. ← 바로 다음 작업.**
+1. **로드맵 10번 — 젖은 바닥 반사. ← 진행 중 (10-1 Specular).**
+   - **10-1 진행 상황** (설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리"):
+     - ✅ 10-1a Material Roughness/Specular 값 경로 (`8e4cadc`)
+     - ✅ A(R-1) `Common.hlsli` 신설, include 정리 (`8e4cadc`)
+     - ✅ B(R-2) 카메라 cbuffer 공유, 슬롯 재배치 (`8e4cadc`)
+     - ✅ C(R-3) 빛 쪽 정리 — C-1 Light cbuffer 이동, C-2 `IncidentLight`, C-3 `GetDirectionalLight`, C-4 `GetPointLight`와 `ComputePointLight` 삭제 (`f0273c2`, 화면 확인 완료)
+     - ⬜ **D(R-4) 표면 쪽 정리 ← 다음.** D-1 `SurfaceData { normal, albedo }`를 `Lighting.hlsli`의 `IncidentLight` 아래에 선언 → D-2 `ComputeDirectLighting(SurfaceData, IncidentLight)`(diffuse만)을 만들고 `main`의 두 diffuse 식을 이 함수로 교체. 화면은 바뀌면 안 된다. ambient는 방향이 없으므로 함수 밖에 남긴다
+     - ⬜ E(10-1b) Blinn-Phong Specular — 시선 방향 전달, `roughness → α = r², n = 2/α² − 2 (n ≥ 1)`, `F0 = 0.08 × specular`(UE 규약), specular는 albedo를 곱하지 않고 N·L을 곱한다. `ComputeDirectLighting` 한 곳에만 넣는다
+     - ⬜ F(10-1c) 정규화 항 `(n + 8) / (8π)` — `Common.hlsli`의 `PI` 사용
+     - ⬜ G(10-1d) 값 조정 — 바닥 roughness 0.2~0.3/specular 0.25, 벽 0.8~0.9/0.5, 네온 0.3, 스위치 0.4 부근에서 시작
+   - **D 단계 완료 조건도 C와 같다**: 화면이 기준과 같고, 네온 아래 빛 웅덩이와 스위치 순차 점등이 그대로여야 한다.
    - **노멀 맵 메모**: 밉에서 법선을 평균하면 길이가 1보다 짧아진다(방향이 다른 단위 벡터의 평균). 노멀 맵을 샘플한 뒤 셰이더에서 **반드시 `normalize`**한다.
    - **비등방 필터링**: 밉맵 뒤 먼 바닥이 약간 뭉개진다. 비스듬히 보는 바닥은 픽셀 하나가 덮는 영역이 골목 방향으로 길쭉해서, 트라이리니어가 긴 축 기준으로 레벨을 골라 옆 방향까지 과하게 흐려지기 때문이다. 샘플러를 `D3D11_FILTER_ANISOTROPIC` + `MaxAnisotropy` 8~16으로 바꾸면 개선된다. 지금은 거슬리지 않아 보류했고, 젖은 바닥 반사로 먼 바닥 디테일이 중요해지면 적용한다.
    - Cube Map/IBL 단계에서 큐브맵을 **DDS + DirectXTK `DDSTextureLoader`**로 읽고, `TextureType`이 `DDS_LOADER_FORCE_SRGB`/`IGNORE_SRGB`를 고르는 규칙을 같이 설계한다(§4 "텍스처 파이프라인 방향").
@@ -476,7 +507,7 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
-10. Normal/Roughness Material과 젖은 바닥 반사 ← **다음 차례** (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행. 착수 전에 데이터 텍스처용 sRGB 선택 인자가 먼저 필요하다 — §6 참고)
+10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular의 셰이더 구조 정리 중 — §6 참고)
 11. ✅ HDR Scene Target, Bloom과 Tone Mapping (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 2026-09-15, Bloom Step 5~7과 블러 반복·룩 재튜닝 2026-09-17에 완료)
 12. 안개, 비와 색조 보정 (기하 파이프라인 챕터의 기하 셰이더·빌보드가 여기 본체다 — 아래 "강의 연계 아이디어" 참고)
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류. 디버그 UI는 아래 "강의 연계 아이디어" A그룹으로 상당 부분 해결된다)
@@ -627,6 +658,24 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
+### 2026-09-29 — Material Roughness/Specular, 셰이더 구조 정리 A~C (로드맵 10-1 진행 중)
+
+- 완료한 작업:
+  - (`8e4cadc`, push 완료) 10-1a `Material` Roughness/Specular 값 경로(Material → `MaterialConstantData` → HLSL → Inspector). A(R-1) `Common.hlsli` 신설 — `PI`, `VS_INPUT`/`PS_INPUT`을 VS/PS에서 옮기고 vcxproj에 `None`으로 등록, PS는 쓰는 것을 직접 include(`Common` → `Lighting`), `Lighting.hlsli`의 include를 가드 안으로. B(R-2) 카메라 cbuffer를 `Common`으로 합치고 VS·PS 모두 `b1`, PS Material을 `b2`로, C++은 PS 배열 순서만 `{camera, material}`로 바꿨다.
+  - (`f0273c2`) C(R-3) Light cbuffer를 `Lighting.hlsli`로 이동하고 전역 이름을 `dirLight*`/`lightPad`로 변경, `IncidentLight` 선언, `GetDirectionalLight()`(부호 반전 + `normalize`), `GetPointLight(index, posWorld)`, `main`이 두 함수를 쓰도록 교체, `ComputePointLight` 삭제.
+- 확인한 결과:
+  - 매 단계 코드 리뷰 + `fxc`(ps_5_0/vs_5_0)로 컴파일 확인. 최종 상태 VS·PS 모두 컴파일 성공.
+  - B-1'은 "셰이더만 바꾸면 형태는 보이고 색이 깨진다"를 먼저 예측한 뒤 C++을 고치는 순서로 진행했다.
+  - 리뷰 중 잡은 문제: ① 공유 cbuffer 패딩을 `pad`로 지어 PS의 Light cbuffer `pad`와 `redefinition`(VS는 Light cbuffer가 없어 통과 — **include 파일은 include하는 셰이더마다 충돌 여부가 다르다**) ② 멤버 이름을 `cameraPos`로 바꾸고 PS 사용처를 안 고침(첫 에러에서 멈춰 가려져 있었다) ③ Light cbuffer를 복사만 하고 PS 원본을 안 지워 `redefinition of 'direction'` ④ `normalize(v);`로 **반환값을 버림** — HLSL 내장 함수는 순수 함수라 인자를 고치지 않는다. 경고도 없고 입력이 이미 단위 벡터라 화면으로는 안 드러난다 ⑤ `GetPointLight`에서 **정규화한 뒤 `length`**를 재서 `d`가 항상 1 — 모든 점광원이 범위·감쇠 없이 씬 전체를 비추는 상태였다. 같은 수정에서 안전 기본값을 조기 반환 전에 덮어써 `d ≈ 0`일 때 NaN 방향이 반환될 수 있었다. 둘 다 "구조체 필드를 임시 변수로 쓴 것"이 원인이라 지역 변수 `toLight`로 분리해 해결.
+  - C 단계 완료 후 화면이 기준과 같고(네온 아래 빛 웅덩이 포함), 스위치 순차 점등도 정상임을 사용자가 확인했다(2026-09-30).
+- 남아 있는 문제: §5 — `main`의 diffuse 식 의도된 중복(D에서 해소), Roughness/Specular 미사용, Specular 항 없음.
+- 다음에 이어서 할 작업: §6 10-1 진행 목록 — D-1 `SurfaceData` → D-2 `ComputeDirectLighting` → E Specular.
+- 중요한 설계 결정과 이유: §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리". 요약:
+  - **리팩터링을 먼저, Specular는 한 곳에** — 빛 M종 × 표면 항 N개를 M+N으로.
+  - **`Common`의 기준은 "모두가 쓰는가"** — Material은 셰이더별 계약이라 제외(강의 Ch13, Unity URP와 같다).
+  - **카메라는 b1** — 사용자 제안. 두 스테이지 모두 연속 바인딩, 강의 Ch13과 같은 슬롯.
+  - **리팩터링은 "화면이 바뀌면 안 되는" 작은 단계로** — 한 번에 한 가지만 바꾸고 결과를 예측한 뒤 확인한다. ④⑤처럼 컴파일은 통과하는 버그를 화면 비교가 잡는다.
 
 ### 2026-09-28 — 텍스처 밉맵, 텍스처 파이프라인 방향 결정 (로드맵 10번 선행 조건 완료) ✅
 

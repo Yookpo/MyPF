@@ -1,6 +1,6 @@
 # MyPF 작업 지침
 
-마지막 갱신: 2026-09-28
+마지막 갱신: 2026-09-29
 
 이 문서가 MyPF 프로젝트의 단일 진실 원본이다. 사용하는 도구(Claude Code, Codex 등)와 무관하게 적용된다.
 
@@ -18,7 +18,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 현재 전체 진행률은 약 76%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅까지 완료했다. **로드맵 11번이 닫혔다.**
 
-**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 그다음 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 현재 10-1(Specular)의 선행 작업으로 셰이더를 빛 쪽(`IncidentLight`)과 표면 쪽(`SurfaceData`)으로 나누는 중이다. 그다음 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
 
 작업 브랜치는 `main` 하나다. 로드맵 11번은 `5794467`로 `main`에 머지됐고 기능 브랜치는 정리됐다.
 
@@ -159,7 +159,10 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **렌더 타깃 raw pointer**: `GetRTV`/`GetSRV`가 돌려준 포인터는 `Renderer::Resize` 후 무효다. 멤버에 저장하지 말고 바인딩 직전에 핸들로 조회한다. 렌더 타깃은 리사이즈 시 append가 아니라 같은 슬롯에서 재생성된다.
 - **바인딩 규칙**: 같은 텍스처를 RTV와 SRV로 동시에 걸 수 없으므로 패스는 출력 교체 → 입력 바인딩 → Draw → 입력 해제 순서를 지킨다. 파이프라인은 상태 기계라 각 패스는 자기가 쓰는 샘플러·Input Layout·상수 버퍼를 직접 설정한다. 후처리가 PS `b0`를 쓰므로 `BeginFrame`의 Light 버퍼 `b0` 재바인딩을 지우면 두 번째 프레임부터 조명이 사라진다.
 - **Rim Power 0 금지**: `pow(1 - N·V, rimPower)`에서 지수가 0이면 정면 픽셀이 `pow(0, 0)`(NaN)이 된다. Rim을 끌 때는 Intensity만 0으로 한다.
-- **Directional Light의 `direction`은 단위 벡터여야 한다.** 셰이더가 `dot(-direction, normal)`을 쓸 뿐 `normalize`하지 않으므로 **벡터의 길이가 그대로 세기 배율이 된다.** 기본값이 `(0, -0.5, 1)`이던 시절에는 길이가 1.118이라 의도보다 12% 세게 들어가고 있었다. ImGui는 편집할 때만 정규화하므로 코드 초기값은 직접 맞춰야 한다. 참고로 방향을 수직에 가깝게 두면 법선이 수평인 옆벽은 `dot`이 0이 돼 하늘광을 전혀 받지 않는다 — 현재 룩이 이 성질에 의존한다.
+- **Directional Light의 `direction`은 빛이 나아가는 방향이다.** 셰이더의 `GetDirectionalLight()`(`Lighting.hlsli`)가 부호를 뒤집고 `normalize`해서 표면 → 빛 방향으로 바꾼다. 이 변환은 **그 함수 한 곳에서만** 한다. 예전에는 셰이더가 정규화하지 않아 벡터 길이가 세기 배율이 됐다. 방향을 수직에 가깝게 두면 법선이 수평인 옆벽은 `N·L`이 0이 돼 하늘광을 전혀 받지 않는다 — 현재 룩이 이 성질에 의존한다.
+- **셰이더 공통 파일과 슬롯 규칙.** `Common.hlsli`에는 include하는 **모든** 셰이더가 쓰는 것만 둔다(정점 구조체, `PI`, 카메라 cbuffer). 빛 데이터와 빛 함수는 `Lighting.hlsli`, Material cbuffer는 그것을 쓰는 PS 파일에 둔다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**이며 HLSL `register`와 `Renderer::DrawRenderItem`의 바인딩 배열 순서가 짝이다. 한쪽만 바꾸면 컴파일은 통과하고 화면만 틀린다.
+- **cbuffer 멤버 이름은 셰이더 전역이다.** C++ 구조체와 달리 cbuffer는 이름공간을 만들지 않아서, 공유 include의 cbuffer에 `pad`·`color` 같은 일반 이름을 쓰면 include하는 다른 셰이더와 `redefinition`이 난다. 고유하게 짓는다(`cameraPad`, `lightPad`, `dirLight*`). `struct` 멤버는 범위가 구조체 안이라 괜찮다. C++과는 이름이 아니라 순서·크기로 매칭된다.
+- **조명 함수가 돌려주는 방향은 조기 반환에서도 단위 벡터여야 한다.** `NaN * 0 = NaN`이라 radiance가 0이어도 0벡터 방향이 뒤의 `normalize`/`pow`에서 NaN 픽셀을 만들고 Bloom이 번지게 한다.
 - **룩 값은 감이 아니라 휘도로 맞춘다.** Bloom 추출이 `dot(color, (0.2126, 0.7152, 0.0722))`로 판정하므로 같은 Intensity라도 색에 따라 밝기가 다르다(선형 변환 후 단위 세기당 휘도가 Cyan은 Pink의 2.4배). 네온 세기를 바꿀 때는 이 환산을 거친다. 확정값과 위치는 CODEX_HANDOFF.md §3 "룩 재튜닝" 참고.
 - **`Renderer::SetViewPort`는 `m_screenViewport` 멤버를 덮어쓴다.** 후처리 패스에서 이 함수를 부르면 복구할 화면 뷰포트가 사라져 이후 패스가 화면 일부에만 그려진다. Bloom처럼 타깃 크기가 다른 패스는 **지역 `D3D11_VIEWPORT` + `RSSetViewports`**를 쓰고, 구간이 끝나면 `m_screenViewport`로 되돌린다.
 - **`ComPtr::operator&`는 Release한다.** `PSSetSamplers(0, 1, &m_clampSamplerState)`처럼 쓰면 들고 있던 객체가 해제된다(WRL이 `&`를 출력 파라미터용으로 설계했기 때문). 이미 들고 있는 객체를 넘길 때는 `.GetAddressOf()`, 함수에 전달할 때는 `.Get()`을 쓴다. 컴파일도 경고도 통과하므로 증상으로 찾기 어렵다.
