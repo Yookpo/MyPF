@@ -28,6 +28,8 @@ struct SurfaceData
 {
     float3 normal; // 월드 공간, unit vec
     float3 albedo; // 선형 공간 표면 색 = 텍스처 * baseColor
+    float roughness; // 거칠기 [0.05, 1], BRDF에서 α = roughness²로 변환
+    float specular; // 비금속 반사량 [0, 1] , F0 = 0.08 * specular (0.5 → 0.04)
 };
 
 cbuffer LightConstantBuffer : register(b0)
@@ -103,12 +105,42 @@ IncidentLight GetPointLight(uint index, float3 posWorld)
     return outPointLight;
 }
 
-// 빛 하나가 표면에 만드는 직접광. 모든 빛 종류가 이 함수를 지난다
-float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light)
+// 정규화된 Blinn-Phong: pow(N·H, n) × (n+8)/8. roughness가 바뀌어도 총 반사량 유지
+float SpecularBlinnPhong(float NdotH, float roughness)
 {
-    float diffuse = saturate(dot(surface.normal, light.direction));
-    float3 directColor = surface.albedo * light.radiance * diffuse;
+    float alpha = pow(roughness, 2);
+    float n = 2 / pow(alpha, 2) - 2;
+    n = max(n, 1);
+
+    return pow(NdotH, n) * (n + 8) / 8;
+}
+
+// 빛 하나가 표면에 만드는 직접광. 모든 빛 종류가 이 함수를 지난다
+float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light, float3 viewDir)
+{
+    float NdotL = saturate(dot(surface.normal, light.direction));
+    // 빛이 표면 뒤나 수평에서 오면 계산 생략
+    if (NdotL <= 1e-8)
+    {
+        return float3(0, 0, 0);
+    }
+    
+    float3 halfVec = light.direction + viewDir;
+    // L + v = 0이면, normalize에러(NaN)
+    if (dot(halfVec, halfVec) <= 1e-8)
+    {
+        return float3(0, 0, 0);
+    }
+    halfVec = normalize(halfVec);
+    
+    float NdotH = saturate(dot(surface.normal, halfVec));
+    float f0 = 0.08 * surface.specular;
+    
+    float specularTerm = SpecularBlinnPhong(NdotH, surface.roughness) * f0;
+    
+    float3 directColor = (surface.albedo + specularTerm) * light.radiance * NdotL;
     
     return directColor;
 }
+
 #endif

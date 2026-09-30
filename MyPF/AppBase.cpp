@@ -349,6 +349,9 @@ namespace My
 
 		wallMat->SetAlbedoTexture(wallAlbedoTex);
 		wallMat->SetBaseColor(Vector3(1.0f));
+		// 마른 콘크리트: 거칠고 무광, 하이라이트가 넓게 퍼져 거의 보이지 않는다
+		wallMat->SetRoughness(0.85f);
+		wallMat->SetSpecular(0.5f);
 
 		auto floorMat = m_assetManager.CreateMaterial("floorMat");
 
@@ -358,7 +361,12 @@ namespace My
 		}
 
 		floorMat->SetAlbedoTexture(floorAlbedoTex);
-		floorMat->SetBaseColor(Vector3(1.0f));
+		// 젖은 아스팔트: 물이 틈을 채워 어두워지고(albedo↓), 물막이 매끈하다(roughness↓).
+		// 물의 실제 F0는 약 2%(specular 0.25)지만 아직 Fresnel이 없어 비스듬한 시선의 반사가
+		// 과소평가되므로 0.5로 둔다. Fresnel(로드맵 10-2)을 넣은 뒤 0.25로 다시 비교한다.
+		floorMat->SetBaseColor(Vector3(0.75f));
+		floorMat->SetRoughness(0.3f);
+		floorMat->SetSpecular(0.5f);
 
 		// Neon test
 		NeonSignDesc desc1{};
@@ -470,6 +478,9 @@ namespace My
 		}
 
 		powerSwitchMat->SetAlbedoTexture(powerSwitchTex);
+		// 도장된 패널: 반광택
+		powerSwitchMat->SetRoughness(0.4f);
+		powerSwitchMat->SetSpecular(0.5f);
 
 		powerSwitchObject->GetMeshComponent().SetMesh(greyBoxMesh);
 		powerSwitchObject->GetMeshComponent().SetMaterial(powerSwitchMat);

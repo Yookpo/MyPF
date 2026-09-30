@@ -24,6 +24,9 @@ namespace My
 		neonMat->SetBaseColor(desc.color * 0.12f);
 		neonMat->SetEmissiveColor(desc.color);
 		neonMat->SetEmissiveIntensity(desc.emissiveIntensity);
+		// 유리관: 매끈한 비금속. 모든 네온이 같은 재질이라 desc가 아닌 상수로 둔다
+		neonMat->SetRoughness(0.3f);
+		neonMat->SetSpecular(0.5f);
 
 		// 2. Point Light GameObject
 		GameObject& lightObject = scene.CreatePointLightObject(desc.name + "_Light");

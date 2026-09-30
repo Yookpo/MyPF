@@ -24,21 +24,24 @@ float4 main(PS_INPUT input) : SV_TARGET
     float3 normal = normalize(input.normal);
     float3 texColor = albedoTexture.Sample(linearSampler, input.uv).rgb;
     float3 surfaceColor = texColor * baseColor;
+    float3 viewDir = normalize(cameraPos - input.posWorld);
     
     SurfaceData surfaceData;
     surfaceData.albedo = surfaceColor;
     surfaceData.normal = normal;
+    surfaceData.roughness = roughness;
+    surfaceData.specular = specular;
     
     // 직접광 누적 변수
  
     // 1. 방향광 결과로 시작
-    float3 directLighting = ComputeDirectLighting(surfaceData, dirLight);
+    float3 directLighting = ComputeDirectLighting(surfaceData, dirLight, viewDir);
     
     // 2. 누적 -> 점광원
     for (uint i = 0; i < pointLightCount; i++)
     {
         IncidentLight pointLight = GetPointLight(i, input.posWorld);
-        directLighting += ComputeDirectLighting(surfaceData, pointLight);
+        directLighting += ComputeDirectLighting(surfaceData, pointLight, viewDir);
     }
     
     // 3. 간접광
@@ -46,8 +49,7 @@ float4 main(PS_INPUT input) : SV_TARGET
     
     // 4. 연출 항 (물리 조명은 아님)
     float3 emissive = emissiveColor * emissiveIntensity;
-    
-    float3 viewDir = normalize(cameraPos - input.posWorld);
+
     float rimFactor = pow(1.0 - saturate(dot(normal, viewDir)), rimPower);
     float3 rim = rimColor * rimIntensity * rimFactor;
     
