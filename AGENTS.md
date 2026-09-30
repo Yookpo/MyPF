@@ -1,6 +1,6 @@
 # MyPF 작업 지침
 
-마지막 갱신: 2026-09-29
+마지막 갱신: 2026-09-30
 
 이 문서가 MyPF 프로젝트의 단일 진실 원본이다. 사용하는 도구(Claude Code, Codex 등)와 무관하게 적용된다.
 
@@ -16,9 +16,9 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 남은 목표 기능: 그림자, 젖은 바닥 반사(Specular·Fresnel·Cube Map·IBL), 안개·비·색조 보정, 나머지 이동 제한.
 
-현재 전체 진행률은 약 76%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅까지 완료했다. **로드맵 11번이 닫혔다.**
+현재 전체 진행률은 약 78%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅, 셰이더 빛/표면 분리와 정규화된 Blinn-Phong Specular(젖은 바닥 재질값 포함)까지 완료했다. **로드맵 11번이 닫혔고 10번의 10-1(Specular)이 끝났다.**
 
-**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 현재 10-1(Specular)의 선행 작업으로 셰이더를 빛 쪽(`IncidentLight`)과 표면 쪽(`SurfaceData`)으로 나누는 중이다. 그다음 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 셰이더는 빛 쪽(`IncidentLight`, `Get…Light`)과 표면 쪽(`SurfaceData`, `ComputeDirectLighting`)으로 나뉘어 있고 모든 빛이 `ComputeDirectLighting` 한 곳을 지난다. 10-1(Specular)이 끝났고 **다음은 10-2 Fresnel**이다. 10번 다음이 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
 
 작업 브랜치는 `main` 하나다. 로드맵 11번은 `5794467`로 `main`에 머지됐고 기능 브랜치는 정리됐다.
 
@@ -162,7 +162,9 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **Directional Light의 `direction`은 빛이 나아가는 방향이다.** 셰이더의 `GetDirectionalLight()`(`Lighting.hlsli`)가 부호를 뒤집고 `normalize`해서 표면 → 빛 방향으로 바꾼다. 이 변환은 **그 함수 한 곳에서만** 한다. 예전에는 셰이더가 정규화하지 않아 벡터 길이가 세기 배율이 됐다. 방향을 수직에 가깝게 두면 법선이 수평인 옆벽은 `N·L`이 0이 돼 하늘광을 전혀 받지 않는다 — 현재 룩이 이 성질에 의존한다.
 - **셰이더 공통 파일과 슬롯 규칙.** `Common.hlsli`에는 include하는 **모든** 셰이더가 쓰는 것만 둔다(정점 구조체, `PI`, 카메라 cbuffer). 빛 데이터와 빛 함수는 `Lighting.hlsli`, Material cbuffer는 그것을 쓰는 PS 파일에 둔다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**이며 HLSL `register`와 `Renderer::DrawRenderItem`의 바인딩 배열 순서가 짝이다. 한쪽만 바꾸면 컴파일은 통과하고 화면만 틀린다.
 - **cbuffer 멤버 이름은 셰이더 전역이다.** C++ 구조체와 달리 cbuffer는 이름공간을 만들지 않아서, 공유 include의 cbuffer에 `pad`·`color` 같은 일반 이름을 쓰면 include하는 다른 셰이더와 `redefinition`이 난다. 고유하게 짓는다(`cameraPad`, `lightPad`, `dirLight*`). `struct` 멤버는 범위가 구조체 안이라 괜찮다. C++과는 이름이 아니라 순서·크기로 매칭된다.
-- **조명 함수가 돌려주는 방향은 조기 반환에서도 단위 벡터여야 한다.** `NaN * 0 = NaN`이라 radiance가 0이어도 0벡터 방향이 뒤의 `normalize`/`pow`에서 NaN 픽셀을 만들고 Bloom이 번지게 한다.
+- **조명 함수가 돌려주는 방향은 조기 반환에서도 단위 벡터여야 한다.** `NaN * 0 = NaN`이라 radiance가 0이어도 0벡터 방향이 뒤의 `normalize`/`pow`에서 NaN 픽셀을 만들고 Bloom이 번지게 한다. 하프 벡터도 `L = −V`이면 0이 되고, `CullMode`가 `NONE`이라 뒷면을 볼 때 N·L > 0이어도 이런 경우가 생기므로 `ComputeDirectLighting`이 `L + V`의 제곱 길이를 따로 검사한다.
+- **Specular 정규화 계수는 `(n + 8) / 8`이다. `/ PI`를 넣지 않는다.** 교과서의 `(n+8)/(8π)`는 diffuse를 `albedo / π`로 두는 규약이고, 이 프로젝트의 diffuse는 `albedo`(π 없음)이며 조명 세기도 그 기준으로 튜닝했다. specular에만 π를 넣으면 diffuse 대비 3.14배 어두워진다. 공식을 가져올 때는 그 공식이 전제하는 규약이 우리 코드와 같은지 먼저 확인한다.
+- **Material `BaseColor` 배율도 sRGB 값이다.** `Renderer`가 선형으로 바꾸므로 `SetBaseColor(0.6)`은 화면 밝기로 0.6배가 아니라 **선형 0.32배**다. 텍스처를 어둡게 누를 때 이 환산을 거친다. Roughness/Specular는 배율이라 변환하지 않는다.
 - **룩 값은 감이 아니라 휘도로 맞춘다.** Bloom 추출이 `dot(color, (0.2126, 0.7152, 0.0722))`로 판정하므로 같은 Intensity라도 색에 따라 밝기가 다르다(선형 변환 후 단위 세기당 휘도가 Cyan은 Pink의 2.4배). 네온 세기를 바꿀 때는 이 환산을 거친다. 확정값과 위치는 CODEX_HANDOFF.md §3 "룩 재튜닝" 참고.
 - **`Renderer::SetViewPort`는 `m_screenViewport` 멤버를 덮어쓴다.** 후처리 패스에서 이 함수를 부르면 복구할 화면 뷰포트가 사라져 이후 패스가 화면 일부에만 그려진다. Bloom처럼 타깃 크기가 다른 패스는 **지역 `D3D11_VIEWPORT` + `RSSetViewports`**를 쓰고, 구간이 끝나면 `m_screenViewport`로 되돌린다.
 - **`ComPtr::operator&`는 Release한다.** `PSSetSamplers(0, 1, &m_clampSamplerState)`처럼 쓰면 들고 있던 객체가 해제된다(WRL이 `&`를 출력 파라미터용으로 설계했기 때문). 이미 들고 있는 객체를 넘길 때는 `.GetAddressOf()`, 함수에 전달할 때는 `.Get()`을 쓴다. 컴파일도 경고도 통과하므로 증상으로 찾기 어렵다.

@@ -1,6 +1,6 @@
 # MyPF 진행 기록 및 작업 인계
 
-마지막 갱신: 2026-09-29
+마지막 갱신: 2026-09-30
 
 노트북과 데스크톱에서 Git으로 공유하는 MyPF의 실제 구현 상태와 다음 작업을 기록한다.
 
@@ -17,7 +17,7 @@
 
 ## 1. 진행률
 
-현재 전체 진행률은 약 **76%**다.
+현재 전체 진행률은 약 **78%**다.
 
 | 영역 | 진행 | 현재 상태 |
 |---|---:|---|
@@ -26,16 +26,17 @@
 | Model 파이프라인 | 약 65% | FBX/OBJ/glTF BaseColor 로드 완료. aiNode/PBR은 남음 |
 | Scene/ImGui 편집 | 약 72% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유, Post Process 패널(Exposure/Tone Mapper/Bloom 3종/Debug View) 완료 |
 | 1인칭 입력/카메라 | 약 90% | Editor/Play, WASD/마우스/ESC/focus와 단발 키 입력, 플레이어-벽 충돌 완료 |
-| 조명/Material | 약 82% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅 완료. Material Roughness/Specular 값 경로(셰이더 미사용)와 셰이더 구조 정리(빛 쪽 완료, 표면 쪽 진행 중) 진행. Specular 항은 아직 없음 |
+| 조명/Material | 약 86% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅, 셰이더 빛/표면 분리, 정규화된 Blinn-Phong Specular와 재질별 Roughness/Specular 완료. Fresnel·IBL·Normal Map은 없음 |
 | 실제 골목/상호작용 | 약 85% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백·대기 표시등·호박색 Rim 강조(PowerSwitch 소유), 순차 점등 완료 |
-| 고급 렌더링/연출 | 약 55% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성), 룩 재튜닝 완료. Shadow/Wet/Fog/Rain은 없음 |
+| 고급 렌더링/연출 | 약 58% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성), 룩 재튜닝, 젖은 바닥의 Point Light 반사(Specular) 완료. Shadow/환경 반사/Fog/Rain은 없음 |
 
 ---
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `f0273c2` — 셰이더 빛 쪽 정리 (IncidentLight, GetDirectionalLight, GetPointLight)
-- 현재 작업 트리: 브랜치 **`main`**, 이 문서 커밋 후 clean. `origin/main`(`8e4cadc`)보다 앞서 있다(push 전). commit/push는 사용자가 요청할 때만 한다.
+- 문서 갱신 기준 HEAD: `e9ab696` — Specular 추가 (`origin/main`과 같다, push 완료)
+- 현재 작업 트리: 브랜치 **`main`**, 이 문서 갱신만 미커밋. commit/push는 사용자가 요청할 때만 한다.
+- `e9ab696`은 10-1 E~G를 한 번에 담고 있다 — 셰이더 E-1(`viewDir` 전달)·E-2(`SurfaceData`에 roughness/specular)·E-3(Blinn-Phong)·F(정규화)와 G(`AppBase.cpp`·`NeonSign.cpp`의 재질값). 4개 파일.
 - `8e4cadc`는 메시지는 카메라 이동이지만 **10-1a(Material Roughness/Specular 값 경로), R-1(`Common.hlsli` 신설), R-2(카메라 cbuffer 공유와 슬롯 재배치)**를 함께 담고 있다(11개 파일).
 - **로드맵 11번 작업을 `main`에 머지했다(2026-09-17).** `--no-ff`로 머지해 "HDR + Bloom 작업 덩어리"의 경계를 히스토리에 남겼다. 33개 파일, +1416/-155, 충돌 없음.
 - 로컬 기능 브랜치 `HDR_SCENE_TARGET`/`WORK_CLAUDE`는 삭제됐고 원격에는 남아 있다(`origin/HDR_SCENE_TARGET` = `3c0edda`, `origin/WORK_CLAUDE` = `9d195bd`). 둘 다 내용이 `main`에 전부 포함된 것을 `git merge-base --is-ancestor`로 확인했으므로 원격 브랜치는 지워도 잃는 것이 없다.
@@ -45,6 +46,8 @@
 최근 기능 commit:
 
 ```text
+e9ab696 Specular 추가
+b59242a 셰이더 표면 쪽 정리 - SurfaceData, ComputeDirectLighting
 f0273c2 셰이더 빛 쪽 정리 - IncidentLight, GetDirectionalLight, GetPointLight
 8e4cadc 카메라 cbuffer를 Common으로 옮기기 (+ Material Roughness/Specular, Common.hlsli)
 f91b0e6 파일 텍스처에 밉맵 생성 (GenerateMips)
@@ -113,8 +116,20 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - 32바이트 Material Constant Buffer의 C++/HLSL 일치와 `Renderer` 전달
 - Pixel Shader가 조명 결과와 별도로 Emissive를 최종 색에 더함
 - Rim Lighting: `Material`에 `rimColor`/`rimIntensity`(기본 0)/`rimPower` 추가, Pixel Shader가 처음으로 카메라 월드 위치를 받아(`CameraConstantData`→`register(b2)`) `pow(1-saturate(dot(normal,viewDir)), rimPower)` 기반 가장자리 발광을 `finalColor`에 가산. ImGui Material Inspector에 Rim 슬라이더 3종 추가. 설계 배경은 §4 "Rim Lighting과 카메라 위치 전달" 참고
-- (`8e4cadc`) `Material`에 `roughness`(기본 0.5, `[0.05, 1]`로 clamp — 0이면 Blinn-Phong 지수가 무한대)와 `specular`(기본 0.5, `[0, 1]`)를 추가했다. `MaterialConstantData`는 64바이트를 유지한 채 기존 패딩 자리(`baseColor` 뒤, `rimPower` 뒤)를 채웠다. 둘 다 배율이라 `SrgbToLinear`를 거치지 않는다. Inspector에 슬라이더가 있다. **셰이더는 아직 이 값을 쓰지 않는다**(10-1b부터 사용)
-- **셰이더 공통 파일 구조** (`8e4cadc`, `f0273c2`): `Common.hlsli` = 모든 씬 셰이더가 쓰는 선언(`PI`, `VS_INPUT`/`PS_INPUT`, 카메라 cbuffer `b1`). `Lighting.hlsli` = 빛 쪽(`PointLight`, `IncidentLight`, Light cbuffer `b0`, `CalcAttenuation`, `GetDirectionalLight()`, `GetPointLight(index, posWorld)`). Material cbuffer(`b2`)는 `simplePixelShader.hlsl`에 남는다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**. 설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리"
+- (`8e4cadc`) `Material`에 `roughness`(기본 0.5, `[0.05, 1]`로 clamp — 0이면 Blinn-Phong 지수가 무한대)와 `specular`(기본 0.5, `[0, 1]`)를 추가했다. `MaterialConstantData`는 64바이트를 유지한 채 기존 패딩 자리(`baseColor` 뒤, `rimPower` 뒤)를 채웠다. 둘 다 배율이라 `SrgbToLinear`를 거치지 않는다. Inspector에 슬라이더가 있다.
+- **셰이더 공통 파일 구조** (`8e4cadc`, `f0273c2`, `b59242a`, `e9ab696`): `Common.hlsli` = 모든 씬 셰이더가 쓰는 선언(`PI`, `VS_INPUT`/`PS_INPUT`, 카메라 cbuffer `b1`). `Lighting.hlsli` = 빛 쪽(`PointLight`, `IncidentLight`, Light cbuffer `b0`, `CalcAttenuation`, `GetDirectionalLight()`, `GetPointLight(index, posWorld)`)과 표면 쪽(`SurfaceData`, `SpecularBlinnPhong`, `ComputeDirectLighting`). Material cbuffer(`b2`)는 `simplePixelShader.hlsl`에 남는다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**. 설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리"
+- **`main`의 흐름** (`b59242a`): 입력 준비(`normal`, 텍스처 × `baseColor`, `viewDir`, `SurfaceData`) → 직접광(`ComputeDirectLighting`을 방향광 결과로 시작해 점광원 루프에서 누적) → 간접광(ambient, 함수 밖에서 한 번) → 연출 항(emissive, rim) → 합성. 렌더링 방정식 `Le + Σ직접광 + 간접광`과 블록이 1:1로 대응한다
+- **Specular — 정규화된 Blinn-Phong** (`e9ab696`): `ComputeDirectLighting(surface, light, viewDir)` 한 곳에서 모든 빛에 적용된다. `NdotL ≤ 0`이면 조기 반환 → `L + V`의 제곱 길이가 0에 가까우면 반환(NaN 방지) → `H = normalize(L + V)` → `SpecularBlinnPhong(NdotH, roughness)` = `pow(NdotH, n) × (n + 8) / 8`(`α = roughness²`, `n = max(2/α² − 2, 1)`) → `× F0`(`0.08 × specular`) → `(albedo + specularTerm) × radiance × NdotL`. specular 항에는 albedo를 곱하지 않는다. 설계 이유는 §4 "Specular — 정규화된 Blinn-Phong과 재질값"
+- **재질별 Roughness/Specular** (`e9ab696`):
+
+| 재질 | 위치 | BaseColor | Roughness | Specular |
+|---|---|---:|---:|---:|
+| 바닥 (젖은 아스팔트) | `AppBase::InitGreyBoxScene` `floorMat` | 1.0 → **0.75** | 0.3 | 0.5 (물리값 0.25, Fresnel 전 임시 보정) |
+| 벽 (마른 콘크리트) | 〃 `wallMat` | 1.0 | 0.85 | 0.5 |
+| 전원 스위치 (도장 패널) | 〃 `powerSwitchMat` | — | 0.4 | 0.5 |
+| 네온 (유리관, 3개 공통) | `NeonSignFactory::Create` `neonMat` | — | 0.3 | 0.5 |
+
+- 확인: 전원 Off에서 골목 가운데 채움광이 젖은 바닥에 **파란 줄무늬**로 반사되고 벽은 무광 그대로다. On에서 네온 아래 바닥에 각 색의 길쭉한 반사가 생기고 시선을 따라 미끄러진다. 깜빡이는 흰 점(스페큘러 에일리어싱)은 없다. 144 FPS 유지.
 
 ### HDR 렌더링과 선형 색공간
 
@@ -312,7 +327,25 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - **방향 규약은 `IncidentLight.direction` = 표면 → 빛(L), 단위 벡터.** cbuffer의 방향광 `direction`은 빛이 나아가는 방향이라 부호 반전이 필요한데, 이 반전과 `normalize`를 `GetDirectionalLight()` **한 곳**에서만 한다. 그래서 AGENTS §7의 "direction 길이가 세기 배율이 되는" 함정이 사라졌다.
 - **`GetDirectionalLight()`는 인자가 없고 `GetPointLight(index, posWorld)`는 위치를 받는다.** 시그니처 차이가 곧 물리 차이다(무한히 먼 광원 vs 위치에 따라 방향·감쇠가 바뀌는 광원). `PointLight` 구조체가 아니라 `index`를 받아 `pointLights[]` 접근이 `Lighting.hlsli` 안에만 있게 했다 — 저장 방식을 StructuredBuffer나 타일 목록으로 바꿔도 `main`은 그대로다. Unity URP `GetAdditionalLight(uint i, float3 positionWS)`와 같은 시그니처다.
 - **조기 반환에도 `direction`은 안전한 단위 벡터 `(0,1,0)`.** radiance가 0이어도 `NaN * 0 = NaN`이라, `direction`이 0벡터면 뒤에서 `normalize`나 `pow`를 거칠 때 NaN 픽셀이 생기고 Bloom이 번지게 한다. 결과 변수를 **맨 앞에서 안전값으로 초기화**하고, 계산은 지역 변수(`toLight`)로 하며, **모든 검사를 통과한 뒤에만** 결과 필드를 채운다.
-- **표면 쪽은 `SurfaceData`(D 단계)로 묶는다.** 필드는 쓰일 때 추가한다(지금은 `normal`, `albedo` 예정, roughness/specular는 10-1b). 필드 이름을 `baseColor`가 아니라 `albedo`로 하는 이유는 전역 Material 멤버 `baseColor`(배율)와 뜻이 다르기 때문이다. 이름은 Unity URP `SurfaceData`.
+- **표면 쪽은 `SurfaceData { normal, albedo, roughness, specular }`로 묶는다.** 필드는 쓰일 때 추가했다(D에서 `normal`·`albedo`, E-2에서 `roughness`·`specular`). 필드가 늘어도 `ComputeDirectLighting`의 시그니처와 호출부가 바뀌지 않는다. 필드 이름을 `baseColor`가 아니라 `albedo`로 하는 이유는 전역 Material 멤버 `baseColor`(배율)와 뜻이 다르기 때문이다. `roughness`/`specular`는 지금 cbuffer 값과 뜻이 같아 같은 이름을 쓴다 — roughness 맵이 들어오면 cbuffer 쪽을 `roughnessFactor`(강의 Ch13, glTF)로 바꾼다. 이름은 Unity URP `SurfaceData`.
+- **시선(`viewDir`)은 `SurfaceData`가 아니라 매개변수다.** 표면의 속성이 아니라 카메라에 따라 바뀌는 값이기 때문이다(Unity URP도 `InputData`에 둔다). 방향은 L과 같이 **표면 → 바깥**이라 `H = normalize(L + V)`에 부호 반전이 없다.
+- **ambient는 `ComputeDirectLighting` 밖에 둔다.** 방향이 없는 간접광이라 `IncidentLight`로 표현할 수 없고, 빛마다 부르는 함수에 넣으면 빛 개수만큼 더해진다(강의 Ch10 `Common`의 버릇). IBL이 오면 이 한 줄이 `ComputeIndirectLighting`으로 바뀐다.
+- **"화면이 바뀌면 안 되는" 단계는 컴파일된 어셈블리로도 검증했다.** D-2 전후를 `fxc /Fc`로 비교해 명령어 수가 134로 같고 덧셈 순서만 다름을 확인했다. 셰이더는 입력이 같으면 출력이 정해지는 순수 함수라 이 방법이 잘 통한다.
+
+### Specular — 정규화된 Blinn-Phong과 재질값 (로드맵 10-1, 2026-09-30)
+
+- **Roughness는 지각적 값으로 저장하고 BRDF에서 `α = roughness²`로 바꾼다.** 제곱하지 않으면 슬라이더 절반 이상이 "거의 무광"에 몰린다. `n = 2/α² − 2`는 Blinn-Phong을 GGX와 같은 roughness 입력으로 움직이게 하는 대응식이라, 나중에 GGX로 바꿔도 Material 값을 다시 튜닝하지 않는다. roughness 1이면 n = 0이 되어 표면 전체가 번쩍이므로 `n ≥ 1` 하한을 둔다. 0이면 n이 무한대라 `Material::SetRoughness`가 0.05에서 clamp한다.
+- **분포 항을 `SpecularBlinnPhong`으로 뗐다.** 정규화(F)는 이 함수 안만 고쳤고, GGX로 바꿀 때도 이 함수만 교체한다(Unreal `BRDF.ush`의 `D_Blinn`). F0는 "양"이라 함수 밖에서 곱한다.
+- **정규화 계수는 `(n + 8) / (8π)`가 아니라 `(n + 8) / 8`이다.** 교과서(Real-Time Rendering)는 diffuse를 `albedo / π`로 두는 규약이다. 우리 diffuse는 처음부터 `albedo`(π 없음)이고 조명 세기도 그 기준으로 튜닝했다. specular만 π로 나누면 diffuse 대비 3.14배 어두워진다. 두 항에 같은 π를 곱한 규약(Unreal·Filament도 조명 세기에 π를 흡수)으로 `(n+8)/8`을 쓴다. **교과서 식을 보고 `/ PI`를 다시 넣지 말 것.** `Common.hlsli`의 `PI`는 IBL(적분)에서 쓰게 된다.
+- **E(모양)와 F(정규화)를 나눠서 에너지 손실을 눈으로 확인했다.** 정규화 전에는 roughness 0.2에서 하이라이트가 "작아지면서 어두워졌다". 같은 에너지가 좁은 곳에 모이면 물리적으로는 밝아져야 한다. 정규화 후 roughness 0.2의 최고값은 `0.04 × 157 ≈ 6.3`으로 HDR에서 Bloom 임계값을 넘는다 — 젖은 바닥 룩의 핵심이다.
+- **NaN 방지는 두 겹이다.** `NdotL ≤ 0` 조기 반환은 빛이 닿지 않는 픽셀을 건너뛰는 용도이고, `dot(L+V, L+V)` 검사는 `L = −V`일 때 `normalize(0)`을 막는다. 처음 계획은 N·L 검사만으로 `L = −V`가 원천 차단된다고 봤으나, `CullMode`가 `NONE`이라 **뒷면을 볼 때(N·V < 0)** N·L > 0이면서 `L = −V`가 될 수 있어 사용자가 넣은 두 번째 검사가 필요하다. 제곱 길이 비교로 `sqrt`를 아낀다.
+- **디버그 뷰로 specular 항만 ×20 출력해 모양·움직임·roughness 반응을 확인했다.** 합쳐진 최종 화면으로는 어느 항이 틀렸는지 구분할 수 없다. 리뷰에서 "지수 n을 그대로 반환"과 "계산한 specular를 결과에 안 더함"이 **서로를 가려** 화면에 드러나지 않는 사례가 있었다. 확인용 임시 코드는 확인 후 되돌렸다. 항이 더 늘면(Fresnel, IBL) ImGui 드롭다운 + cbuffer 플래그로 "Final / Diffuse / Specular"를 고르는 디버그 뷰를 검토한다.
+- **재질값: 젖은 표면은 "더 어둡고 더 매끈하게".** Lagarde가 정리하고 Unreal·Frostbite가 쓰는 모델이다. 물이 다공성 표면 틈을 채우면 흡수가 늘어 albedo가 어두워지고, 물막이 roughness를 낮추며, 반사율은 물의 F0(약 2%)를 따른다. 에이전트가 직접 빌드·실행하며 세 번 비교했다.
+  - v1 (바닥 BaseColor 0.6 / roughness 0.22 / specular 0.25): 반사가 **동그란 점**이고 바닥이 너무 어두웠다. BaseColor는 sRGB라 0.6이 선형 **0.32**배다.
+  - v2 (0.75 / 0.3 / 0.25): 반사가 **보는 쪽으로 길게 늘어진 줄무늬**가 됐다. roughness가 너무 낮으면 로브가 좁아 비스듬한 시선에서의 늘어남이 보이지 않는다. 분홍 반사가 흐렸다.
+  - **v3 (0.75 / 0.3 / 0.5) 확정.** 물리값 0.25가 아니라 0.5로 둔 이유는 **Fresnel이 없어서**다. 실제로는 비스듬한 시선에서 반사율이 크게 늘어나는데(젖은 거리가 멀리서 거울처럼 보이는 이유) 그 증가분이 빠져 있다. **10-2 Fresnel을 넣은 뒤 0.25로 되돌려 비교한다**(코드 주석에도 적어 둠).
+  - 바닥 roughness를 0.2 아래로 내리지 않는다. n이 수천 단위가 되면 하이라이트가 픽셀보다 좁아져 카메라가 움직일 때 깜빡이고(스페큘러 에일리어싱), Bloom이 그것을 증폭한다.
+  - 네온 roughness/specular는 `NeonSignDesc` 필드가 아니라 팩토리 안의 상수다. 모든 네온이 같은 유리관이고, 네온마다 다른 값이 필요해지면 그때 `desc`로 올린다.
 
 ### HDR 씬 타깃, 후처리 패스와 선형 색공간
 
@@ -390,9 +423,11 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - **임계값이 하드 컷이다.** 경계 근처 픽셀이 카메라가 조금만 움직여도 켜졌다 꺼졌다 할 수 있다(시간적 불안정). 소프트 니(soft knee)로 부드럽게 하거나, 다운샘플 시 Karis 평균으로 반딧불이(firefly)를 억제하는 대응이 없다.
 - Bloom 타깃 세 개를 앱 생명주기 내내 들고 있다. 상용 엔진은 프레임 내에서만 사는 일시적 리소스로 풀링·에일리어싱한다. 지금 규모(절반 해상도 float16 3장)에서는 문제가 아니다.
 - **`BlendState`가 아예 없다.** 현재 전부 불투명 렌더링이라 투명·가산 합성이 불가능하다. 비·연기·먼지·스파크 같은 입자 계열을 넣으려면 알파/가산 State 두 개와 투명 패스 분리(깊이 쓰기 off + 뒤→앞 정렬)가 먼저 필요하다. `D3D11Utils`에 `CreateGeometryShader`와 Hull/Domain 경로도 없다. 상세는 §7 "강의 연계 아이디어" 참고.
-- Material에 Normal / Metallic이 없다. Roughness / Specular 값은 있으나(`8e4cadc`) 셰이더가 아직 쓰지 않는다.
-- 스페큘러 항이 없다. 젖은 바닥 반사의 전제가 빠져 있다. 셰이더 구조 정리(D 단계) 뒤 10-1b에서 넣는다.
-- **셰이더 구조 정리가 중간 상태다.** `main`에 방향광과 점광원의 diffuse 식 `surfaceColor * radiance * saturate(dot(N, L))`이 두 번 있다 — D 단계에서 `ComputeDirectLighting`으로 합칠 예정인 **의도된 중복**이다.
+- Material에 Normal / Metallic / Roughness **맵**이 없다. Roughness / Specular는 Material 단위 상수다.
+- **Fresnel이 없다.** 반사율이 시선 각도와 무관한 F0 고정이라 비스듬한 시선의 반사가 과소평가된다. 그래서 바닥 specular를 물리값 0.25 대신 0.5로 임시 보정했다(§4 "Specular"). diffuse와 specular 사이의 에너지 분배(`1 − F`)도 없다.
+- **환경 반사가 없다.** 반사는 Point Light·방향광 하이라이트뿐이라 하늘이나 벽이 바닥에 비치지 않는다(로드맵 10-3~10-5).
+- Blinn-Phong은 GGX보다 하이라이트 꼬리가 짧아 젖은 표면의 "번지는 테두리"가 약하다. roughness 대응식을 GGX 기준으로 맞춰 뒀으므로 분포 함수만 교체할 수 있다.
+- 바닥 반사가 생기면서 UV 타일링 문제(아래)가 더 눈에 띌 수 있다.
 - Vertex Color가 최종 Pixel Color에 사용되지 않는다.
 - 셰이더가 런타임 컴파일인데 핫 리로드가 없다.
 - `D3D11Utils::CreateDepthBuffer`는 아무도 호출하지 않는 죽은 코드다.
@@ -444,17 +479,18 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 
 - ✅ **Step 3 — 밉맵** (`f91b0e6`, 2026-09-28). 모든 파일 텍스처가 `GenerateMips`로 전체 밉 체인을 갖는다. 구조는 §3, 결정 이유는 §4 "텍스처 색공간 선택", 기록은 §8.
 
-1. **로드맵 10번 — 젖은 바닥 반사. ← 진행 중 (10-1 Specular).**
-   - **10-1 진행 상황** (설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리"):
+1. **로드맵 10번 — 젖은 바닥 반사. ← 진행 중 (10-1 Specular 완료, 다음은 10-2 Fresnel).**
+   - **10-1 진행 상황 — 전부 완료 ✅** (설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리", "Specular — 정규화된 Blinn-Phong과 재질값"):
      - ✅ 10-1a Material Roughness/Specular 값 경로 (`8e4cadc`)
      - ✅ A(R-1) `Common.hlsli` 신설, include 정리 (`8e4cadc`)
      - ✅ B(R-2) 카메라 cbuffer 공유, 슬롯 재배치 (`8e4cadc`)
      - ✅ C(R-3) 빛 쪽 정리 — C-1 Light cbuffer 이동, C-2 `IncidentLight`, C-3 `GetDirectionalLight`, C-4 `GetPointLight`와 `ComputePointLight` 삭제 (`f0273c2`, 화면 확인 완료)
-     - ⬜ **D(R-4) 표면 쪽 정리 ← 다음.** D-1 `SurfaceData { normal, albedo }`를 `Lighting.hlsli`의 `IncidentLight` 아래에 선언 → D-2 `ComputeDirectLighting(SurfaceData, IncidentLight)`(diffuse만)을 만들고 `main`의 두 diffuse 식을 이 함수로 교체. 화면은 바뀌면 안 된다. ambient는 방향이 없으므로 함수 밖에 남긴다
-     - ⬜ E(10-1b) Blinn-Phong Specular — 시선 방향 전달, `roughness → α = r², n = 2/α² − 2 (n ≥ 1)`, `F0 = 0.08 × specular`(UE 규약), specular는 albedo를 곱하지 않고 N·L을 곱한다. `ComputeDirectLighting` 한 곳에만 넣는다
-     - ⬜ F(10-1c) 정규화 항 `(n + 8) / (8π)` — `Common.hlsli`의 `PI` 사용
-     - ⬜ G(10-1d) 값 조정 — 바닥 roughness 0.2~0.3/specular 0.25, 벽 0.8~0.9/0.5, 네온 0.3, 스위치 0.4 부근에서 시작
-   - **D 단계 완료 조건도 C와 같다**: 화면이 기준과 같고, 네온 아래 빛 웅덩이와 스위치 순차 점등이 그대로여야 한다.
+     - ✅ D(R-4) 표면 쪽 정리 — `SurfaceData`, `ComputeDirectLighting`, `main`을 입력 → 직접광 → 간접광 → 연출 → 합성 순서로 (`b59242a`, 어셈블리 비교와 화면 확인)
+     - ✅ E(10-1b) Blinn-Phong Specular — E-1 `viewDir` 전달, E-2 `SurfaceData`에 roughness/specular, E-3 `SpecularBlinnPhong`과 조립, 디버그 뷰로 모양 확인 (`e9ab696`)
+     - ✅ F(10-1c) 정규화 항 **`(n + 8) / 8`** — 교과서의 `/(8π)`가 아니다. 우리 diffuse에 1/π가 없기 때문이다(§4) (`e9ab696`)
+     - ✅ G(10-1d) 재질값 — 바닥 0.75 / 0.3 / 0.5, 벽 0.85 / 0.5, 스위치 0.4 / 0.5, 네온 0.3 / 0.5 (§3 표) (`e9ab696`)
+   - **10-2 Fresnel ← 바로 다음.** `ComputeDirectLighting`의 고정 F0를 Schlick 근사 `F = F0 + (1 − F0)(1 − V·H)⁵`로 바꾸고, diffuse에 `(1 − F)`를 곱해 에너지를 나눈다. 끝나면 **바닥 specular를 물리값 0.25로 되돌려 비교**한다. 강의 Ch10 `BasicPixelShader.hlsl`과 Ch13 `BasicPS.hlsl`에 `SchlickFresnel`이 있다(Ch13은 `pow(2, …)` 형태의 Unreal 근사).
+   - **그다음**: 10-3 Cube Map + Skybox(DDS, Ch13 `SkyboxVS/PS` — 카메라가 `Common`의 b1이라 스카이박스 VS는 `Common`만 include하면 된다) → 10-4 환경 매핑(`reflect(-V, N)`) → 10-5 IBL(`main`의 ambient 한 줄을 `ComputeIndirectLighting`으로, `PI` 사용) → 법선 시각화 도구(§7 강의 연계 B) → 10-6 Normal/Roughness 맵.
    - **노멀 맵 메모**: 밉에서 법선을 평균하면 길이가 1보다 짧아진다(방향이 다른 단위 벡터의 평균). 노멀 맵을 샘플한 뒤 셰이더에서 **반드시 `normalize`**한다.
    - **비등방 필터링**: 밉맵 뒤 먼 바닥이 약간 뭉개진다. 비스듬히 보는 바닥은 픽셀 하나가 덮는 영역이 골목 방향으로 길쭉해서, 트라이리니어가 긴 축 기준으로 레벨을 골라 옆 방향까지 과하게 흐려지기 때문이다. 샘플러를 `D3D11_FILTER_ANISOTROPIC` + `MaxAnisotropy` 8~16으로 바꾸면 개선된다. 지금은 거슬리지 않아 보류했고, 젖은 바닥 반사로 먼 바닥 디테일이 중요해지면 적용한다.
    - Cube Map/IBL 단계에서 큐브맵을 **DDS + DirectXTK `DDSTextureLoader`**로 읽고, `TextureType`이 `DDS_LOADER_FORCE_SRGB`/`IGNORE_SRGB`를 고르는 규칙을 같이 설계한다(§4 "텍스처 파이프라인 방향").
@@ -507,7 +543,7 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
-10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular의 셰이더 구조 정리 중 — §6 참고)
+10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular 완료(2026-09-30), 다음은 10-2 Fresnel — §6 참고)
 11. ✅ HDR Scene Target, Bloom과 Tone Mapping (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 2026-09-15, Bloom Step 5~7과 블러 반복·룩 재튜닝 2026-09-17에 완료)
 12. 안개, 비와 색조 보정 (기하 파이프라인 챕터의 기하 셰이더·빌보드가 여기 본체다 — 아래 "강의 연계 아이디어" 참고)
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류. 디버그 UI는 아래 "강의 연계 아이디어" A그룹으로 상당 부분 해결된다)
@@ -658,6 +694,26 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
+### 2026-09-30 — 셰이더 표면 쪽 정리와 Specular, 재질값 (로드맵 10-1 완료) ✅
+
+- 완료한 작업:
+  - (`f0273c2`, `40b5567`) C 단계 화면 확인 후 커밋, 문서 갱신 커밋.
+  - (`b59242a`) D(R-4) — D-1 `SurfaceData { normal, albedo }`, D-2 `ComputeDirectLighting(SurfaceData, IncidentLight)`로 방향광·점광원의 diffuse 식을 하나로 합치고 `main`을 입력 → 직접광 누적 → 간접광 → 연출 → 합성 순서로 정리.
+  - (`e9ab696`, push 완료) E-1 `ComputeDirectLighting`에 `viewDir` 매개변수, E-2 `SurfaceData`에 `roughness`/`specular`, E-3 `SpecularBlinnPhong`과 조립(N·L 조기 반환, L+V NaN 검사, F0), F 정규화 `(n+8)/8`, G 재질값(에이전트가 사용자 요청으로 `AppBase.cpp`·`NeonSign.cpp`에 직접 넣고 빌드·실행·스크린샷으로 세 번 비교).
+- 확인한 결과:
+  - D-2 전후를 `fxc /Fc` 어셈블리로 비교해 명령어 수(134)가 같고 덧셈 순서만 다름을 확인, 화면도 기준과 같았다.
+  - E-3 디버그 뷰(specular ×20): 네온 아래 바닥의 하이라이트가 시선을 따라 미끄러지고, roughness 0.2에서 **작아지면서 어두워지는** 에너지 손실을 관찰 → F 정규화 후 해소.
+  - G: 전원 Off에서 채움광이 젖은 바닥에 파란 줄무늬로 반사, On에서 네온 색의 길쭉한 반사, 벽은 무광, 에일리어싱 없음. 사용자가 육안으로 확인했다.
+  - 리뷰 중 잡은 문제: ① D-2 첫 시도에서 **`SurfaceData`를 채우기 전에** 함수를 부르고 반환값을 `albedo` 필드에 넣음 — 방향광이 화면에서 사라지는 상태였다. HLSL은 초기화 안 된 구조체 전달에 경고가 없다 ② `SpecularBlinnPhong`을 호출부보다 **아래에** 정의해 `undeclared identifier` ③ 분포 함수가 `pow(NdotH, n)`이 아니라 **지수 n을 그대로 반환**(매개변수 `NdotH`가 본문에서 안 쓰인 것이 신호) ④ 계산한 specular를 **반환식에 더하지 않음** — ③과 ④가 서로를 가려 화면으로는 드러나지 않았다 ⑤ 지역 변수 `specular`가 cbuffer 전역 `specular`를 가림(shadowing, 에러 없음) → `specularTerm`.
+  - 에이전트의 설명 오류 두 가지를 바로잡았다: "N·L ≤ 0 검사로 `L = −V`가 원천 차단된다"(CullMode NONE에서 뒷면을 보면 아니다), roughness 0.8의 n을 3.9로 계산(정답 2.9).
+- 남아 있는 문제: §5 — Fresnel 없음(바닥 specular 0.5 임시 보정), 환경 반사 없음, 재질 맵 없음, UV 타일링.
+- 다음에 이어서 할 작업: §6 — 10-2 Fresnel → 바닥 specular 0.25 재비교 → 10-3 Cube Map/Skybox.
+- 중요한 설계 결정과 이유: §4 "셰이더 구조"(보강)와 "Specular — 정규화된 Blinn-Phong과 재질값". 요약:
+  - **정규화는 `(n+8)/8`** — 우리 diffuse에 1/π가 없으니 specular에서도 뺀다. 절대값이 아니라 두 항의 **비율**이 맞아야 한다.
+  - **E와 F를 나눔** — 에너지 손실을 먼저 보고 정규화의 의미를 확인했다.
+  - **젖은 표면 = 어둡게 + 매끈하게**, specular는 Fresnel 전까지 0.5.
+  - **원본은 사람이 고르기 쉬운 단위, 변환은 사용 직전 한 곳** — 색(sRGB → 선형)과 roughness(지각적 → α)가 같은 원칙이다.
 
 ### 2026-09-29 — Material Roughness/Specular, 셰이더 구조 정리 A~C (로드맵 10-1 진행 중)
 
