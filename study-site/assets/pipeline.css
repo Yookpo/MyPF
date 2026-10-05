@@ -1,0 +1,519 @@
+/* Rendering Pipeline 페이지 전용 — 파이프라인 지도, 단계 명세, 바이트 배치, 흐름 그림 */
+
+:root {
+  --st-ia: #0e7490;
+  --st-ia-soft: #e0f2f6;
+  --st-vs: #2a5bd7;
+  --st-vs-soft: #e6edfc;
+  --st-rs: #8a6a00;
+  --st-rs-soft: #fbf3dc;
+  --st-ps: #7a4fd0;
+  --st-ps-soft: #f1ebfc;
+  --st-om: #c2410c;
+  --st-om-soft: #fdeee5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --st-ia: #5cc4d9;
+    --st-ia-soft: #163840;
+    --st-vs: #7ea2ff;
+    --st-vs-soft: #233056;
+    --st-rs: #e7c15c;
+    --st-rs-soft: #3a3220;
+    --st-ps: #b79cf2;
+    --st-ps-soft: #2d2445;
+    --st-om: #f59e6b;
+    --st-om-soft: #3d2619;
+  }
+}
+
+:root[data-theme="dark"] {
+  --st-ia: #5cc4d9;
+  --st-ia-soft: #163840;
+  --st-vs: #7ea2ff;
+  --st-vs-soft: #233056;
+  --st-rs: #e7c15c;
+  --st-rs-soft: #3a3220;
+  --st-ps: #b79cf2;
+  --st-ps-soft: #2d2445;
+  --st-om: #f59e6b;
+  --st-om-soft: #3d2619;
+}
+
+[data-stage="ia"] { --sc: var(--st-ia); --ss: var(--st-ia-soft); }
+[data-stage="vs"] { --sc: var(--st-vs); --ss: var(--st-vs-soft); }
+[data-stage="rs"] { --sc: var(--st-rs); --ss: var(--st-rs-soft); }
+[data-stage="ps"] { --sc: var(--st-ps); --ss: var(--st-ps-soft); }
+[data-stage="om"] { --sc: var(--st-om); --ss: var(--st-om-soft); }
+
+/* ---------- SVG 공통 ---------- */
+
+.pl-figure {
+  margin: 0 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.pl-figure figcaption {
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.pl-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.pl-svg--wide {
+  min-width: 780px;
+}
+
+.pl-svg--small {
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+.pl-svg text {
+  font-family: var(--font-sans);
+  fill: var(--text);
+}
+
+.pl-svg .t-muted {
+  fill: var(--text-muted);
+}
+
+.pl-svg .t-mono {
+  font-family: var(--font-mono);
+}
+
+.pl-svg .t-bold {
+  font-weight: 700;
+}
+
+/* 파이프라인 지도 */
+
+.pl-col {
+  cursor: pointer;
+}
+
+.pl-col:focus {
+  outline: none;
+}
+
+.pl-stage-box {
+  fill: var(--ss);
+  stroke: var(--sc);
+  stroke-width: 2;
+  transition: stroke-width 0.15s;
+}
+
+.pl-bind-box {
+  fill: var(--surface);
+  stroke: var(--sc);
+  stroke-width: 1.2;
+  transition: fill 0.15s;
+}
+
+.pl-col:hover .pl-stage-box,
+.pl-col:focus-visible .pl-stage-box {
+  stroke-width: 3.5;
+}
+
+.pl-col:hover .pl-bind-box,
+.pl-col:focus-visible .pl-bind-box {
+  fill: var(--ss);
+}
+
+.pl-svg .pl-stage-title {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  fill: var(--sc);
+}
+
+.pl-svg .pl-stage-name {
+  font-size: 11px;
+  fill: var(--text-muted);
+}
+
+.pl-svg .pl-bind-line {
+  font-size: 11.5px;
+}
+
+.pl-svg .pl-bind-ref {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  fill: var(--text-muted);
+}
+
+.pl-unused-box {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+}
+
+.pl-svg .pl-unused-text {
+  font-size: 11px;
+  fill: var(--text-muted);
+}
+
+.pl-arrow {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.6;
+}
+
+.pl-arrow--dashed {
+  stroke-dasharray: 4 4;
+}
+
+.pl-link {
+  stroke: var(--border);
+  stroke-width: 1.2;
+}
+
+.pl-svg .pl-flow-label {
+  font-size: 11px;
+  fill: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.pl-svg .pl-row-label {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--text-muted);
+}
+
+.mk-pl {
+  fill: var(--text-muted);
+}
+
+/* 렌더 타깃 흐름 */
+
+.rt-box {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: 1.4;
+}
+
+.rt-box--hdr {
+  fill: var(--st-om-soft);
+  stroke: var(--st-om);
+}
+
+.rt-box--back {
+  fill: var(--st-vs-soft);
+  stroke: var(--st-vs);
+}
+
+.pl-svg .rt-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pl-svg .rt-sub {
+  font-size: 11px;
+  fill: var(--text-muted);
+}
+
+.pl-svg .rt-label {
+  font-size: 11px;
+  fill: var(--text-muted);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+/* 전체 화면 삼각형 */
+
+.ft-tri {
+  fill: var(--st-ps-soft);
+  stroke: var(--st-ps);
+  stroke-width: 1.6;
+  stroke-dasharray: 6 4;
+}
+
+.ft-screen {
+  fill: var(--st-ps);
+  fill-opacity: 0.28;
+  stroke: var(--st-ps);
+  stroke-width: 2;
+}
+
+.ft-axis {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.ft-dot {
+  fill: var(--st-ps);
+}
+
+.pl-svg .ft-label {
+  font-size: 11.5px;
+}
+
+/* ---------- 단계 섹션 머리 ---------- */
+
+.stage-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0.6em;
+}
+
+.stage-head h2 {
+  margin: 0;
+  padding: 0;
+}
+
+.stage-chip {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 46px;
+  height: 46px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--ss);
+  border: 2px solid var(--sc);
+  color: var(--sc);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.stage-head small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- 단계 명세 표 ---------- */
+
+.spec-table {
+  border-top: 4px solid var(--sc);
+}
+
+.spec-table th[scope="row"] {
+  width: 120px;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--sc);
+  background: var(--ss);
+  white-space: nowrap;
+}
+
+.spec-table thead th {
+  font-size: 0.85rem;
+}
+
+.spec-table td {
+  font-size: 0.88rem;
+  min-width: 220px;
+}
+
+.spec-table td ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.spec-table td li {
+  margin-bottom: 2px;
+}
+
+.spec-table .sub {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+.spec-table .sub:first-child {
+  margin-top: 0;
+}
+
+/* ---------- 정점 바이트 배치 ---------- */
+
+.byte-ruler {
+  display: grid;
+  grid-template-columns: 136px 12fr 12fr 12fr 8fr;
+  gap: 4px;
+  margin: 0 0 12px;
+  font-size: 0.82rem;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.byte-ruler > div {
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.byte-ruler .br-head {
+  background: var(--st-ia-soft);
+  border-color: var(--st-ia);
+  color: var(--st-ia);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-align: center;
+}
+
+.byte-ruler .br-label {
+  background: var(--surface-2);
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.byte-ruler code {
+  font-size: 0.78rem;
+}
+
+.byte-ruler .ref {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 상자 체인 ---------- */
+
+.chain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.chain > li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chain > li + li::before {
+  content: "→";
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.chain-box {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.chain-box b {
+  display: block;
+  font-size: 0.88rem;
+}
+
+.chain-box .ref {
+  font-size: 0.72rem;
+}
+
+.chain-box--accent {
+  border-color: var(--sc, var(--accent));
+  background: var(--ss, var(--accent-soft));
+}
+
+/* ---------- PS 조명 흐름 ---------- */
+
+.flow-steps {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  counter-reset: flow;
+  display: grid;
+  gap: 6px;
+}
+
+.flow-steps li {
+  counter-increment: flow;
+  position: relative;
+  padding: 8px 12px 8px 44px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--st-ps);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 0.88rem;
+}
+
+.flow-steps li::before {
+  content: counter(flow);
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--st-ps-soft);
+  color: var(--st-ps);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.flow-steps li b {
+  display: block;
+}
+
+/* ---------- 레지스터 배치 ---------- */
+
+.reg-table td,
+.reg-table th {
+  font-size: 0.84rem;
+}
+
+.reg-table td:first-child {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* ---------- 좁은 화면 ---------- */
+
+@media (max-width: 560px) {
+  .byte-ruler {
+    grid-template-columns: 84px repeat(4, minmax(64px, 1fr));
+  }
+
+  .chain {
+    flex-direction: column;
+  }
+
+  .chain > li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chain > li + li::before {
+    content: "↓";
+    text-align: center;
+  }
+
+  .stage-chip {
+    min-width: 40px;
+    height: 40px;
+  }
+}

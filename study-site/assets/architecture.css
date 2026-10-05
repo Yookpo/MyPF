@@ -1,0 +1,627 @@
+/* Architecture 페이지 전용 — 시스템 지도, 의존 매트릭스, 시스템 카드, 경계 구조체 */
+
+:root {
+  --own: #23845a;
+  --own-soft: #e3f4ea;
+  --ref: #2a5bd7;
+  --ref-soft: #e6edfc;
+  --nope: #c4372f;
+  --nope-soft: #fbe7e5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --own: #5cc98f;
+    --own-soft: #1d3a2b;
+    --ref: #7ea2ff;
+    --ref-soft: #233056;
+    --nope: #ff7b72;
+    --nope-soft: #3f2222;
+  }
+}
+
+:root[data-theme="dark"] {
+  --own: #5cc98f;
+  --own-soft: #1d3a2b;
+  --ref: #7ea2ff;
+  --ref-soft: #233056;
+  --nope: #ff7b72;
+  --nope-soft: #3f2222;
+}
+
+/* ---------- 시스템 선택 칩 ---------- */
+
+.sys-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.sys-chip {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.sys-chip:hover {
+  border-color: var(--accent);
+}
+
+.sys-chip[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* ---------- SVG 공통 ---------- */
+
+.arch-figure {
+  margin: 0 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow-x: auto;
+}
+
+.arch-svg {
+  display: block;
+  width: 100%;
+  min-width: 760px;
+  height: auto;
+}
+
+.arch-svg text {
+  font-family: var(--font-sans);
+  fill: var(--text);
+}
+
+.arch-svg .t-muted {
+  fill: var(--text-muted);
+}
+
+.arch-svg .t-mono {
+  font-family: var(--font-mono);
+}
+
+.zone-line {
+  stroke: var(--border);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 6;
+}
+
+.arch-svg .zone-label {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  fill: var(--text-muted);
+}
+
+.container-rect {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.5;
+}
+
+/* ---------- 노드 ---------- */
+
+.node {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.node:focus {
+  outline: none;
+}
+
+.node-box {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s;
+}
+
+.container-head.node-box {
+  fill: var(--surface-2);
+}
+
+.node:hover .node-box,
+.node:focus-visible .node-box {
+  stroke: var(--accent);
+}
+
+.node:focus-visible .node-box {
+  stroke-width: 3;
+}
+
+.arch-svg .node-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.arch-svg .node-sub {
+  font-size: 12px;
+  fill: var(--text-muted);
+}
+
+.info {
+  transition: opacity 0.15s;
+}
+
+.info-box {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+}
+
+.arch-svg .info-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.arch-svg .info-line {
+  font-size: 12px;
+  fill: var(--text-muted);
+}
+
+.note-box {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 1.2;
+  stroke-dasharray: 2 4;
+}
+
+.arch-svg .note-line {
+  font-size: 12px;
+  fill: var(--text-muted);
+}
+
+.arch-svg .note-link {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+
+.no-badge {
+  display: none;
+}
+
+.no-badge circle {
+  fill: var(--nope);
+}
+
+.arch-svg .no-badge text {
+  fill: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ---------- 간선 ---------- */
+
+.edge-group {
+  transition: opacity 0.15s;
+}
+
+.edge {
+  fill: none;
+  stroke-width: 1.6;
+}
+
+.edge--own {
+  stroke: var(--own);
+}
+
+.edge--ref {
+  stroke: var(--ref);
+  stroke-dasharray: 6 4;
+}
+
+.arch-svg .edge-label {
+  font-size: 11.5px;
+  fill: var(--text-muted);
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.mk-own {
+  fill: var(--own);
+}
+
+.mk-ref {
+  fill: none;
+  stroke: var(--ref);
+  stroke-width: 1.5;
+}
+
+.mk-plain {
+  fill: var(--text-muted);
+}
+
+/* ---------- 선택 상태: 역할별 강조 ---------- */
+
+.has-selection .node,
+.has-selection .info {
+  opacity: 0.35;
+}
+
+.has-selection .edge-group {
+  opacity: 0.15;
+}
+
+.has-selection .edge-group.is-related {
+  opacity: 1;
+}
+
+.has-selection .edge-group.is-related .edge {
+  stroke-width: 2.6;
+}
+
+.has-selection .node[data-roles],
+.has-selection .info[data-roles] {
+  opacity: 1;
+}
+
+[data-roles~="self"] .node-box {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+[data-roles~="owner"] .node-box,
+[data-roles~="owned"] .node-box,
+[data-roles~="owned"] .info-box,
+.container-rect[data-roles~="owner"] {
+  stroke: var(--own);
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+}
+
+[data-roles~="ref"] .node-box,
+[data-roles~="ref"] .info-box,
+[data-roles~="refby"] .node-box,
+[data-roles~="refby"] .info-box {
+  stroke: var(--ref);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 3;
+}
+
+[data-roles~="nope"] .node-box {
+  fill: var(--nope-soft);
+}
+
+[data-roles~="nope"]:not([data-roles~="refby"]) .node-box {
+  stroke: var(--nope);
+  stroke-width: 2;
+}
+
+[data-roles~="nope"] .no-badge {
+  display: inline;
+}
+
+/* ---------- 범례 ---------- */
+
+.arch-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.arch-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lg-line {
+  display: inline-block;
+  width: 28px;
+  height: 0;
+  border-top: 2px solid var(--own);
+}
+
+.lg-line--ref {
+  border-top: 2px dashed var(--ref);
+}
+
+.lg-box {
+  display: inline-block;
+  width: 16px;
+  height: 12px;
+  border-radius: 3px;
+  border: 2px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.lg-box--own {
+  border-color: var(--own);
+  background: var(--surface);
+}
+
+.lg-box--ref {
+  border: 2px dashed var(--ref);
+  background: var(--surface);
+}
+
+.lg-nope {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--nope);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ---------- 선택 패널 ---------- */
+
+.arch-panel {
+  margin: 0 0 1.2em;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.arch-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 16px;
+  background: var(--accent-soft);
+}
+
+.arch-panel__name {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.arch-panel__head a {
+  font-size: 0.85rem;
+}
+
+.arch-panel__roles {
+  margin: 0;
+  padding: 10px 16px 2px;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.88rem;
+}
+
+.role-tag {
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.role-tag--own {
+  color: var(--own);
+}
+
+.role-tag--ref {
+  color: var(--ref);
+}
+
+.role-tag--nope {
+  color: var(--nope);
+}
+
+/* ---------- 시스템 카드 ---------- */
+
+.sys-cards {
+  display: grid;
+  gap: 16px;
+}
+
+.sys-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  scroll-margin-top: calc(var(--header-h) + 16px);
+}
+
+.sys-card:target {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.sys-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 10px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.sys-card__head h3 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+}
+
+.sys-card__layer {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.sys-fields {
+  margin: 0;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 10px 16px;
+  font-size: 0.93rem;
+}
+
+.sys-fields dt {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  padding-top: 3px;
+}
+
+.sys-fields dt.f-owns {
+  color: var(--own);
+}
+
+.sys-fields dt.f-refs {
+  color: var(--ref);
+}
+
+.sys-fields dt.f-nope {
+  color: var(--nope);
+}
+
+.sys-fields dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.sys-fields ul {
+  margin: 0;
+  padding-left: 1.1em;
+}
+
+.sys-fields li {
+  margin: 0 0 3px;
+}
+
+.sys-fields p {
+  margin: 0;
+}
+
+.sys-fields .evidence {
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* ---------- 의존 매트릭스 ---------- */
+
+.dep-matrix th,
+.dep-matrix td {
+  text-align: center;
+  white-space: nowrap;
+  font-size: 0.86rem;
+}
+
+.dep-matrix tbody th {
+  text-align: left;
+  font-family: var(--font-mono);
+}
+
+.dep-matrix thead th {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.dep-matrix .c-own {
+  background: var(--own-soft);
+  color: var(--own);
+  font-weight: 700;
+}
+
+.dep-matrix .c-ref {
+  background: var(--ref-soft);
+  color: var(--ref);
+  font-weight: 700;
+}
+
+.dep-matrix .c-use {
+  color: var(--own);
+}
+
+.dep-matrix .c-nope {
+  color: var(--nope);
+}
+
+.dep-matrix .c-self {
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+/* ---------- 경계 구조체 다이어그램 ---------- */
+
+.bd-src {
+  fill: var(--surface-2);
+  stroke: var(--border);
+  stroke-width: 1.2;
+}
+
+.bd-struct {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.8;
+}
+
+.bd-dst {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 1.2;
+}
+
+.arch-svg .bd-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.arch-svg .bd-line {
+  font-size: 12.5px;
+}
+
+.bd-arrow {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.6;
+}
+
+.bd-divider {
+  stroke: var(--nope);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+}
+
+.arch-svg .bd-divider-label {
+  font-size: 12px;
+  fill: var(--nope);
+  font-weight: 700;
+}
+
+.compare-table td:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .sys-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px 0;
+  }
+
+  .sys-fields dd {
+    margin-bottom: 10px;
+  }
+}

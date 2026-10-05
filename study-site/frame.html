@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frame Analysis · MyPF Study</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/frame.css">
+  <script src="assets/site.js"></script>
+  <script src="assets/frame.js"></script>
+</head>
+<body data-page="frame">
+  <header id="site-header"></header>
+  <noscript>
+    <nav class="noscript-nav">
+      <a href="index.html">MyPF Study</a> ·
+      <a href="architecture.html">1. Architecture</a> ·
+      <a href="frame.html">2. Frame Analysis</a> ·
+      <a href="pipeline.html">3. Rendering Pipeline</a>
+    </nav>
+  </noscript>
+
+  <div class="layout">
+    <aside class="toc" id="toc" aria-label="이 페이지 목차"></aside>
+
+    <main class="content">
+      <ol class="path" id="path" aria-label="학습 경로"></ol>
+      <div class="page-kicker">2 · 시간축</div>
+      <h1>Frame Analysis</h1>
+      <p class="page-question">
+        <small>이 페이지의 질문</small>
+        <code>Run</code> 루프 한 바퀴 동안 어떤 함수가 어떤 순서로 불리고, <code>DrawIndexed</code>가 호출되는 순간 파이프라인에는 무엇이 준비되어 있는가?
+      </p>
+
+      <!-- ===================================================== -->
+      <section id="goals">
+        <h2>학습 목표</h2>
+        <p>이 페이지를 마치면 다음을 할 수 있다.</p>
+        <ol>
+          <li>한 프레임의 시작부터 Present까지 호출 순서를 빈 종이에 재구성한다</li>
+          <li>각 단계가 CPU 작업인지, GPU에 명령을 남기는지 구분한다</li>
+          <li><code>DrawIndexed</code> 직전 파이프라인의 모든 슬롯에 무엇이 걸려 있고, 그것이 <strong>언제 · 어디서</strong> 걸렸는지 말한다</li>
+          <li>한 텍스처가 한 프레임 안에서 출력(RTV)과 입력(SRV)을 오가는 순서를 설명한다</li>
+          <li>상태 기계라서 생기는 일 — 앞 패스가 남긴 상태, ImGui의 백업·복원 — 을 설명한다</li>
+        </ol>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="files">
+        <h2>참고 파일</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>파일</th><th>범위</th><th>볼 것</th></tr></thead>
+            <tbody>
+              <tr><td><code>AppBase.cpp</code></td><td class="ref">705-751, 521-562, 564-647</td><td><code>Run</code>, <code>Update</code>, <code>Render</code></td></tr>
+              <tr><td><code>Renderer.cpp</code></td><td class="ref">293-391, 563-678</td><td><code>BeginFrame</code>, <code>DrawRenderItem</code> — DrawIndexed까지</td></tr>
+              <tr><td><code>Renderer.cpp</code></td><td class="ref">393-544</td><td><code>DrawFullScreenPass</code>, <code>EndScene</code> — 후처리</td></tr>
+              <tr><td><code>D3D11Utils.cpp</code></td><td class="ref">294-317</td><td>상수 버퍼 갱신 <code>Map(WRITE_DISCARD)</code></td></tr>
+              <tr><td><code>GraphicsDevice.cpp</code></td><td class="ref">65-80</td><td><code>Present(1, 0)</code></td></tr>
+              <tr><td><code>ImGui/imgui_impl_dx11.cpp</code></td><td class="ref">107-162, 170-346</td><td>ImGui가 상태를 백업 · 설정 · 복원하는 범위</td></tr>
+              <tr><td><code>Shaders/*.hlsl</code>, <code>*.hlsli</code></td><td class="ref">전체</td><td>각 Draw가 실행하는 셰이더</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="overview">
+        <h2>프레임 지도</h2>
+        <p>한 프레임은 여섯 묶음, 23단계로 나뉜다. 묶음을 누르면 타임라인의 그 위치로 이동한다.</p>
+
+        <ol class="phase-bar">
+          <li><a href="#phase-a" data-kind="cpu"><span class="phase-bar__letter">A</span><span class="phase-bar__title">프레임 시작</span><span class="phase-bar__steps">01–04</span></a></li>
+          <li><a href="#phase-b" data-kind="cpu"><span class="phase-bar__letter">B</span><span class="phase-bar__title">Update</span><span class="phase-bar__steps">05–06</span></a></li>
+          <li><a href="#phase-c" data-kind="upload"><span class="phase-bar__letter">C</span><span class="phase-bar__title">프레임 준비</span><span class="phase-bar__steps">07–09</span></a></li>
+          <li><a href="#phase-d" data-kind="draw"><span class="phase-bar__letter">D</span><span class="phase-bar__title">씬 패스 ×8</span><span class="phase-bar__steps">10–15</span></a></li>
+          <li><a href="#phase-e" data-kind="draw"><span class="phase-bar__letter">E</span><span class="phase-bar__title">후처리</span><span class="phase-bar__steps">16–20</span></a></li>
+          <li><a href="#phase-f" data-kind="present"><span class="phase-bar__letter">F</span><span class="phase-bar__title">UI · Present</span><span class="phase-bar__steps">21–23</span></a></li>
+        </ol>
+
+        <h3>CPU와 GPU는 같은 시간에 일하지 않는다</h3>
+        <p>
+          DX11의 <code>Context-&gt;…</code> 호출은 CPU에서 곧바로 반환된다. 드라이버가 명령을 버퍼에 쌓아 두고, GPU는 그것을 <strong>나중에</strong> 실행한다.
+          그래서 각 단계의 <code>GPU</code> 칸은 "이 명령이 GPU에서 실행될 때 일어나는 일"이다. 실제 실행 시점은 드라이버가 정하며 Present 뒤일 수도 있다.
+        </p>
+
+        <h3>단계 카드의 일곱 칸</h3>
+        <dl class="field-guide">
+          <dt>CPU</dt><dd>이 단계에서 CPU가 계산하거나 준비하는 것</dd>
+          <dt>GPU</dt><dd>이 단계가 GPU에 남기는 일. 없으면 "없음"</dd>
+          <dt>Function</dt><dd>Caller → Callee, <span class="ref">파일:줄</span></dd>
+          <dt>DX11 API</dt><dd>이 단계에서 호출하는 D3D11 / DXGI 함수</dd>
+          <dt>Resource</dt><dd>읽거나 쓰는 리소스와 그 소유자</dd>
+          <dt>Pipeline State</dt><dd>이 단계가 끝난 뒤 바뀌어 있는 파이프라인 슬롯</dd>
+          <dt>Shader</dt><dd>관련 HLSL 파일과 함수</dd>
+        </dl>
+
+        <ul class="kind-legend" aria-label="단계 종류">
+          <li data-kind="cpu"><i class="kind-dot"></i>CPU 전용</li>
+          <li data-kind="state"><i class="kind-dot"></i>상태 설정</li>
+          <li data-kind="upload"><i class="kind-dot"></i>데이터 업로드 (Map)</li>
+          <li data-kind="clear"><i class="kind-dot"></i>Clear · 출력 설정</li>
+          <li data-kind="draw"><i class="kind-dot"></i>Draw</li>
+          <li data-kind="present"><i class="kind-dot"></i>Present</li>
+        </ul>
+
+        <details class="calltree">
+          <summary>콜 트리 한눈에 보기</summary>
+          <pre><code>AppBase::Run                                         AppBase.cpp:705
+├ PeekMessage → WndProc → MsgProc                    :713   01 (메시지가 있으면 이번 반복은 여기서 끝)
+├ GameTimer::Tick                                    :720   02
+├ ImGui NewFrame · UpdateGui · ImGui::Render         :724-730  03
+├ SetAspectRatio · Renderer::SetSceneViewport        :738-739  04
+├ Update(dt)                                         :742   05-06
+├ Render()                                           :744
+│ ├ FrameRenderData 스냅샷                           :566   07
+│ ├ Renderer::BeginFrame                             :576   08-09
+│ ├ for GameObject → RenderItem → DrawRenderItem     :585   10-15 ×8
+│ ├ Renderer::EndScene                               :633   16-20
+│ ├ ImGui_ImplDX11_RenderDrawData                    :640   21
+│ └ Renderer::EndFrame → GraphicsDevice::Present     :642   22
+└ InputSystem::EndFrame                              :746   23</code></pre>
+        </details>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="timeline">
+        <h2>타임라인: 프레임 시작부터 Present까지</h2>
+        <p>
+          위에서 아래로 따라 내려가면 된다. 넓은 화면에서는 오른쪽 패널이 <strong>그 단계가 끝난 시점의 파이프라인 상태</strong>를 보여 준다.
+          스크롤하거나 단계 번호를 누르면 바뀐다.
+        </p>
+
+        <div class="tl-toolbar" role="group" aria-label="단계 필터">
+          <button type="button" class="btn" data-filter="all" aria-pressed="true">전체</button>
+          <button type="button" class="btn" data-filter="gpu" aria-pressed="false">GPU에 영향을 주는 단계만</button>
+          <button type="button" class="btn" data-filter="cpu" aria-pressed="false">CPU 전용 단계만</button>
+          <span class="tl-toolbar__spacer"></span>
+          <a href="#s15">DrawIndexed로 바로 가기 ↓</a>
+        </div>
+
+        <p class="tl-state-fallback muted">화면이 좁아 상태 패널을 숨겼다. 각 카드의 <code>Pipeline State</code> 칸과 아래 <a href="#snapshot">DrawIndexed 직전 상태</a>를 보면 된다.</p>
+
+        <div class="tl-layout">
+          <ol class="timeline">
+
+            <!-- ============ A ============ -->
+            <li class="tl-phase" id="phase-a">
+              <span class="tl-phase__mark">A</span>
+              <h3>프레임 시작</h3>
+              <p>입력과 시간을 모으고, UI를 기록하고, 화면 뷰포트를 맞춘다. 아직 장면은 그리지 않는다.</p>
+            </li>
+
+            <li class="tl-step" id="s01" data-kind="cpu">
+              <button type="button" class="tl-num" aria-label="01단계 상태 보기">01</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">CPU 전용</span><h3>메시지 처리</h3><span class="ref">AppBase.cpp:713-717</span></div>
+                <p class="tl-summary">쌓인 Win32 메시지가 있으면 하나를 꺼내 처리한다. 이 반복에서는 프레임을 그리지 않는다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd><code>PeekMessage</code>로 꺼낸 메시지를 <code>MsgProc</code>로 보내고, 키와 마우스 이동량을 InputSystem에 누적한다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd class="none">없음</dd>
+                  <dt>Function</dt><dd><code>Run</code> → <code>DispatchMessage</code> → <code>WndProc</code> <span class="ref">AppBase.cpp:21</span> → <code>AppBase::MsgProc</code> <span class="ref">AppBase.cpp:34</span> → <code>InputSystem::ProcessMessage</code> <span class="ref">InputSystem.cpp:12</span></dd>
+                  <dt>DX11 API</dt><dd class="none">없음 (WM_SIZE만 예외 — <a href="#outside">프레임 바깥</a>)</dd>
+                  <dt>Resource</dt><dd>InputSystem의 <code>m_keyDown</code> · <code>m_keyPressed</code> · <code>m_mouseDelta</code> (CPU 메모리)</dd>
+                  <dt>Pipeline State</dt><dd class="none">변화 없음</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s02" data-kind="cpu">
+              <button type="button" class="tl-num" aria-label="02단계 상태 보기">02</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">CPU 전용</span><h3>시간 측정</h3><span class="ref">AppBase.cpp:720</span></div>
+                <p class="tl-summary">직전 프레임과의 시간 차 <code>dt</code>를 잰다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd><code>steady_clock</code>으로 현재 시각을 읽어 dt와 누적 시간을 계산한다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd class="none">없음</dd>
+                  <dt>Function</dt><dd><code>Run</code> → <code>GameTimer::Tick</code> <span class="ref">GameTimer.cpp:17</span></dd>
+                  <dt>DX11 API</dt><dd class="none">없음</dd>
+                  <dt>Resource</dt><dd><code>m_deltaTime</code>, <code>m_totalTime</code></dd>
+                  <dt>Pipeline State</dt><dd class="none">변화 없음</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s03" data-kind="cpu">
+              <button type="button" class="tl-num" aria-label="03단계 상태 보기">03</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">CPU 전용</span><h3>ImGui 프레임 기록</h3><span class="ref">AppBase.cpp:724-730</span></div>
+                <p class="tl-summary">UI를 이번 프레임에 그릴 정점 목록(<code>ImDrawData</code>)으로 만든다. GPU에 그리는 것은 21단계다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>NewFrame ×3 → <code>UpdateGui</code>가 Editor면 <code>EditorUI::Draw</code>, Play면 <code>DrawPlayPanel</code>을 부른다 → <code>ImGui::Render</code>가 <code>ImDrawData</code>를 완성한다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd>없음. 첫 프레임에만 <code>ImGui_ImplDX11_NewFrame</code>이 <code>CreateDeviceObjects</code>로 ImGui용 셰이더 · InputLayout · 상수 버퍼 · 상태 객체 · 샘플러를 만든다 <span class="ref">imgui_impl_dx11.cpp:685-687</span>. 폰트 텍스처는 여기서가 아니라 21단계에서 만든다.</dd>
+                  <dt>Function</dt><dd><code>Run</code> → <code>AppBase::UpdateGui</code> <span class="ref">AppBase.cpp:649</span> → Editor면 <code>EditorUI::Draw</code> <span class="ref">EditorUI.cpp:34</span>(호출 <span class="ref">AppBase.cpp:664</span>), Play면 <code>DrawPlayPanel</code> <span class="ref">AppBase.cpp:675</span>(호출 <span class="ref">:672</span>). 이어서 <code>Run</code>이 <code>ImGui::Render</code>를 부른다 <span class="ref">AppBase.cpp:730</span></dd>
+                  <dt>DX11 API</dt><dd class="none">없음 (첫 프레임 제외)</dd>
+                  <dt>Resource</dt><dd><code>ImDrawData</code> (CPU 메모리). HUD는 이 시점의 PowerSwitch 값을 읽는데, Update보다 먼저라 <strong>한 프레임 전 값</strong>이다.</dd>
+                  <dt>Pipeline State</dt><dd class="none">변화 없음</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s04" data-kind="state">
+              <button type="button" class="tl-num" aria-label="04단계 상태 보기">04</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">상태 설정</span><h3>화면 뷰포트</h3><span class="ref">AppBase.cpp:738-739</span></div>
+                <p class="tl-summary">창 크기로 카메라 종횡비와 RS 뷰포트를 맞춘다. 창 크기가 0보다 크면(최소화가 아니면) Resize 여부와 상관없이 매 프레임 실행된다 <span class="ref">AppBase.cpp:732</span>.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd><code>Camera::SetAspectRatio</code>로 종횡비를 저장하고, Renderer가 <code>m_screenViewport</code> 멤버를 갱신한다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd>뷰포트 설정 명령 기록</dd>
+                  <dt>Function</dt><dd><code>Run</code> → <code>Renderer::SetSceneViewport</code> <span class="ref">Renderer.cpp:680</span> → <code>SetViewPort</code> <span class="ref">:705</span></dd>
+                  <dt>DX11 API</dt><dd><code>RSSetViewports</code> <span class="ref">Renderer.cpp:730</span></dd>
+                  <dt>Resource</dt><dd><code>m_screenViewport</code> (Renderer 멤버, CPU)</dd>
+                  <dt>Pipeline State</dt><dd>RS 뷰포트 = 화면 전체 (0, 0, W, H, depth 0~1)</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <!-- ============ B ============ -->
+            <li class="tl-phase" id="phase-b">
+              <span class="tl-phase__mark">B</span>
+              <h3>Update</h3>
+              <p>게임 상태를 CPU에서만 바꾼다. 여기서 바뀐 값은 다음 묶음(C, D)에서 상수 버퍼로 GPU에 올라간다.</p>
+            </li>
+
+            <li class="tl-step" id="s05" data-kind="cpu">
+              <button type="button" class="tl-num" aria-label="05단계 상태 보기">05</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">CPU 전용</span><h3>카메라 이동과 충돌</h3><span class="ref">AppBase.cpp:521-540</span></div>
+                <p class="tl-summary">입력으로 카메라를 움직이고, Play 모드면 벽 밖으로 밀어낸다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>Editor는 우클릭 중에만, Play는 항상 컨트롤러가 MouseDelta를 소비해 Yaw/Pitch를 바꾸고 WASD로 위치를 옮긴다. Play는 이어서 BoundingBox들과 충돌을 풀어 위치를 보정한다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd class="none">없음 — 바뀐 카메라는 07에서 행렬이 되고 09에서 GPU로 올라간다</dd>
+                  <dt>Function</dt><dd>
+                    <code>AppBase::Update</code> <span class="ref">AppBase.cpp:521</span>
+                    <ul>
+                      <li>Editor: <code>UpdateEditorCamera</code> <span class="ref">AppBase.cpp:262</span> → 우클릭 중이면 <code>FirstPersonCameraController::Update</code> <span class="ref">AppBase.cpp:281</span>, 그 뒤 바로 return</li>
+                      <li>Play: <code>FirstPersonCameraController::Update</code> <span class="ref">AppBase.cpp:537</span> → <code>PlayerCollision::Resolve</code>(<code>Scene::GatherBoxColliders</code>) <span class="ref">AppBase.cpp:539</span> → <code>Camera::SetPosition</code> <span class="ref">AppBase.cpp:540</span></li>
+                      <li><code>FirstPersonCameraController::Update</code> <span class="ref">FirstPersonCameraController.cpp:18</span> 안: <code>UpdateRotation</code> <span class="ref">:79</span>(<code>ConsumeMouseDelta</code>, <code>Camera::SetYawPitch</code>) → <code>UpdateMovement</code> <span class="ref">:29</span>(<code>Camera::SetPosition</code>)</li>
+                    </ul>
+                  </dd>
+                  <dt>DX11 API</dt><dd class="none">없음</dd>
+                  <dt>Resource</dt><dd>Camera의 위치 · forward (CPU), BoundingBox 목록 (임시 vector)</dd>
+                  <dt>Pipeline State</dt><dd class="none">변화 없음</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s06" data-kind="cpu">
+              <button type="button" class="tl-num" aria-label="06단계 상태 보기">06</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">CPU 전용</span><h3>상호작용과 점등 시퀀스</h3><span class="ref">AppBase.cpp:542-561</span></div>
+                <p class="tl-summary"><strong>Play 모드에서만</strong> 실행된다. 스위치를 바라보는지 판정하고, E 키로 전원을 바꾸고, 시퀀스가 조명을 한 단계씩 켠다. 모두 CPU 쪽 값만 바뀐다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>Ray–BoundingBox 교차로 강조 여부를 정해 Material의 Rim 세기를 바꾼다. E 키가 눌렸으면 전원을 반전하고 시퀀스 목표를 정한다. 커서를 중앙으로 되돌린 뒤, 시퀀스가 1.4초마다(<span class="ref">PointLightSequence.h:27</span>) PointLightComponent와 Material의 emissive 배율을 하나씩 바꾼다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd class="none">없음 — 이 값들은 09(Light CB)와 11(Material CB)에서 GPU로 간다</dd>
+                  <dt>Function</dt><dd>
+                    <code>AppBase::Update</code>가 차례로 부른다
+                    <ul>
+                      <li><code>PowerSwitch::CanInteract</code> <span class="ref">AppBase.cpp:542</span> → <code>SetHighlighted</code> <span class="ref">:544</span>(값이 바뀌면 <code>ApplyVisualState</code>, <span class="ref">PowerSwitch.cpp:120-127</span>)</li>
+                      <li>E가 눌렸고 바라보는 중이면 <code>Toggle</code> <span class="ref">AppBase.cpp:551</span>(안에서 <code>ApplyVisualState</code>) → 성공하면 <code>PointLightSequence::Start</code> <span class="ref">AppBase.cpp:554</span></li>
+                      <li><code>CenterCursorInSceneView</code> <span class="ref">AppBase.cpp:559</span> → <code>PointLightSequence::Update</code> <span class="ref">AppBase.cpp:561</span></li>
+                    </ul>
+                  </dd>
+                  <dt>DX11 API</dt><dd class="none">없음</dd>
+                  <dt>Resource</dt><dd>Material의 Rim · baseColor · emissive 배율 (AssetManager 소유), <code>PointLightComponent</code>의 <code>m_isEnabled</code> (<code>SetEnabled</code>로 변경, GameObject 값 멤버)</dd>
+                  <dt>Pipeline State</dt><dd class="none">변화 없음</dd>
+                  <dt>Shader</dt><dd>간접 — 여기서 바꾼 값이 <code>simplePixelShader.hlsl</code>의 emissive · rim 항 <span class="ref">:51-54</span>과 <code>Lighting.hlsli</code>의 <code>isEnabled</code> 검사 <span class="ref">:86</span>로 이어진다</dd>
+                </dl>
+              </article>
+            </li>
+
+            <!-- ============ C ============ -->
+            <li class="tl-phase" id="phase-c">
+              <span class="tl-phase__mark">C</span>
+              <h3>프레임 준비 — Render 시작</h3>
+              <p>프레임 단위 데이터를 모으고, 출력 대상을 비우고 걸고, 프레임 상수를 GPU에 올린다.</p>
+            </li>
+
+            <li class="tl-step" id="s07" data-kind="cpu">
+              <button type="button" class="tl-num" aria-label="07단계 상태 보기">07</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">CPU 전용</span><h3>FrameRenderData 스냅샷</h3><span class="ref">AppBase.cpp:566-574</span></div>
+                <p class="tl-summary">이번 프레임에 GPU로 갈 프레임 단위 데이터를 값으로 복사해 모은다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>view · projection 행렬을 계산하고, Scene에서 Point Light를 최대 8개 모으고, 조명과 후처리 설정을 복사한다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd class="none">없음</dd>
+                  <dt>Function</dt><dd><code>AppBase::Render</code> <span class="ref">AppBase.cpp:564</span> → <code>Camera::GetViewMatrix</code> <span class="ref">Camera.cpp:44</span> (<code>XMMatrixLookToLH</code> <span class="ref">:46</span>), <code>GetProjectionMatrix</code> <span class="ref">:49</span> (<code>XMMatrixPerspectiveFovLH</code> <span class="ref">:55</span>), <code>Scene::GatherPointLights</code> <span class="ref">Scene.cpp:20</span></dd>
+                  <dt>DX11 API</dt><dd class="none">없음</dd>
+                  <dt>Resource</dt><dd><code>FrameRenderData</code> — <code>Render()</code>의 지역 변수</dd>
+                  <dt>Pipeline State</dt><dd class="none">변화 없음</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s08" data-kind="clear">
+              <button type="button" class="tl-num" aria-label="08단계 상태 보기">08</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">Clear · 출력 설정</span><h3>렌더 타깃 Clear와 OM 바인딩</h3><span class="ref">Renderer.cpp:307-327</span></div>
+                <p class="tl-summary">HDR 씬 타깃과 깊이 버퍼를 비우고, 씬 패스의 출력으로 건다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>GRM에서 HDR RTV를 핸들로 조회하고, 배경색을 sRGB → 선형으로 바꾼다 <span class="ref">:317-320</span></dd>
+                  <dt class="f-gpu">GPU</dt><dd>HDR 타깃을 배경색으로, 깊이를 1.0으로 채운다</dd>
+                  <dt>Function</dt><dd><code>Render</code> <span class="ref">AppBase.cpp:576</span> → <code>Renderer::BeginFrame</code> <span class="ref">Renderer.cpp:293</span> → <code>GRM::GetRTV</code>, <code>GraphicsDevice::GetDSV</code></dd>
+                  <dt>DX11 API</dt><dd><code>ClearRenderTargetView</code> <span class="ref">:322</span> · <code>ClearDepthStencilView</code> <span class="ref">:323</span> · <code>OMSetRenderTargets(1, HDR, DSV)</code> <span class="ref">:326</span> · <code>OMSetDepthStencilState</code> <span class="ref">:327</span></dd>
+                  <dt>Resource</dt><dd>HDR 씬 타깃 <code>R16G16B16A16_FLOAT</code> (GRM 소유, Renderer는 핸들) · 깊이 <code>D24_UNORM_S8_UINT</code> (GraphicsDevice 소유)</dd>
+                  <dt>Pipeline State</dt><dd>OM RTV = HDR, DSV = 깊이, DepthStencil = DepthEnable · LESS · Write ALL <span class="ref">D3D11Utils.cpp:100-102</span></dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s09" data-kind="upload">
+              <button type="button" class="tl-num" aria-label="09단계 상태 보기">09</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">데이터 업로드</span><h3>프레임 상수 업로드</h3><span class="ref">Renderer.cpp:330-388</span></div>
+                <p class="tl-summary">카메라 · 조명 · 후처리 상수를 GPU 버퍼에 쓰고, Light 버퍼를 PS b0에 건다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>행렬을 전치하고(<span class="ref">:331, :333</span>), 빛 방향을 정규화하고(<span class="ref">:344</span>), 색을 선형으로 바꾸고(<span class="ref">:345, :357</span>), bool을 uint로 바꿔(<span class="ref">:359</span>) CPU 쪽 구조체를 채운 뒤 버퍼마다 <code>memcpy</code>한다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd><code>Map(WRITE_DISCARD)</code>로 받은 새 메모리에 내용이 들어간다. 뒤의 Draw들이 이 내용을 읽는다.</dd>
+                  <dt>Function</dt><dd><code>BeginFrame</code> → <code>GRM::UpdateBuffer&lt;T&gt;</code> <span class="ref">GraphicsResourceManager.h:57</span> → <code>UpdateBufferInternal</code> <span class="ref">.cpp:241</span> → <code>D3D11Utils::UpdateBuffer</code> <span class="ref">D3D11Utils.cpp:294</span> ×3</dd>
+                  <dt>DX11 API</dt><dd><code>Map(WRITE_DISCARD)</code> <span class="ref">D3D11Utils.cpp:304</span> / <code>Unmap</code> <span class="ref">:314</span> ×3 · <code>PSSetConstantBuffers(0, 1, Light)</code> <span class="ref">Renderer.cpp:388</span></dd>
+                  <dt>Resource</dt><dd>Camera CB 144B · Light CB 432B · PostProcess CB 32B — 모두 <code>USAGE_DYNAMIC</code>, GRM 소유</dd>
+                  <dt>Pipeline State</dt><dd>PS b0 = Light CB. 직전 프레임 후처리가 PostProcess CB로 덮어써 두었기 때문에 매 프레임 다시 건다.</dd>
+                  <dt>Shader</dt><dd><code>Common.hlsli:23</code> CameraConstantBuffer(b1) · <code>Lighting.hlsli:35</code> LightConstantBuffer(b0) · <code>PostProcess.hlsli:1</code>(b0)</dd>
+                </dl>
+              </article>
+            </li>
+
+            <!-- ============ D ============ -->
+            <li class="tl-phase" id="phase-d">
+              <span class="tl-phase__mark">D</span>
+              <h3>씬 패스 — 오브젝트마다 ×8</h3>
+              <p>10~15를 그릴 오브젝트 수만큼 반복한다. 매번 같은 상수 버퍼에 새 값을 쓰고, 상태를 다시 걸고, DrawIndexed를 부른다.</p>
+            </li>
+
+            <li class="tl-step" id="s10" data-kind="cpu">
+              <button type="button" class="tl-num" aria-label="10단계 상태 보기">10</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">CPU 전용</span><h3>RenderItem 만들기</h3><span class="tl-repeat">×8</span><span class="ref">AppBase.cpp:585-631</span></div>
+                <p class="tl-summary">GameObject 하나를 Renderer가 아는 <code>RenderItem</code>으로 번역한다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>Transform으로 월드 행렬을 만들고, MeshComponent의 Mesh · Material로 RenderItem을 채운다. 메시나 재질이 없는 오브젝트(조명 전용 4개, <code>startWall</code>)는 건너뛴다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd class="none">없음</dd>
+                  <dt>Function</dt><dd><code>AppBase::Render</code>가 <code>Transform::GetWorldMatrix</code> <span class="ref">Transform.cpp:7</span>를 부르고(<span class="ref">AppBase.cpp:588</span>), <code>RenderItem{ mesh, material, world }</code>를 만든다 <span class="ref">AppBase.cpp:622</span>. Model 분기 <span class="ref">AppBase.cpp:603</span>은 현재 미사용</dd>
+                  <dt>DX11 API</dt><dd class="none">없음</dd>
+                  <dt>Resource</dt><dd><code>RenderItem</code> 지역 변수. Mesh · Material은 비소유 포인터이고 AssetManager가 소유한다.</dd>
+                  <dt>Pipeline State</dt><dd class="none">변화 없음</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s11" data-kind="upload">
+              <button type="button" class="tl-num" aria-label="11단계 상태 보기">11</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">데이터 업로드</span><h3>오브젝트 · 재질 상수 업로드</h3><span class="tl-repeat">×8</span><span class="ref">Renderer.cpp:596-620</span></div>
+                <p class="tl-summary">이 오브젝트의 월드 행렬과 재질 값을 같은 두 버퍼에 다시 쓴다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>world를 전치하고(<span class="ref">:597</span>) <code>invTranspose</code>를 계산하고(<span class="ref">:599-601</span>), 재질 색을 선형으로 바꾼다(<span class="ref">:609-612</span>). emissive는 시퀀스 배율이 곱해진 값이다(<code>GetEffectiveEmissiveIntensity</code> <span class="ref">Material.h:52</span>).</dd>
+                  <dt class="f-gpu">GPU</dt><dd>Object CB와 Material CB에 새 내용. 같은 버퍼를 오브젝트마다 덮어쓰지만 <code>WRITE_DISCARD</code>라 드라이버가 새 메모리를 내주고, 앞 Draw가 읽을 옛 내용은 보존된다.</dd>
+                  <dt>Function</dt><dd><code>AppBase::Render</code> <span class="ref">AppBase.cpp:624</span> → <code>Renderer::DrawRenderItem</code> <span class="ref">Renderer.cpp:563</span> → <code>GRM::UpdateBuffer</code> ×2 → <code>D3D11Utils::UpdateBuffer</code></dd>
+                  <dt>DX11 API</dt><dd><code>Map(WRITE_DISCARD)</code> / <code>Unmap</code> ×2</dd>
+                  <dt>Resource</dt><dd>Object CB 128B · Material CB 64B (GRM 소유)</dd>
+                  <dt>Pipeline State</dt><dd>바인딩 변화 없음 — 버퍼 <strong>내용</strong>만 바뀐다</dd>
+                  <dt>Shader</dt><dd><code>simpleVertexShader.hlsl:3</code> objectConstantBuffer(b0) · <code>simplePixelShader.hlsl:7</code> MaterialConstantBuffer(b2)</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s12" data-kind="state">
+              <button type="button" class="tl-num" aria-label="12단계 상태 보기">12</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">상태 설정</span><h3>IA 바인딩</h3><span class="tl-repeat">×8</span><span class="ref">Renderer.cpp:662-665</span></div>
+                <p class="tl-summary">정점을 어디서 어떤 형식으로 읽을지 정한다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>Mesh에서 VB/IB 핸들과 stride를 꺼내 GRM에서 <code>ID3D11Buffer*</code>로 바꾼다 <span class="ref">:622-633</span></dd>
+                  <dt class="f-gpu">GPU</dt><dd>IA 상태 설정 명령 기록</dd>
+                  <dt>Function</dt><dd><code>DrawRenderItem</code>이 <code>Mesh::GetVertexBufferHandle</code> / <code>GetIndexBufferHandle</code> <span class="ref">Mesh.h:19-20</span>로 핸들을 얻고, <code>GRM::GetBuffer</code> <span class="ref">GraphicsResourceManager.cpp:26</span>로 버퍼 포인터를 얻는다</dd>
+                  <dt>DX11 API</dt><dd><code>IASetInputLayout</code> <span class="ref">:662</span> · <code>IASetVertexBuffers(0, 1, VB, stride 44, 0)</code> <span class="ref">:663</span> · <code>IASetIndexBuffer(IB, R32_UINT)</code> <span class="ref">:664</span> · <code>IASetPrimitiveTopology(TRIANGLELIST)</code> <span class="ref">:665</span></dd>
+                  <dt>Resource</dt><dd>greybox VB · IB (<code>USAGE_IMMUTABLE</code>, GRM 소유, 핸들은 Mesh) · InputLayout (Renderer 소유, <span class="ref">Renderer.cpp:150-157</span>에서 생성)</dd>
+                  <dt>Pipeline State</dt><dd>IA = 씬 InputLayout · greybox VB / IB · TRIANGLELIST</dd>
+                  <dt>Shader</dt><dd><code>VS_INPUT</code> <span class="ref">Common.hlsli:6</span> — InputLayout의 POSITION / COLOR / NORMAL / TEXCOORD 시맨틱과 짝</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s13" data-kind="state">
+              <button type="button" class="tl-num" aria-label="13단계 상태 보기">13</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">상태 설정</span><h3>VS 바인딩</h3><span class="tl-repeat">×8</span><span class="ref">Renderer.cpp:667-668</span></div>
+                <p class="tl-summary">정점 셰이더와 그 셰이더가 읽을 상수 버퍼 두 개를 건다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>Object · Camera 버퍼를 배열로 묶는다 <span class="ref">:640-643</span></dd>
+                  <dt class="f-gpu">GPU</dt><dd>VS 상태 설정 명령 기록</dd>
+                  <dt>Function</dt><dd><code>DrawRenderItem</code></dd>
+                  <dt>DX11 API</dt><dd><code>VSSetShader</code> <span class="ref">:667</span> · <code>VSSetConstantBuffers(0, 2, {Object, Camera})</code> <span class="ref">:668</span></dd>
+                  <dt>Resource</dt><dd><code>simpleVertexShader</code> (Renderer 소유) · Object CB · Camera CB</dd>
+                  <dt>Pipeline State</dt><dd>VS = simpleVertexShader, b0 = Object CB, b1 = Camera CB</dd>
+                  <dt>Shader</dt><dd><code>simpleVertexShader.hlsl</code> main <span class="ref">:9</span> — <code>mul(pos, model)</code> <span class="ref">:14</span> → view <span class="ref">:18</span> → projection <span class="ref">:19</span>, 법선 × invTranspose <span class="ref">:25</span></dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s14" data-kind="state">
+              <button type="button" class="tl-num" aria-label="14단계 상태 보기">14</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">상태 설정</span><h3>PS 바인딩</h3><span class="tl-repeat">×8</span><span class="ref">Renderer.cpp:669-673</span></div>
+                <p class="tl-summary">픽셀 셰이더, 재질 텍스처, 상수 버퍼, 샘플러를 건다. b0(Light)는 09에서 이미 걸려 있다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>Material → Texture → TextureHandle → <code>GRM::GetSRV</code>로 SRV를 얻는다 <span class="ref">:587, :647-653</span>. 텍스처가 없으면 <code>false</code>를 반환해 앱이 종료된다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd>PS 상태 설정 명령 기록</dd>
+                  <dt>Function</dt><dd><code>DrawRenderItem</code>이 차례로 <code>Material::GetAlbedoTexture</code> <span class="ref">Renderer.cpp:587</span> · <code>Texture::GetTextureHandle</code> <span class="ref">:647</span> · <code>GRM::GetSRV</code> <span class="ref">:653</span>를 부른다</dd>
+                  <dt>DX11 API</dt><dd><code>PSSetShader</code> <span class="ref">:669</span> · <code>PSSetShaderResources(0, 1, albedo)</code> <span class="ref">:671</span> · <code>PSSetConstantBuffers(1, 2, {Camera, Material})</code> <span class="ref">:672</span> · <code>PSSetSamplers(0, 1, WRAP)</code> <span class="ref">:673</span></dd>
+                  <dt>Resource</dt><dd>Albedo Texture2D <code>R8G8B8A8_UNORM_SRGB</code> + 밉 체인 (GRM 소유, 핸들은 Texture) · WRAP 샘플러 (Renderer 소유)</dd>
+                  <dt>Pipeline State</dt><dd>PS = simplePixelShader, t0 = Albedo SRV, b1 = Camera, b2 = Material, s0 = WRAP (b0 = Light 유지)</dd>
+                  <dt>Shader</dt><dd><code>simplePixelShader.hlsl</code> <span class="ref">:4-5</span>(t0, s0), <span class="ref">:7</span>(b2)</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s15" data-kind="draw">
+              <button type="button" class="tl-num" aria-label="15단계 상태 보기">15</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">Draw</span><h3>DrawIndexed</h3><span class="tl-repeat">×8</span><span class="ref">Renderer.cpp:675</span></div>
+                <p class="tl-summary">지금까지 준비한 상태로 오브젝트 하나를 그린다. 10~15를 오브젝트 수만큼 반복한다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>명령 하나를 기록하고 바로 반환한다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd>IA가 인덱스로 정점을 모은다 → VS가 클립 좌표 · 월드 위치 · 법선을 만든다 → RS가 CULL_NONE으로 삼각형을 픽셀로 나눈다 → PS가 조명을 계산한다 → OM이 깊이 LESS 검사 후 HDR 타깃과 깊이 버퍼에 쓴다. 1을 넘는 값도 그대로 기록된다.</dd>
+                  <dt>Function</dt><dd><code>DrawRenderItem</code> <span class="ref">:675</span></dd>
+                  <dt>DX11 API</dt><dd><code>DrawIndexed(indexCount, 0, 0)</code></dd>
+                  <dt>Resource</dt><dd>읽기 — VB, IB, Object / Camera / Light / Material CB, Albedo · 쓰기 — HDR 씬 타깃, 깊이 버퍼</dd>
+                  <dt>Pipeline State</dt><dd>바꾸지 않고 소비한다. <a class="tl-jump" href="#snapshot">↓ DrawIndexed 직전 상태 전체 보기</a></dd>
+                  <dt>Shader</dt><dd><code>simpleVertexShader</code> main → <code>simplePixelShader</code> main <span class="ref">simplePixelShader.hlsl:20</span> → <code>GetDirectionalLight</code> <span class="ref">Lighting.hlsli:64</span>, <code>GetPointLight</code> <span class="ref">:78</span> × pointLightCount, <code>ComputeDirectLighting</code> <span class="ref">:119</span> → <code>SpecularBlinnPhong</code> <span class="ref">:109</span></dd>
+                </dl>
+              </article>
+            </li>
+
+            <!-- ============ E ============ -->
+            <li class="tl-phase" id="phase-e">
+              <span class="tl-phase__mark">E</span>
+              <h3>후처리 — EndScene</h3>
+              <p>HDR 씬 타깃이 출력에서 입력으로 바뀐다. 모든 패스는 <code>DrawFullScreenPass</code>를 거친다.</p>
+            </li>
+
+            <li class="tl-step" id="s16" data-kind="state">
+              <button type="button" class="tl-num" aria-label="16단계 상태 보기">16</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">상태 설정</span><h3>Bloom 뷰포트</h3><span class="ref">Renderer.cpp:488-506</span></div>
+                <p class="tl-summary">이번 프레임에 쓸 RTV / SRV를 핸들로 다시 조회하고, 뷰포트를 Bloom 크기로 줄인다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>렌더 타깃 4개의 RTV · SRV 7개를 핸들로 조회하고, 백버퍼 RTV는 <code>GraphicsDevice::GetRTV</code>에서 받는다 <span class="ref">Renderer.cpp:488-496</span>. Resize 뒤 무효가 될 수 있어 멤버에 저장하지 않는다. 뷰포트는 지역 <code>D3D11_VIEWPORT</code>로 만든다 <span class="ref">:499-504</span> — <code>SetViewPort</code>를 쓰면 <code>m_screenViewport</code>가 덮인다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd>뷰포트 설정 명령 기록</dd>
+                  <dt>Function</dt><dd><code>Render</code> <span class="ref">AppBase.cpp:633</span> → <code>Renderer::EndScene</code> <span class="ref">Renderer.cpp:420</span> → <code>GRM::GetRTV</code> / <code>GetSRV</code></dd>
+                  <dt>DX11 API</dt><dd><code>RSSetViewports(bloom)</code> <span class="ref">:506</span></dd>
+                  <dt>Resource</dt><dd>Bright · BlurX · BlurY 타깃 (화면 절반, <code>R16G16B16A16_FLOAT</code>, GRM 소유)</dd>
+                  <dt>Pipeline State</dt><dd>RS 뷰포트 = Bloom 크기 (W/2 × H/2)</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s17" data-kind="draw">
+              <button type="button" class="tl-num" aria-label="17단계 상태 보기">17</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">Draw</span><h3>Bright 패스</h3><span class="ref">Renderer.cpp:508</span></div>
+                <p class="tl-summary">HDR 씬에서 밝은 부분만 Bright 타깃에 뽑는다. 출력이 Bright로 바뀌는 순간 HDR 타깃은 RTV에서 풀리고, 입력(SRV)으로 걸린다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd><code>DrawFullScreenPass</code>가 출력 교체 → 셰이더 → 입력 → 상태 → Draw → 입력 해제 순서로 호출한다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd>큰 삼각형 하나로 Bright 전체를 덮는다. 픽셀마다 HDR을 읽어 exposure를 곱하고, 휘도가 threshold 미만이면 0을 쓴다.</dd>
+                  <dt>Function</dt><dd><code>EndScene</code> → <code>DrawFullScreenPass</code> <span class="ref">Renderer.cpp:393</span></dd>
+                  <dt>DX11 API</dt><dd><code>OMSetRenderTargets(Bright, nullptr)</code> <span class="ref">:403</span> · <code>PSSetShader</code> <span class="ref">:404</span> · <code>PSSetShaderResources(0, 2, {HDR, null})</code> <span class="ref">:405</span> · <code>PSSetSamplers(WRAP)</code> <span class="ref">:406</span> · <code>IASetInputLayout(nullptr)</code> <span class="ref">:408</span> · <code>IASetPrimitiveTopology</code> <span class="ref">:409</span> · <code>VSSetShader(fullscreen)</code> <span class="ref">:410</span> · <code>PSSetConstantBuffers(0, PostProcess)</code> <span class="ref">:411</span> · <code>Draw(3, 0)</code> <span class="ref">:414</span> · <code>PSSetShaderResources(0, 2, null)</code> <span class="ref">:417</span></dd>
+                  <dt>Resource</dt><dd>읽기 HDR (SRV) · 쓰기 Bright (RTV) · PostProcess CB</dd>
+                  <dt>Pipeline State</dt><dd>OM RTV = Bright, DSV = 없음 · VS = fullscreen, InputLayout = null · PS = brightPass, b0 = PostProcess (<strong>Light를 덮어씀</strong>) · s0 = WRAP · t0 / t1은 Draw 뒤 해제</dd>
+                  <dt>Shader</dt><dd><code>fullscreenVertexShader.hlsl</code> main <span class="ref">:10</span> (<code>SV_VertexID</code>) · <code>brightPassPixelShader.hlsl</code> main <span class="ref">:12</span> (exposure <span class="ref">:16</span>, 휘도 <span class="ref">:18</span>)</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s18" data-kind="draw">
+              <button type="button" class="tl-num" aria-label="18단계 상태 보기">18</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">Draw</span><h3>블러 반복</h3><span class="tl-repeat">×5</span><span class="ref">Renderer.cpp:509-514</span></div>
+                <p class="tl-summary">BlurX → BlurY를 반복 횟수(기본 5)만큼 돌려 밝은 부분을 번지게 한다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>첫 회차만 Bright에서 읽고, 이후는 직전 BlurY에서 읽도록 입력을 고른다 <span class="ref">:511</span></dd>
+                  <dt class="f-gpu">GPU</dt><dd>5탭 가우시안을 가로(dx) / 세로(dy)로 번갈아 적용한다</dd>
+                  <dt>Function</dt><dd><code>EndScene</code> → <code>DrawFullScreenPass</code> ×10</dd>
+                  <dt>DX11 API</dt><dd>17과 같은 호출 묶음 ×10. 샘플러는 CLAMP</dd>
+                  <dt>Resource</dt><dd>BlurX ⇄ BlurY가 번갈아 RTV / SRV · Bright (첫 회차 입력)</dd>
+                  <dt>Pipeline State</dt><dd>OM RTV = BlurY (마지막 회차), PS = blurY, s0 = CLAMP</dd>
+                  <dt>Shader</dt><dd><code>blurXPixelShader.hlsl</code> main <span class="ref">:13</span> · <code>blurYPixelShader.hlsl</code> — 가중치 5개, <code>PostProcess.hlsli</code>의 dx · dy</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s19" data-kind="state">
+              <button type="button" class="tl-num" aria-label="19단계 상태 보기">19</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">상태 설정</span><h3>화면 뷰포트 복원</h3><span class="ref">Renderer.cpp:517</span></div>
+                <p class="tl-summary">백버퍼에 그리기 전에 뷰포트를 화면 크기로 되돌린다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>04에서 저장한 <code>m_screenViewport</code>를 그대로 쓴다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd>뷰포트 설정 명령 기록</dd>
+                  <dt>Function</dt><dd><code>EndScene</code></dd>
+                  <dt>DX11 API</dt><dd><code>RSSetViewports(m_screenViewport)</code> <span class="ref">:517</span></dd>
+                  <dt>Resource</dt><dd class="none">—</dd>
+                  <dt>Pipeline State</dt><dd>RS 뷰포트 = 화면 전체</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s20" data-kind="draw">
+              <button type="button" class="tl-num" aria-label="20단계 상태 보기">20</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">Draw</span><h3>톤 매핑</h3><span class="ref">Renderer.cpp:520-541</span></div>
+                <p class="tl-summary">HDR 씬과 Bloom을 합쳐 톤 매핑 · 감마 인코드한 뒤 백버퍼에 쓴다. 디버그 뷰면 중간 타깃을 그대로 복사한다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>디버그 뷰에 따라 PS와 입력을 고른다 <span class="ref">:520-538</span></dd>
+                  <dt class="f-gpu">GPU</dt><dd>픽셀마다 <code>hdr × exposure + bloom × bloomStrength</code> → Reinhard / ACES → <code>pow(1/2.2)</code></dd>
+                  <dt>Function</dt><dd><code>EndScene</code> <span class="ref">:541</span> → <code>DrawFullScreenPass(backRTV, toneMapping, HDR, WRAP, BlurY)</code></dd>
+                  <dt>DX11 API</dt><dd>17과 같은 호출 묶음, 입력 2장</dd>
+                  <dt>Resource</dt><dd>읽기 HDR (t0) · BlurY (t1) · 쓰기 백버퍼 <code>R8G8B8A8_UNORM</code> (GraphicsDevice 소유)</dd>
+                  <dt>Pipeline State</dt><dd>OM RTV = 백버퍼, DSV = 없음 · PS = toneMapping · s0 = WRAP · t0 / t1은 Draw 뒤 해제</dd>
+                  <dt>Shader</dt><dd><code>toneMappingPixelShader.hlsl</code> main <span class="ref">:24</span> (합성 <span class="ref">:29</span>, Reinhard <span class="ref">:14</span> / ACES <span class="ref">:19</span>, 감마 <span class="ref">:43</span>) · Final이 아니면 <code>copyPixelShader</code></dd>
+                </dl>
+              </article>
+            </li>
+
+            <!-- ============ F ============ -->
+            <li class="tl-phase" id="phase-f">
+              <span class="tl-phase__mark">F</span>
+              <h3>UI와 Present</h3>
+              <p>백버퍼 위에 UI를 얹고, 화면으로 보내고, 단발 입력을 정리한다.</p>
+            </li>
+
+            <li class="tl-step" id="s21" data-kind="draw">
+              <button type="button" class="tl-num" aria-label="21단계 상태 보기">21</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">Draw</span><h3>ImGui 드로우</h3><span class="ref">AppBase.cpp:640</span></div>
+                <p class="tl-summary">03에서 기록한 UI를 백버퍼 위에 그린다. 상태를 백업했다가 그대로 복원한다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd>ImGui 정점 · 인덱스를 동적 버퍼에 쓰고, 바꿀 파이프라인 상태를 백업한다 <span class="ref">imgui_impl_dx11.cpp:256-274</span></dd>
+                  <dt class="f-gpu">GPU</dt><dd>UI 삼각형을 알파 블렌딩으로 그린다. 명령마다 Scissor로 자른다.</dd>
+                  <dt>Function</dt><dd><code>Render</code> → <code>ImGui_ImplDX11_RenderDrawData</code> <span class="ref">imgui_impl_dx11.cpp:170</span> → <code>SetupRenderState</code> <span class="ref">:107</span></dd>
+                  <dt>DX11 API</dt><dd>텍스처 갱신이 필요하면 <code>ImGui_ImplDX11_UpdateTexture</code>(첫 프레임의 폰트 텍스처 생성 포함, <span class="ref">imgui_impl_dx11.cpp:184, 365</span>) · <code>Map/Unmap</code>(ImGui VB · IB · VS CB) · <code>RSSetViewports</code> · <code>OMSetBlendState</code> · <code>OMSetDepthStencilState</code> · <code>RSSetState</code> · IA / VS / PS 설정 · <code>RSSetScissorRects</code> · <code>DrawIndexed</code>(명령마다, <span class="ref">imgui_impl_dx11.cpp:321</span>) · 복원 <span class="ref">imgui_impl_dx11.cpp:330-346</span></dd>
+                  <dt>Resource</dt><dd>ImGui 폰트 텍스처, 동적 VB / IB (ImGui 백엔드 소유) · 백버퍼</dd>
+                  <dt>Pipeline State</dt><dd><code>OMSetRenderTargets</code>를 부르지 않는다 → 20이 걸어 둔 백버퍼에 그려진다. 끝나면 백업한 값으로 복원하므로 순변화가 없다.</dd>
+                  <dt>Shader</dt><dd>ImGui 백엔드 소스 안에 문자열로 들어 있는 내장 VS / PS</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s22" data-kind="present">
+              <button type="button" class="tl-num" aria-label="22단계 상태 보기">22</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">Present</span><h3>Present</h3><span class="ref">GraphicsDevice.cpp:73</span></div>
+                <p class="tl-summary">백버퍼를 화면에 보낸다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd><code>IDXGISwapChain::Present</code>를 호출한다. 실패하면 false가 올라가고 <code>AppBase::Render</code>가 앱을 종료한다 <span class="ref">GraphicsDevice.cpp:73-77, AppBase.cpp:642-645</span>.</dd>
+                  <dt class="f-gpu">GPU</dt><dd>쌓인 명령을 실행한 뒤 다음 수직 동기(VSync)에 맞춰 백버퍼를 화면으로 넘긴다 (<code>FLIP_DISCARD</code>, 버퍼 2개)</dd>
+                  <dt>Function</dt><dd><code>Render</code> <span class="ref">AppBase.cpp:642</span> → <code>Renderer::EndFrame</code> <span class="ref">Renderer.cpp:546</span> → <code>GraphicsDevice::Present</code> <span class="ref">GraphicsDevice.cpp:65</span></dd>
+                  <dt>DX11 API</dt><dd><code>IDXGISwapChain::Present(1, 0)</code> — SyncInterval 1 = VSync</dd>
+                  <dt>Resource</dt><dd>스왑체인 백버퍼 (GraphicsDevice 소유)</dd>
+                  <dt>Pipeline State</dt><dd class="none">변화 없음 — 다음 프레임은 이 상태에서 시작하고, 08이 OM을 다시 건다</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+            <li class="tl-step" id="s23" data-kind="cpu">
+              <button type="button" class="tl-num" aria-label="23단계 상태 보기">23</button>
+              <article class="tl-card">
+                <div class="tl-card__head"><span class="tl-kind">CPU 전용</span><h3>단발 입력 정리</h3><span class="ref">AppBase.cpp:746</span></div>
+                <p class="tl-summary">이번 프레임에만 참이던 "눌림" 상태를 지운다.</p>
+                <dl class="tl-fields">
+                  <dt>CPU</dt><dd><code>m_keyPressed</code>를 전부 false로 만든다.</dd>
+                  <dt class="f-gpu">GPU</dt><dd class="none">없음</dd>
+                  <dt>Function</dt><dd><code>Run</code> → <code>InputSystem::EndFrame</code> <span class="ref">InputSystem.cpp:100</span></dd>
+                  <dt>DX11 API</dt><dd class="none">없음</dd>
+                  <dt>Resource</dt><dd><code>m_keyPressed</code></dd>
+                  <dt>Pipeline State</dt><dd class="none">변화 없음</dd>
+                  <dt>Shader</dt><dd class="none">—</dd>
+                </dl>
+              </article>
+            </li>
+
+          </ol>
+
+          <aside class="tl-state" id="tl-state" aria-live="polite" aria-label="현재 파이프라인 상태"></aside>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="snapshot">
+        <h2>DrawIndexed 직전 상태</h2>
+        <div class="predict"><p>15단계의 <code>DrawIndexed</code>가 실행되는 순간 PS b0에는 무엇이 걸려 있고, 그것은 <code>DrawRenderItem</code> 안에서 건 것인가?</p></div>
+        <p>
+          <code>DrawIndexed</code> 한 줄이 쓰는 상태는 <code>DrawRenderItem</code> 한 함수에서만 준비되지 않는다.
+          일부는 <strong>초기화 때 한 번</strong>, 일부는 <strong>프레임마다</strong>, 나머지는 <strong>Draw마다</strong> 걸린다. 왼쪽 띠 색이 그 시점이다.
+        </p>
+
+        <ul class="freq-legend">
+          <li class="f-init"><i></i>Initialize에서 1회</li>
+          <li class="f-frame"><i></i>매 프레임 (04 · 08 · 09)</li>
+          <li class="f-draw"><i></i>매 Draw (11 ~ 14)</li>
+          <li class="f-default"><i></i>설정한 적 없음 (기본값)</li>
+        </ul>
+
+        <div class="stage-grid">
+          <div class="stage">
+            <h4>IA<small>정점 입력</small></h4>
+            <ul>
+              <li class="f-draw"><b>InputLayout</b>씬 레이아웃 (4 요소) <span class="ref">:662</span></li>
+              <li class="f-draw"><b>VB 0</b>greybox · stride 44 <span class="ref">:663</span></li>
+              <li class="f-draw"><b>IB</b>greybox · R32_UINT <span class="ref">:664</span></li>
+              <li class="f-draw"><b>Topology</b>TRIANGLELIST <span class="ref">:665</span></li>
+            </ul>
+          </div>
+          <div class="stage">
+            <h4>VS<small>정점 셰이더</small></h4>
+            <ul>
+              <li class="f-draw"><b>Shader</b>simpleVertexShader <span class="ref">:667</span></li>
+              <li class="f-draw"><b>b0</b>Object CB <span class="ref">:668</span></li>
+              <li class="f-draw"><b>b1</b>Camera CB <span class="ref">:668</span></li>
+            </ul>
+          </div>
+          <div class="stage">
+            <h4>RS<small>래스터라이저</small></h4>
+            <ul>
+              <li class="f-init"><b>State</b>CULL_NONE · SOLID · DepthClip <span class="ref">:776</span></li>
+              <li class="f-frame"><b>Viewport</b>화면 전체 <span class="ref">:730 ← Run:739</span></li>
+              <li class="f-default"><b>Scissor</b>사용 안 함 (ScissorEnable false)</li>
+            </ul>
+          </div>
+          <div class="stage">
+            <h4>PS<small>픽셀 셰이더</small></h4>
+            <ul>
+              <li class="f-draw"><b>Shader</b>simplePixelShader <span class="ref">:669</span></li>
+              <li class="f-frame"><b>b0</b>Light CB <span class="ref">:388</span></li>
+              <li class="f-draw"><b>b1</b>Camera CB <span class="ref">:672</span></li>
+              <li class="f-draw"><b>b2</b>Material CB <span class="ref">:672</span></li>
+              <li class="f-draw"><b>t0</b>Albedo SRV <span class="ref">:671</span></li>
+              <li class="f-draw"><b>s0</b>WRAP · LINEAR <span class="ref">:673</span></li>
+            </ul>
+          </div>
+          <div class="stage">
+            <h4>OM<small>출력 병합</small></h4>
+            <ul>
+              <li class="f-frame"><b>RTV</b>HDR 씬 타깃 <span class="ref">:326</span></li>
+              <li class="f-frame"><b>DSV</b>깊이 D24S8 <span class="ref">:326</span></li>
+              <li class="f-frame"><b>DepthStencil</b>LESS · write ALL <span class="ref">:327</span></li>
+              <li class="f-default"><b>Blend</b>기본값 — 블렌딩 없음</li>
+            </ul>
+          </div>
+        </div>
+        <p class="muted">줄 번호는 모두 <code>Renderer.cpp</code>. 단, <code>Run:739</code>는 <code>AppBase.cpp</code>다.</p>
+
+        <h3>바인딩 · 내용 · 객체 생성 시점</h3>
+        <p>슬롯에 "걸리는 시점"과 그 객체의 "내용이 채워지는 시점", "객체가 만들어지는 시점"은 서로 다르다.</p>
+        <div class="table-wrap">
+          <table class="snapshot-table">
+            <thead><tr><th>슬롯</th><th>걸린 객체</th><th>소유자</th><th>객체 생성</th><th>내용 준비</th><th>바인딩</th></tr></thead>
+            <tbody>
+              <tr><td>IA InputLayout</td><td>씬 InputLayout</td><td>Renderer</td><td>Initialize <span class="ref">Renderer.cpp:156</span></td><td>—</td><td><span class="freq f-draw">매 Draw</span> <span class="ref">:662</span></td></tr>
+              <tr><td>IA VB · IB</td><td>greybox VB · IB</td><td>GRM (핸들: Mesh)</td><td>씬 조립 <span class="ref">AppBase.cpp:304</span></td><td>생성 시 고정 (IMMUTABLE)</td><td><span class="freq f-draw">매 Draw</span> <span class="ref">Renderer.cpp:663-664</span></td></tr>
+              <tr><td>VS Shader</td><td>simpleVertexShader</td><td>Renderer</td><td>Initialize <span class="ref">:156</span></td><td>—</td><td><span class="freq f-draw">매 Draw</span> <span class="ref">:667</span></td></tr>
+              <tr><td>VS b0</td><td>Object CB</td><td>GRM (핸들: Renderer)</td><td>Initialize <span class="ref">:63</span></td><td><span class="freq f-draw">매 Draw</span> <span class="ref">:603</span></td><td><span class="freq f-draw">매 Draw</span> <span class="ref">:668</span></td></tr>
+              <tr><td>VS b1 · PS b1</td><td>Camera CB</td><td>GRM</td><td>Initialize <span class="ref">:42</span></td><td><span class="freq f-frame">매 프레임</span> <span class="ref">:336</span></td><td><span class="freq f-draw">매 Draw</span> <span class="ref">:668, :672</span></td></tr>
+              <tr><td>RS State</td><td>CULL_NONE</td><td>Renderer</td><td>Initialize <span class="ref">:769</span></td><td>—</td><td><span class="freq f-init">1회</span> <span class="ref">:776</span></td></tr>
+              <tr><td>RS Viewport</td><td>화면 전체</td><td>Renderer 멤버 값</td><td>—</td><td><span class="freq f-frame">매 프레임</span> <span class="ref">AppBase.cpp:739</span></td><td><span class="freq f-frame">매 프레임</span> <span class="ref">Renderer.cpp:730</span></td></tr>
+              <tr><td>PS Shader</td><td>simplePixelShader</td><td>Renderer</td><td>Initialize <span class="ref">:162</span></td><td>—</td><td><span class="freq f-draw">매 Draw</span> <span class="ref">:669</span></td></tr>
+              <tr><td>PS b0</td><td>Light CB</td><td>GRM</td><td>Initialize <span class="ref">:54</span></td><td><span class="freq f-frame">매 프레임</span> <span class="ref">:362</span></td><td><span class="freq f-frame">매 프레임</span> <span class="ref">:388</span></td></tr>
+              <tr><td>PS b2</td><td>Material CB</td><td>GRM</td><td>Initialize <span class="ref">:78</span></td><td><span class="freq f-draw">매 Draw</span> <span class="ref">:617</span></td><td><span class="freq f-draw">매 Draw</span> <span class="ref">:672</span></td></tr>
+              <tr><td>PS t0</td><td>Albedo SRV</td><td>GRM (핸들: Texture)</td><td>씬 조립 <span class="ref">AppBase.cpp:311-335</span></td><td>생성 시 고정 (밉은 <code>GenerateMips</code>)</td><td><span class="freq f-draw">매 Draw</span> <span class="ref">Renderer.cpp:671</span></td></tr>
+              <tr><td>PS s0</td><td>WRAP 샘플러</td><td>Renderer</td><td>Initialize <span class="ref">:213</span></td><td>—</td><td><span class="freq f-draw">매 Draw</span> <span class="ref">:673</span></td></tr>
+              <tr><td>OM RTV</td><td>HDR 씬 타깃</td><td>GRM (핸들: Renderer)</td><td>Initialize <span class="ref">:93</span> · Resize 때 재생성</td><td><span class="freq f-frame">매 프레임</span> Clear <span class="ref">:322</span></td><td><span class="freq f-frame">매 프레임</span> <span class="ref">:326</span></td></tr>
+              <tr><td>OM DSV</td><td>깊이 버퍼</td><td>GraphicsDevice</td><td>Initialize <span class="ref">GraphicsDevice.cpp:157</span></td><td><span class="freq f-frame">매 프레임</span> Clear <span class="ref">Renderer.cpp:323</span></td><td><span class="freq f-frame">매 프레임</span> <span class="ref">Renderer.cpp:326</span></td></tr>
+              <tr><td>OM DepthStencil</td><td>LESS · write</td><td>Renderer</td><td>Initialize <span class="ref">:33</span></td><td>—</td><td><span class="freq f-frame">매 프레임</span> <span class="ref">:327</span></td></tr>
+              <tr><td>OM Blend</td><td>기본값</td><td>—</td><td>—</td><td>—</td><td><span class="freq f-default">설정 안 함</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">위치를 따로 적지 않은 줄 번호는 <code>Renderer.cpp</code>다.</p>
+
+        <div class="trap">
+          <p>
+            PS b0만 바인딩 시점이 "매 프레임"인 이유: 후처리 패스(17~20)가 같은 슬롯에 PostProcess CB를 걸고 그대로 둔다.
+            <code>BeginFrame</code>의 <span class="ref">Renderer.cpp:388</span>을 지우면 씬 셰이더가 PostProcess 값을 빛 데이터로 읽는다.
+          </p>
+        </div>
+        <div class="trap">
+          <p>
+            RS State는 <code>Initialize</code>에서 한 번만 건다. ImGui가 매 프레임 자기 Rasterizer State를 걸지만 끝나면 원래 값으로 복원하기 때문에 유지된다
+            (<span class="ref">imgui_impl_dx11.cpp:260, 332</span>). ImGui가 복원하지 않는 슬롯이었다면 다음 프레임의 씬 Draw가 ImGui 상태로 그려졌을 것이다.
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="resources">
+        <h2>렌더 타깃의 한 프레임</h2>
+        <div class="predict"><p>Clear하지 않는 렌더 타깃은 어느 것이고, 그래도 괜찮은 이유는?</p></div>
+        <p>같은 텍스처를 RTV와 SRV로 동시에 걸 수 없으므로, 각 타깃은 "쓰는 단계"와 "읽는 단계"가 시간 순으로 나뉜다.</p>
+        <div class="table-wrap">
+          <table class="life-table">
+            <thead><tr><th>리소스</th><th>소유</th><th>크기 · 포맷</th><th>Clear</th><th>쓰기 (RTV)</th><th>읽기 (SRV)</th></tr></thead>
+            <tbody>
+              <tr><td>HDR 씬 타깃</td><td>GRM</td><td>화면 · R16G16B16A16_FLOAT</td><td><a class="step-ref" href="#s08">08</a></td><td><a class="step-ref" href="#s15">15</a> ×8</td><td><a class="step-ref" href="#s17">17</a>, <a class="step-ref" href="#s20">20</a></td></tr>
+              <tr><td>깊이 버퍼</td><td>GraphicsDevice</td><td>화면 · D24_UNORM_S8_UINT</td><td><a class="step-ref" href="#s08">08</a></td><td><a class="step-ref" href="#s15">15</a> (깊이 테스트 · 기록)</td><td>—</td></tr>
+              <tr><td>Bright</td><td>GRM</td><td>화면 ½ · R16G16B16A16_FLOAT</td><td>안 함</td><td><a class="step-ref" href="#s17">17</a></td><td><a class="step-ref" href="#s18">18</a> (첫 회차)</td></tr>
+              <tr><td>BlurX</td><td>GRM</td><td>화면 ½ · R16G16B16A16_FLOAT</td><td>안 함</td><td><a class="step-ref" href="#s18">18</a></td><td><a class="step-ref" href="#s18">18</a></td></tr>
+              <tr><td>BlurY</td><td>GRM</td><td>화면 ½ · R16G16B16A16_FLOAT</td><td>안 함</td><td><a class="step-ref" href="#s18">18</a></td><td><a class="step-ref" href="#s18">18</a> (2회차부터), <a class="step-ref" href="#s20">20</a></td></tr>
+              <tr><td>백버퍼</td><td>GraphicsDevice</td><td>화면 · R8G8B8A8_UNORM</td><td>안 함</td><td><a class="step-ref" href="#s20">20</a>, <a class="step-ref" href="#s21">21</a></td><td>— (<a class="step-ref" href="#s22">22</a> Present)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="trap">
+          <p>Clear하지 않는 타깃은 전체 화면 패스가 매번 전부 덮어쓰기 때문에 괜찮다. 대신 <strong>읽는 순서가 틀리면 지난 프레임 내용을 읽는다.</strong> 블러 첫 회차가 BlurY에서 읽으면 프레임 간 잔상이 생긴다.</p>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="counts">
+        <h2>현재 씬의 호출 횟수</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>항목</th><th>횟수</th><th>근거</th></tr></thead>
+            <tbody>
+              <tr><td><code>DrawRenderItem</code> / 씬 <code>DrawIndexed</code></td><td>8</td><td>바닥, 벽 3개, 스위치, 네온 글로우 3개. <code>startWall</code>과 조명 전용 오브젝트 4개는 건너뜀</td></tr>
+              <tr><td><code>Map / Unmap</code> (프로젝트 코드)</td><td>19</td><td>09에서 3 + 11에서 2 × 8</td></tr>
+              <tr><td>후처리 <code>Draw(3, 0)</code></td><td>12</td><td>Bright 1 + Blur 2 × 5 + Final 1. 반복 기본값 5 <span class="ref">PostProcessSettings.h:26</span></td></tr>
+              <tr><td>ImGui <code>DrawIndexed</code></td><td>가변</td><td>UI 명령 수만큼 <span class="ref">imgui_impl_dx11.cpp:321</span></td></tr>
+              <tr><td><code>pointLightCount</code></td><td>4</td><td>네온 3 + EnvironmentFillLight</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="outside">
+        <h2>프레임 바깥에서 일어나는 일</h2>
+        <div class="predict"><p>창 크기를 바꾸면 Renderer의 뷰포트는 어디서 갱신되는가?</p></div>
+        <ul>
+          <li>
+            <strong>WM_SIZE</strong> — <code>MsgProc</code> <span class="ref">AppBase.cpp:45-53</span> → <code>GraphicsDevice::Resize</code> <span class="ref">GraphicsDevice.cpp:25</span>
+            (<code>OMSetRenderTargets(0)</code> → RTV · DSV 해제 → <code>ResizeBuffers</code> → 재생성) → <code>Renderer::Resize</code> <span class="ref">Renderer.cpp:229</span>
+            (HDR · Bloom 타깃 4개를 같은 슬롯에서 재생성). 뷰포트는 여기서 바꾸지 않고, 다음 프레임 04단계가 맞춘다.
+          </li>
+          <li>
+            <strong>WM_KILLFOCUS</strong> — <code>InputSystem::ProcessMessage</code>가 입력 상태를 초기화하고 <span class="ref">InputSystem.cpp:58-60</span>,
+            Play 모드면 <code>ExitPlayMode</code> <span class="ref">AppBase.cpp:57-62</span>가 Editor 카메라로 되돌린다.
+          </li>
+        </ul>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="questions">
+        <h2>학습 질문</h2>
+        <div class="questions-toolbar">
+          <button type="button" class="btn" data-action="toggle-answers" data-target="questions">정답 모두 펼치기</button>
+        </div>
+
+        <div class="question-group">
+          <h3><span class="level">확인</span> 코드에서 바로 찾을 수 있는 것</h3>
+          <div class="question">
+            <p>15단계 <code>DrawIndexed</code> 직전 PS b0에 걸린 버퍼는 무엇이고, 어느 줄이 걸었는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>Light CB. <code>DrawRenderItem</code>이 아니라 <code>BeginFrame</code>의 <span class="ref">Renderer.cpp:388</span>이 프레임마다 한 번 건다. <code>DrawRenderItem</code>은 PS 슬롯 1부터 두 개만 건다(<span class="ref">:672</span>).</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>한 프레임에 프로젝트 코드가 호출하는 <code>DrawIndexed</code>와 <code>Draw</code>는 각각 몇 번인가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>8번과 12번. <code>DrawIndexed</code>는 <span class="ref">Renderer.cpp:675</span>, <code>Draw</code>는 <span class="ref">Renderer.cpp:414</span>. ImGui의 <code>DrawIndexed</code>는 별도다.</p>
+            </div></details>
+          </div>
+        </div>
+
+        <div class="question-group">
+          <h3><span class="level">추론</span> 코드를 따라가 결론을 내야 하는 것</h3>
+          <div class="question">
+            <p>ImGui는 <code>OMSetRenderTargets</code>를 부르지 않는다. 그런데 어떻게 백버퍼에 그려지는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>파이프라인은 상태 기계라서, 20단계 톤 매핑 패스가 건 백버퍼 RTV(<span class="ref">Renderer.cpp:541 → :403</span>)가 그대로 남아 있다. ImGui는 지금 걸린 출력에 그린다. 톤 매핑과 ImGui 사이에 다른 패스를 끼워 넣으면 UI가 엉뚱한 타깃에 그려질 수 있다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>Object CB 하나를 한 프레임에 8번 <code>Map(WRITE_DISCARD)</code>한다. 앞 Draw가 GPU에서 아직 실행되지 않았다면, 그 Draw는 어떤 world 행렬을 보게 되는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>자기 world 행렬을 본다. <code>WRITE_DISCARD</code>는 "이전 내용은 버려도 된다"는 약속이라, 드라이버가 새 메모리를 내주고 이전 메모리는 그것을 쓰는 명령이 끝날 때까지 보존한다(버퍼 리네이밍). 그래서 같은 상수 버퍼를 Draw마다 덮어써도 된다(<span class="ref">D3D11Utils.cpp:304</span>).</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>후처리 패스(17~20)가 실행될 때 IA의 VB 슬롯에는 무엇이 걸려 있고, 왜 문제가 되지 않는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>마지막 씬 Draw의 greybox VB가 남아 있다. <code>DrawFullScreenPass</code>는 InputLayout만 null로 바꾸고 VB는 건드리지 않는다(<span class="ref">Renderer.cpp:408</span>). 전체 화면 VS는 <code>SV_VertexID</code>만 쓰므로 정점 버퍼를 읽지 않는다(<span class="ref">fullscreenVertexShader.hlsl:10</span>).</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>Play HUD의 <code>[E] Interact</code>는 스위치를 바라본 프레임보다 한 프레임 늦게 뜬다. 타임라인의 어느 두 단계 때문인가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>03(UI 기록)이 06(상호작용 판정)보다 먼저 실행된다. HUD는 이전 프레임의 <code>IsHighlighted</code>를 읽는다. 반면 Rim 강조는 06에서 Material을 바꾸고 같은 프레임의 11이 읽으므로 지연이 없다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>E 키를 계속 누르고 있으면 스위치가 매 프레임 토글되는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>아니다. pressed는 키가 떼어진 상태에서 눌린 상태로 바뀔 때만 켜지고(<span class="ref">InputSystem.cpp:19-22</span>), 23단계 <code>EndFrame</code>에서 꺼진다. 키 반복 메시지는 이미 <code>m_keyDown</code>이 참이라 다시 켜지 않는다.</p>
+            </div></details>
+          </div>
+        </div>
+
+        <div class="question-group">
+          <h3><span class="level">실험</span> 실행해서 확인할 것</h3>
+          <div class="question">
+            <p>RenderDoc에서 8번째 씬 <code>DrawIndexed</code>를 선택하고 Pipeline State 탭을 위 "DrawIndexed 직전 상태"와 슬롯 단위로 대조하라.</p>
+            <details><summary>확인 포인트</summary><div>
+              <p>PS b0이 Light CB인지, Blend State가 비어 있는지(기본값), OM에 HDR 타깃과 깊이 버퍼가 함께 걸려 있는지 본다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>Event Browser에서 이벤트 순서를 이 타임라인과 대조하라. Clear 2개, 씬 DrawIndexed 8개, Draw 12개, ImGui DrawIndexed, Present를 찾아라.</p>
+            <details><summary>확인 포인트</summary><div>
+              <p>Clear 두 개는 HDR 타깃과 DSV다(<span class="ref">Renderer.cpp:322-323</span>). 백버퍼 Clear는 없다 — 톤 매핑 패스가 화면 전체를 덮어쓰기 때문이다.</p>
+            </div></details>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="doc-diff">
+        <h2>문서와 다른 점</h2>
+        <ul class="docdiff-list">
+          <li>
+            <span class="badge badge--docdiff">문서와 다름</span>
+            AGENTS.md §6의 7 · 8번 순서가 실제와 반대다. 실제로는 커서 중앙 고정(<span class="ref">AppBase.cpp:559</span>)이 먼저이고
+            <code>PointLightSequence::Update</code>(<span class="ref">AppBase.cpp:561</span>)가 뒤다.
+          </li>
+          <li>
+            <span class="badge badge--docdiff">문서와 다름</span>
+            §6에는 ImGui의 기록(<span class="ref">AppBase.cpp:730</span>, 03단계)과 드로우(<span class="ref">AppBase.cpp:640</span>, 21단계)가 분리되어 있다는 내용이 없다.
+          </li>
+        </ul>
+      </section>
+
+      <nav class="pager" id="pager" aria-label="이전 / 다음 페이지"></nav>
+    </main>
+  </div>
+
+  <footer class="site-footer">MyPF Study · 코드 기준 main @ adee25f</footer>
+</body>
+</html>

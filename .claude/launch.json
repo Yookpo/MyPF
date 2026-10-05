@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "study-site",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/Users/tls15/AppData/Local/Temp/claude/C--Users-tls15-source-repos-MyPF/a3ed454c-2f4c-431c-a561-2884fa32e081/scratchpad/serve-study-site.js"],
+      "port": 5917
+    }
+  ]
+}

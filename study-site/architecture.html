@@ -1,0 +1,920 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture · MyPF Study</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/architecture.css">
+  <script src="assets/site.js"></script>
+  <script src="assets/architecture.js"></script>
+</head>
+<body data-page="architecture">
+  <header id="site-header"></header>
+  <noscript>
+    <nav class="noscript-nav">
+      <a href="index.html">MyPF Study</a> ·
+      <a href="architecture.html">1. Architecture</a> ·
+      <a href="frame.html">2. Frame Analysis</a> ·
+      <a href="pipeline.html">3. Rendering Pipeline</a>
+    </nav>
+  </noscript>
+
+  <div class="layout">
+    <aside class="toc" id="toc" aria-label="이 페이지 목차"></aside>
+
+    <main class="content">
+      <ol class="path" id="path" aria-label="학습 경로"></ol>
+      <div class="page-kicker">1 · 정적 구조</div>
+      <h1>Architecture</h1>
+      <p class="page-question">
+        <small>이 페이지의 질문</small>
+        벽 하나를 그리는 <code>ID3D11Buffer</code>는 누가 만들고, 누가 소유하고, 누가 빌려 쓰는가?
+      </p>
+
+      <!-- ===================================================== -->
+      <section id="goals">
+        <h2>학습 목표</h2>
+        <p>이 페이지를 마치면 다음을 설명할 수 있다.</p>
+        <ol>
+          <li>일곱 시스템 각각이 <strong>소유하는 것, 빌려 쓰는 것, 알면 안 되는 것</strong></li>
+          <li>"알면 안 된다"를 <code>#include</code> 목록으로 확인하는 방법</li>
+          <li>Renderer가 Mesh는 알지만 AssetManager는 모르는 이유</li>
+          <li><code>RenderItem</code>과 <code>FrameRenderData</code>가 각각 끊고 있는 의존과, 그 대가로 생기는 규칙</li>
+          <li>Handle(인덱스)이 raw pointer 저장보다 안전한 이유와, 그래도 깨지는 지점</li>
+        </ol>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="files">
+        <h2>참고 파일</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>파일</th><th>범위</th><th>볼 것</th></tr></thead>
+            <tbody>
+              <tr><td><code>AppBase.h</code></td><td class="ref">71-98</td><td>멤버 선언 = 소유 목록, 선언 역순 = 파괴 순서</td></tr>
+              <tr><td><code>AppBase.cpp</code></td><td class="ref">73-117, 564-647</td><td>초기화 순서, Scene → RenderItem / FrameRenderData 번역</td></tr>
+              <tr><td><code>GraphicsDevice.h</code></td><td class="ref">2-4, 32-39</td><td>include 3개뿐, ComPtr 6개</td></tr>
+              <tr><td><code>GraphicsResourceManager.h</code></td><td class="ref">65-86</td><td><code>BufferResource</code>, <code>TextureResource</code></td></tr>
+              <tr><td><code>AssetManager.h</code></td><td class="ref">50-54</td><td><code>unique_ptr</code> 캐시 4개</td></tr>
+              <tr><td><code>Renderer.h</code> / <code>Renderer.cpp</code></td><td class="ref">.h 2-7, 38-87 · .cpp 1-8</td><td>include 목록, 소유 ComPtr, 핸들</td></tr>
+              <tr><td><code>Scene.h</code>, <code>GameObject.h</code></td><td class="ref">Scene.h 23 · GameObject.h 47-54</td><td><code>unique_ptr</code> 목록, 값 멤버 컴포넌트</td></tr>
+              <tr><td><code>MeshComponent.h</code>, <code>ModelComponent.h</code></td><td class="ref">전체</td><td>전방 선언 + 비소유 포인터</td></tr>
+              <tr><td><code>RenderItem.h</code>, <code>FrameRenderData.h</code></td><td class="ref">전체</td><td>두 경계 구조체</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="map">
+        <h2>시스템 지도</h2>
+        <div class="predict"><p>Renderer는 <code>Mesh</code>를 읽는다. 그렇다면 Renderer는 Mesh를 만든 <code>AssetManager</code>도 알아야 하는가?</p></div>
+        <p>
+          시스템을 누르면 그 시스템을 기준으로 관계가 색으로 바뀌고, 아래 패널에 여섯 항목이 나온다.
+          맨 위 띠가 <code>AppBase</code>다. 큰 테두리 안의 시스템은 모두 AppBase가 값 멤버로 소유한다.
+          그림에서 <code>GRM</code>은 GraphicsResourceManager의 줄임이다.
+        </p>
+
+        <div class="sys-chips" role="group" aria-label="시스템 선택">
+          <button type="button" class="sys-chip" data-select="appbase" aria-pressed="false">AppBase</button>
+          <button type="button" class="sys-chip" data-select="renderer" aria-pressed="false">Renderer</button>
+          <button type="button" class="sys-chip" data-select="grm" aria-pressed="false">GraphicsResourceManager</button>
+          <button type="button" class="sys-chip" data-select="graphicsdevice" aria-pressed="false">GraphicsDevice</button>
+          <button type="button" class="sys-chip" data-select="assetmanager" aria-pressed="false">AssetManager</button>
+          <button type="button" class="sys-chip" data-select="scene" aria-pressed="false">Scene</button>
+          <button type="button" class="sys-chip" data-select="gameobject" aria-pressed="false">GameObject</button>
+        </div>
+
+        <figure class="arch-figure">
+          <svg id="arch-map" class="arch-svg" viewBox="0 0 1000 620" role="group" aria-label="MyPF 시스템 지도: 소유, 비소유 참조, 계층">
+            <defs>
+              <marker id="mk-own-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto">
+                <path class="mk-own" d="M0,0 L10,5 L0,10 z"/>
+              </marker>
+              <marker id="mk-own-diamond" viewBox="0 0 14 8" refX="1" refY="4" markerWidth="14" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+                <path class="mk-own" d="M0,4 L7,0 L14,4 L7,8 z"/>
+              </marker>
+              <marker id="mk-ref-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto">
+                <path class="mk-ref" d="M1,1 L9,5 L1,9"/>
+              </marker>
+            </defs>
+
+            <!-- AppBase: 전체를 감싸는 소유자 -->
+            <rect class="container-rect" data-node="appbase" x="10" y="10" width="980" height="600" rx="12"/>
+            <a class="node" data-node="appbase" href="#sys-appbase" aria-label="AppBase 선택">
+              <path class="container-head node-box" d="M10,54 V22 Q10,10 22,10 H978 Q990,10 990,22 V54 Z"/>
+              <text class="node-title" x="30" y="38">AppBase</text>
+              <text class="node-sub" x="112" y="38">모든 시스템을 값 멤버로 소유 · 파괴는 선언 역순 (AppBase.h:78-98)</text>
+              <g class="no-badge" transform="translate(966,32)"><circle r="11"/><text text-anchor="middle" y="4.5">✕</text></g>
+            </a>
+
+            <!-- 계층 구분 -->
+            <line class="zone-line" x1="345" y1="66" x2="345" y2="598"/>
+            <line class="zone-line" x1="655" y1="66" x2="655" y2="598"/>
+            <text class="zone-label" x="175" y="84" text-anchor="middle">렌더링 · GPU 계층</text>
+            <text class="zone-label" x="500" y="84" text-anchor="middle">에셋 계층</text>
+            <text class="zone-label" x="825" y="84" text-anchor="middle">게임 계층</text>
+
+            <!-- 간선: 먼저 그려서 노드 아래에 깔리게 한다 -->
+            <g class="edge-group" data-from="renderer" data-to="grm">
+              <path class="edge edge--ref" d="M175,166 L175,288" marker-end="url(#mk-ref-arrow)"/>
+              <text class="edge-label" x="183" y="232">GRM*</text>
+            </g>
+            <g class="edge-group" data-from="grm" data-to="graphicsdevice">
+              <path class="edge edge--ref" d="M175,356 L175,478" marker-end="url(#mk-ref-arrow)"/>
+              <text class="edge-label" x="183" y="422">GraphicsDevice*</text>
+            </g>
+            <g class="edge-group" data-from="renderer" data-to="graphicsdevice">
+              <path class="edge edge--ref" d="M60,133 C24,133 24,513 58,513" marker-end="url(#mk-ref-arrow)"/>
+              <text class="edge-label" transform="translate(32,323) rotate(-90)" text-anchor="middle">GraphicsDevice*</text>
+            </g>
+            <g class="edge-group" data-from="assetmanager" data-to="grm">
+              <path class="edge edge--ref" d="M385,323 L292,323" marker-end="url(#mk-ref-arrow)"/>
+              <text class="edge-label" x="338" y="314" text-anchor="middle">GRM*</text>
+            </g>
+            <g class="edge-group" data-from="assetmanager" data-to="assets">
+              <path class="edge edge--own" d="M500,290 L500,224" marker-start="url(#mk-own-diamond)" marker-end="url(#mk-own-arrow)"/>
+              <text class="edge-label" x="508" y="262">unique_ptr</text>
+            </g>
+            <g class="edge-group" data-from="assets" data-to="grm">
+              <path class="edge edge--ref" d="M392,222 L282,290" marker-end="url(#mk-ref-arrow)"/>
+              <text class="edge-label" x="347" y="252" text-anchor="middle">핸들(인덱스)</text>
+            </g>
+            <g class="edge-group" data-from="renderer" data-to="assets">
+              <path class="edge edge--ref" d="M290,133 L383,140" marker-end="url(#mk-ref-arrow)"/>
+              <text class="edge-label" x="336" y="124" text-anchor="middle">const 읽기</text>
+            </g>
+            <g class="edge-group" data-from="scene" data-to="gameobject">
+              <path class="edge edge--own" d="M825,166 L825,288" marker-start="url(#mk-own-diamond)" marker-end="url(#mk-own-arrow)"/>
+              <text class="edge-label" x="833" y="232">unique_ptr ×N</text>
+            </g>
+            <g class="edge-group" data-from="gameobject" data-to="components">
+              <path class="edge edge--own" d="M825,356 L825,438" marker-start="url(#mk-own-diamond)" marker-end="url(#mk-own-arrow)"/>
+              <text class="edge-label" x="833" y="402">값 멤버</text>
+            </g>
+            <g class="edge-group" data-from="gameobject" data-to="assets">
+              <path class="edge edge--ref" d="M690,470 L617,206" marker-end="url(#mk-ref-arrow)"/>
+              <text class="edge-label" x="652" y="262" text-anchor="middle">Mesh* · Material* · Model*</text>
+            </g>
+
+            <!-- 렌더링 · GPU 계층 -->
+            <a class="node" data-node="renderer" href="#sys-renderer" aria-label="Renderer 선택">
+              <rect class="node-box" x="60" y="100" width="230" height="66" rx="8"/>
+              <text class="node-title" x="175" y="128" text-anchor="middle">Renderer</text>
+              <text class="node-sub" x="175" y="150" text-anchor="middle">파이프라인 상태 · Draw · 후처리</text>
+              <g class="no-badge" transform="translate(284,106)"><circle r="11"/><text text-anchor="middle" y="4.5">✕</text></g>
+            </a>
+            <a class="node" data-node="grm" href="#sys-grm" aria-label="GraphicsResourceManager 선택">
+              <rect class="node-box" x="60" y="290" width="230" height="66" rx="8"/>
+              <text class="node-title" x="175" y="318" text-anchor="middle">GraphicsResourceManager</text>
+              <text class="node-sub" x="175" y="340" text-anchor="middle">ComPtr 실소유 · 핸들 발급</text>
+              <g class="no-badge" transform="translate(284,296)"><circle r="11"/><text text-anchor="middle" y="4.5">✕</text></g>
+            </a>
+            <a class="node" data-node="graphicsdevice" href="#sys-graphicsdevice" aria-label="GraphicsDevice 선택">
+              <rect class="node-box" x="60" y="480" width="230" height="66" rx="8"/>
+              <text class="node-title" x="175" y="508" text-anchor="middle">GraphicsDevice</text>
+              <text class="node-sub" x="175" y="530" text-anchor="middle">Device · SwapChain · RTV · DSV</text>
+              <g class="no-badge" transform="translate(284,486)"><circle r="11"/><text text-anchor="middle" y="4.5">✕</text></g>
+            </a>
+
+            <!-- 에셋 계층 -->
+            <g class="info" data-node="assets">
+              <rect class="info-box" x="385" y="100" width="230" height="122" rx="8"/>
+              <text class="info-title" x="500" y="126" text-anchor="middle">에셋 객체</text>
+              <text class="info-line t-mono" x="500" y="150" text-anchor="middle">Mesh · Texture</text>
+              <text class="info-line t-mono" x="500" y="170" text-anchor="middle">Material · Model</text>
+              <text class="info-line" x="500" y="198" text-anchor="middle">GPU 리소스는 핸들로만 가리킨다</text>
+            </g>
+            <a class="node" data-node="assetmanager" href="#sys-assetmanager" aria-label="AssetManager 선택">
+              <rect class="node-box" x="385" y="290" width="230" height="66" rx="8"/>
+              <text class="node-title" x="500" y="318" text-anchor="middle">AssetManager</text>
+              <text class="node-sub" x="500" y="340" text-anchor="middle">에셋 캐시 · unique_ptr</text>
+              <g class="no-badge" transform="translate(609,296)"><circle r="11"/><text text-anchor="middle" y="4.5">✕</text></g>
+            </a>
+            <a href="#boundary" aria-label="경계 구조체 설명으로 이동">
+              <rect class="note-box" x="372" y="420" width="256" height="150" rx="8"/>
+              <text class="note-line" x="500" y="448" text-anchor="middle">게임 계층과 렌더링 계층은</text>
+              <text class="note-line" x="500" y="468" text-anchor="middle">서로 include하지 않는다.</text>
+              <text class="note-line" x="500" y="494" text-anchor="middle">AppBase::Render가 둘 사이를</text>
+              <text class="note-line" x="500" y="514" text-anchor="middle">RenderItem · FrameRenderData로</text>
+              <text class="note-line" x="500" y="534" text-anchor="middle">번역해 넘긴다.</text>
+              <text class="note-link" x="500" y="558" text-anchor="middle">경계 구조체 보기 ↓</text>
+            </a>
+
+            <!-- 게임 계층 -->
+            <a class="node" data-node="scene" href="#sys-scene" aria-label="Scene 선택">
+              <rect class="node-box" x="710" y="100" width="230" height="66" rx="8"/>
+              <text class="node-title" x="825" y="128" text-anchor="middle">Scene</text>
+              <text class="node-sub" x="825" y="150" text-anchor="middle">GameObject 목록 · Gather</text>
+              <g class="no-badge" transform="translate(934,106)"><circle r="11"/><text text-anchor="middle" y="4.5">✕</text></g>
+            </a>
+            <a class="node" data-node="gameobject" href="#sys-gameobject" aria-label="GameObject 선택">
+              <rect class="node-box" x="710" y="290" width="230" height="66" rx="8"/>
+              <text class="node-title" x="825" y="318" text-anchor="middle">GameObject</text>
+              <text class="node-sub" x="825" y="340" text-anchor="middle">이름 · Transform · 컴포넌트</text>
+              <g class="no-badge" transform="translate(934,296)"><circle r="11"/><text text-anchor="middle" y="4.5">✕</text></g>
+            </a>
+            <g class="info" data-node="components">
+              <rect class="info-box" x="690" y="440" width="270" height="152" rx="8"/>
+              <text class="info-title" x="825" y="464" text-anchor="middle">값 멤버 컴포넌트</text>
+              <text class="info-line t-mono" x="704" y="488">Transform</text>
+              <text class="info-line t-mono" x="704" y="508">MeshComponent → Mesh*, Material*</text>
+              <text class="info-line t-mono" x="704" y="528">ModelComponent → Model*</text>
+              <text class="info-line t-mono" x="704" y="548">PointLightComponent</text>
+              <text class="info-line t-mono" x="704" y="568">BoxCollisionComponent (빈 클래스)</text>
+            </g>
+          </svg>
+        </figure>
+
+        <div class="arch-legend" aria-label="범례">
+          <span><i class="lg-line"></i>소유 (◆ 쪽이 소유자)</span>
+          <span><i class="lg-line lg-line--ref"></i>비소유 참조 (포인터 · 핸들)</span>
+          <span><i class="lg-box"></i>선택한 시스템</span>
+          <span><i class="lg-box lg-box--own"></i>소유자 / 소유 대상</span>
+          <span><i class="lg-box lg-box--ref"></i>참조 대상 / 참조하는 쪽</span>
+          <span><i class="lg-nope">✕</i>선택한 시스템이 모르는 대상</span>
+        </div>
+
+        <div class="arch-panel" id="arch-panel" aria-live="polite">
+          <div class="arch-panel__head"><span class="arch-panel__name">시스템을 선택하세요</span></div>
+          <p style="padding: 12px 16px; margin: 0;">JavaScript가 꺼져 있으면 지도의 시스템을 누를 때 아래 <a href="#cards">시스템 카드</a>로 이동한다.</p>
+        </div>
+
+        <div class="trap">
+          <p>참조받는다고 해서 아는 것은 아니다. GraphicsResourceManager를 선택해 보면 Renderer와 AssetManager가 "참조하는 쪽"이면서 동시에 ✕다. 화살표는 한 방향으로만 지식을 옮긴다.</p>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="matrix">
+        <h2>누가 누구를 알면 안 되는가</h2>
+        <div class="predict"><p>아래 표를 보기 전에, 일곱 시스템 중 다른 누구도 include하지 않는 시스템을 하나 골라 보라.</p></div>
+        <p>행이 열을 아는지(include하고 사용하는지)를 나타낸다. 행·열 순서는 위에서 아래로 의존이 흐르도록 배치했다.</p>
+        <div class="table-wrap">
+          <table class="dep-matrix">
+            <thead>
+              <tr>
+                <th>행 → 열</th>
+                <th>AppBase</th><th>Renderer</th><th>AssetManager</th><th>Scene</th><th>GameObject</th><th>GRM</th><th>GraphicsDevice</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><th>AppBase</th>
+                <td class="c-self">—</td><td class="c-own">소유</td><td class="c-own">소유</td><td class="c-own">소유</td><td class="c-use">사용¹</td><td class="c-own">소유</td><td class="c-own">소유</td></tr>
+              <tr><th>Renderer</th>
+                <td class="c-nope">✕</td><td class="c-self">—</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-ref">참조</td><td class="c-ref">참조</td></tr>
+              <tr><th>AssetManager</th>
+                <td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-self">—</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-ref">참조</td><td class="c-nope">✕</td></tr>
+              <tr><th>Scene</th>
+                <td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-self">—</td><td class="c-own">소유</td><td class="c-nope">✕</td><td class="c-nope">✕</td></tr>
+              <tr><th>GameObject</th>
+                <td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-self">—</td><td class="c-nope">✕</td><td class="c-nope">✕</td></tr>
+              <tr><th>GRM</th>
+                <td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-self">—</td><td class="c-ref">참조</td></tr>
+              <tr><th>GraphicsDevice</th>
+                <td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-nope">✕</td><td class="c-self">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted">¹ AppBase는 GameObject를 소유하지 않지만 <code>Scene::GetGameObjects</code>로 받아 직접 읽는다(<span class="ref">AppBase.cpp:584-590</span>). 소유자는 Scene이다.</p>
+
+        <h3>표에서 읽을 것</h3>
+        <ul>
+          <li><strong>모든 "소유·참조" 칸이 대각선 오른쪽 위에 있다.</strong> 왼쪽 아래 삼각형이 전부 ✕라는 것은 의존이 한 방향이고 순환이 없다는 뜻이다.</li>
+          <li><strong>Renderer 행에서 Scene·GameObject 열이 ✕다.</strong> 렌더링 계층과 게임 계층의 경계다. 둘 사이는 <a href="#boundary">경계 구조체</a>가 잇는다.</li>
+          <li><strong>AssetManager 열은 일곱 시스템 중 AppBase만 안다</strong>(표 밖에서는 <code>NeonSignFactory</code>도 include한다, <span class="ref">NeonSign.cpp:3</span>). Renderer와 GameObject는 에셋 객체(Mesh·Material)를 쓰지만, 그것을 만든 AssetManager는 모른다.</li>
+          <li><strong>GraphicsDevice 행은 전부 ✕다.</strong> 가장 아래 계층은 위를 하나도 모른다. 그래서 위 계층을 바꿔도 GraphicsDevice는 다시 컴파일할 이유가 없다.</li>
+        </ul>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="cards">
+        <h2>시스템 카드</h2>
+        <p>지도에서 시스템을 누르면 위 패널에 나오는 내용과 같다. "Does Not Know"에는 그렇게 판단한 근거(include 목록)를 함께 적었다.</p>
+
+        <div class="sys-cards">
+
+          <!-- AppBase -->
+          <article class="sys-card" id="sys-appbase">
+            <div class="sys-card__head"><h3>AppBase</h3><span class="sys-card__layer">애플리케이션 · 최상위</span></div>
+            <dl class="sys-fields">
+              <dt>Responsibility</dt>
+              <dd><p>창과 메시지 루프를 돌리고, 시스템을 순서대로 초기화하고, 매 프레임 Update와 Render를 호출한다. 게임 계층의 데이터를 <code>FrameRenderData</code>와 <code>RenderItem</code>으로 번역해 Renderer에 넘기는 <strong>유일한 지점</strong>이다.</p></dd>
+
+              <dt class="f-owns">Owns</dt>
+              <dd>
+                <p>모두 값 멤버 (<span class="ref">AppBase.h:71-98</span>)</p>
+                <ul>
+                  <li><code>GraphicsDevice</code>, <code>GraphicsResourceManager</code>, <code>AssetManager</code>, <code>Renderer</code> <span class="ref">:78-81</span></li>
+                  <li><code>GameTimer</code>, <code>InputSystem</code> <span class="ref">:82-83</span></li>
+                  <li><code>Scene</code>, <code>PowerSwitch</code>, <code>PointLightSequence</code>, <code>EditorUI</code> <span class="ref">:85-88</span></li>
+                  <li><code>Camera</code> ×2(현재, 에디터 스냅샷), <code>FirstPersonCameraController</code> <span class="ref">:90-92</span></li>
+                  <li><code>PostProcessSettings</code>, <code>DirectionalLight</code>, 배경색 <span class="ref">:95-98</span></li>
+                  <li>창 핸들 <code>HWND</code> — 소멸자에서 <code>DestroyWindow</code> <span class="ref">AppBase.cpp:508-511</span></li>
+                </ul>
+              </dd>
+
+              <dt class="f-refs">References</dt>
+              <dd>
+                <ul>
+                  <li>빌려 쓰는 상위 객체가 없다(최상위).</li>
+                  <li>대신 <code>Initialize</code>에서 자기 멤버의 참조를 하위 시스템에 나눠 준다 <span class="ref">AppBase.cpp:80-108</span></li>
+                  <li>전역 <code>g_appBase</code>가 자기 자신을 가리킨다 — <code>WndProc</code>에서 멤버 함수 <code>MsgProc</code>로 넘기기 위해 <span class="ref">AppBase.cpp:18, 503</span></li>
+                </ul>
+              </dd>
+
+              <dt class="f-nope">Does Not Know</dt>
+              <dd>
+                <ul>
+                  <li>계층상 알면 안 되는 시스템은 없다.</li>
+                  <li>다만 GPU 객체를 직접 만들거나 보관하지 않는다. D3D11 객체를 직접 손에 쥐는 곳은 ImGui 백엔드에 Device/Context를 넘기는 곳(<span class="ref">AppBase.cpp:161</span>)과 Resize 전 Device 존재 확인(<span class="ref">AppBase.cpp:49</span>)뿐이다. 나머지 GPU 작업은 GraphicsDevice · Renderer · ImGui 백엔드 함수를 불러서 한다.</li>
+                </ul>
+                <p class="evidence">근거: <code>AppBase.cpp</code>에 <code>Context-&gt;</code> 호출이 없다.</p>
+              </dd>
+
+              <dt>Relevant Files</dt>
+              <dd><code>AppBase.h</code>, <code>AppBase.cpp</code>, <code>Main.cpp</code></dd>
+
+              <dt>Important Functions</dt>
+              <dd>
+                <ul>
+                  <li><code>Initialize</code> <span class="ref">:73</span> — Window → GraphicsDevice → GRM → AssetManager → Renderer → ImGui → 씬</li>
+                  <li><code>Run</code> <span class="ref">:705</span> — 메시지 루프와 프레임</li>
+                  <li><code>Render</code> <span class="ref">:564</span> — FrameRenderData · RenderItem 번역</li>
+                  <li><code>Update</code> <span class="ref">:521</span>, <code>MsgProc</code> <span class="ref">:34</span>, <code>InitGreyBoxScene</code> <span class="ref">:297</span></li>
+                </ul>
+              </dd>
+            </dl>
+          </article>
+
+          <!-- GraphicsDevice -->
+          <article class="sys-card" id="sys-graphicsdevice">
+            <div class="sys-card__head"><h3>GraphicsDevice</h3><span class="sys-card__layer">렌더링 · GPU 계층 · 최하위</span></div>
+            <dl class="sys-fields">
+              <dt>Responsibility</dt>
+              <dd><p>D3D11 Device·Context·SwapChain을 만들고, 백버퍼 RTV와 깊이 버퍼를 관리한다. 창 크기가 바뀌면 다시 만들고, 프레임 끝에 Present한다.</p></dd>
+
+              <dt class="f-owns">Owns</dt>
+              <dd>
+                <p>모두 <code>ComPtr</code> (<span class="ref">GraphicsDevice.h:32-39</span>)</p>
+                <ul>
+                  <li><code>ID3D11Device</code>, <code>ID3D11DeviceContext</code></li>
+                  <li><code>IDXGISwapChain</code> — R8G8B8A8_UNORM, 버퍼 2개, FLIP_DISCARD</li>
+                  <li>백버퍼 <code>ID3D11RenderTargetView</code></li>
+                  <li>깊이 <code>ID3D11Texture2D</code>(D24_UNORM_S8_UINT)와 <code>ID3D11DepthStencilView</code></li>
+                </ul>
+              </dd>
+
+              <dt class="f-refs">References</dt>
+              <dd>
+                <ul>
+                  <li>없음. <code>HWND</code>는 <code>Initialize</code> 인자로만 받아 스왑체인 생성에 쓰고 저장하지 않는다 <span class="ref">GraphicsDevice.cpp:104</span></li>
+                </ul>
+              </dd>
+
+              <dt class="f-nope">Does Not Know</dt>
+              <dd>
+                <ul>
+                  <li>GRM, AssetManager, Renderer, Scene, GameObject, AppBase — 위 계층 전부</li>
+                  <li>자기가 만든 깊이 버퍼를 어떤 렌더 타깃(HDR 등)과 함께 쓰는지</li>
+                </ul>
+                <p class="evidence">근거: <code>GraphicsDevice.h</code>의 include는 <code>d3d11.h</code>, <code>windows.h</code>, <code>wrl.h</code>뿐이다 <span class="ref">:2-4</span></p>
+              </dd>
+
+              <dt>Relevant Files</dt>
+              <dd><code>GraphicsDevice.h</code>, <code>GraphicsDevice.cpp</code></dd>
+
+              <dt>Important Functions</dt>
+              <dd>
+                <ul>
+                  <li><code>InitDirect3D</code> <span class="ref">:82</span> — <code>D3D11CreateDeviceAndSwapChain</code></li>
+                  <li><code>CreateRenderTargetView</code> <span class="ref">:131</span>, <code>CreateDepthBuffer</code> <span class="ref">:157</span></li>
+                  <li><code>Resize</code> <span class="ref">:25</span> — 연결 해제 → <code>ResizeBuffers</code> → RTV·DSV 재생성</li>
+                  <li><code>Present</code> <span class="ref">:65</span> — <code>Present(1, 0)</code></li>
+                  <li><code>GetDevice / GetContext / GetRTV / GetDSV</code> <span class="ref">.h:21-24</span> — raw pointer 대여</li>
+                </ul>
+              </dd>
+            </dl>
+          </article>
+
+          <!-- GraphicsResourceManager -->
+          <article class="sys-card" id="sys-grm">
+            <div class="sys-card__head"><h3>GraphicsResourceManager</h3><span class="sys-card__layer">렌더링 · GPU 계층</span></div>
+            <dl class="sys-fields">
+              <dt>Responsibility</dt>
+              <dd><p>버퍼와 텍스처의 실제 GPU 객체를 만들고 보관한다. 바깥에는 vector 인덱스인 <code>BufferHandle</code> / <code>TextureHandle</code>만 준다. 상수 버퍼 갱신과 렌더 타깃 재생성도 맡는다.</p></dd>
+
+              <dt class="f-owns">Owns</dt>
+              <dd>
+                <ul>
+                  <li><code>vector&lt;BufferResource&gt;</code> — <code>ComPtr&lt;ID3D11Buffer&gt;</code>, <code>byteWidth</code>, <code>cpuWritable</code> <span class="ref">.h:65-70, 85</span></li>
+                  <li><code>vector&lt;TextureResource&gt;</code> — Texture2D · SRV · RTV <code>ComPtr</code>, 포맷 <span class="ref">.h:72-78, 86</span></li>
+                </ul>
+              </dd>
+
+              <dt class="f-refs">References</dt>
+              <dd>
+                <ul>
+                  <li><code>GraphicsDevice*</code> <span class="ref">.h:84</span> — 생성에는 Device, 갱신·밉 생성에는 Context를 빌린다</li>
+                </ul>
+              </dd>
+
+              <dt class="f-nope">Does Not Know</dt>
+              <dd>
+                <ul>
+                  <li>Renderer, AssetManager, Scene, GameObject, AppBase</li>
+                  <li><code>Mesh</code> · <code>Texture</code> · <code>Material</code> 클래스</li>
+                  <li>버퍼가 카메라용인지 재질용인지, 렌더 타깃이 HDR인지 Bloom인지 — <strong>의미</strong>를 모른다</li>
+                </ul>
+                <p class="evidence">근거: <code>.h</code>는 <code>d3d11.h</code>와 핸들 두 개만, <code>.cpp</code>는 <code>GraphicsDevice.h</code>와 <code>D3D11Utils.h</code>만 include한다 <span class="ref">.h:2-9, .cpp:1-3</span></p>
+              </dd>
+
+              <dt>Relevant Files</dt>
+              <dd><code>GraphicsResourceManager.h/.cpp</code>, <code>D3D11Utils.h/.cpp</code>, <code>BufferHandle.h</code>, <code>TextureHandle.h</code></dd>
+
+              <dt>Important Functions</dt>
+              <dd>
+                <ul>
+                  <li><code>CreateVertexBuffer&lt;T&gt;</code> <span class="ref">.h:33</span>, <code>CreateIndexBuffer</code> <span class="ref">.cpp:179</span></li>
+                  <li><code>CreateConstantBuffer&lt;T&gt;</code> <span class="ref">.h:50</span> — 16바이트 정렬을 <code>static_assert</code>로 검사</li>
+                  <li><code>UpdateBuffer&lt;T&gt;</code> <span class="ref">.h:57</span> — <code>Map(WRITE_DISCARD)</code></li>
+                  <li><code>CreateTexture</code> <span class="ref">.cpp:98</span>, <code>CreateRenderTarget</code> <span class="ref">.cpp:119</span></li>
+                  <li><code>ResizeRenderTarget</code> <span class="ref">.cpp:141</span> — 같은 슬롯에 새 객체를 move</li>
+                  <li><code>GetBuffer</code> <span class="ref">:26</span> / <code>GetSRV</code> <span class="ref">:50</span> / <code>GetRTV</code> <span class="ref">:74</span> — raw pointer 대여, 저장 금지</li>
+                </ul>
+              </dd>
+            </dl>
+          </article>
+
+          <!-- AssetManager -->
+          <article class="sys-card" id="sys-assetmanager">
+            <div class="sys-card__head"><h3>AssetManager</h3><span class="sys-card__layer">에셋 계층</span></div>
+            <dl class="sys-fields">
+              <dt>Responsibility</dt>
+              <dd><p>Mesh · Texture · Material · Model을 만들고 이름으로 캐시해 <strong>수명을 보장</strong>한다. 같은 키를 다시 요청하면 기존 객체를 돌려준다. 텍스처 키는 <code>(경로, TextureType)</code>이다.</p></dd>
+
+              <dt class="f-owns">Owns</dt>
+              <dd>
+                <ul>
+                  <li><code>unordered_map</code> 4개 → <code>unique_ptr&lt;Texture&gt;</code> / <code>&lt;Mesh&gt;</code> / <code>&lt;Material&gt;</code> / <code>&lt;Model&gt;</code> <span class="ref">.h:51-54</span></li>
+                </ul>
+              </dd>
+
+              <dt class="f-refs">References</dt>
+              <dd>
+                <ul>
+                  <li><code>GraphicsResourceManager*</code> <span class="ref">.h:50</span> — Texture · Mesh 초기화 때 넘겨 GPU 리소스를 만들게 한다 <span class="ref">AssetManager.cpp:46, 73</span></li>
+                </ul>
+              </dd>
+
+              <dt class="f-nope">Does Not Know</dt>
+              <dd>
+                <ul>
+                  <li>Renderer, Scene, GameObject, GraphicsDevice, AppBase</li>
+                  <li>어느 오브젝트가 그 에셋을 쓰는지</li>
+                  <li>DX11 API — 직접 호출하지 않는다</li>
+                </ul>
+                <p class="evidence">근거: <code>.h</code>는 <code>TextureType.h</code>와 표준 헤더만, <code>.cpp</code>는 GRM과 에셋 헤더만 include한다 <span class="ref">.h:2-7, .cpp:2-9</span></p>
+              </dd>
+
+              <dt>Relevant Files</dt>
+              <dd><code>AssetManager.h/.cpp</code>, <code>Mesh.h/.cpp</code>, <code>Texture.h/.cpp</code>, <code>Material.h/.cpp</code>, <code>Model.h</code>, <code>ModelLoader.h/.cpp</code></dd>
+
+              <dt>Important Functions</dt>
+              <dd>
+                <ul>
+                  <li><code>LoadTexture</code> <span class="ref">:29</span> → <code>const Texture*</code></li>
+                  <li><code>CreateMesh</code> <span class="ref">:58</span> → <code>const Mesh*</code></li>
+                  <li><code>CreateMaterial</code> <span class="ref">:85</span> → <code>Material*</code> (수정 가능 — PowerSwitch · PointLightSequence가 런타임에 값을 바꾼다)</li>
+                  <li><code>LoadModel</code> <span class="ref">:107</span> → <code>const Model*</code> <span class="badge badge--unused">현재 미사용</span></li>
+                </ul>
+              </dd>
+            </dl>
+          </article>
+
+          <!-- Renderer -->
+          <article class="sys-card" id="sys-renderer">
+            <div class="sys-card__head"><h3>Renderer</h3><span class="sys-card__layer">렌더링 · GPU 계층</span></div>
+            <dl class="sys-fields">
+              <dt>Responsibility</dt>
+              <dd><p>셰이더 · Input Layout · 파이프라인 상태 · 샘플러를 준비한다. <code>FrameRenderData</code>로 프레임 상수를, <code>RenderItem</code>으로 오브젝트 Draw를, <code>EndScene</code>에서 후처리(Bright → Blur → 톤 매핑)를 실행한다. 행렬 전치, sRGB → 선형 같은 <strong>GPU 규약 변환</strong>을 맡는다.</p></dd>
+
+              <dt class="f-owns">Owns</dt>
+              <dd>
+                <p>GPU 객체는 모두 <code>ComPtr</code> (<span class="ref">Renderer.h:41-87</span>)</p>
+                <ul>
+                  <li>셰이더 8개 — VS 2(씬, 전체 화면), PS 6(씬, 복사, 톤 매핑, Bright, BlurX, BlurY) <span class="ref">:47-54</span></li>
+                  <li><code>InputLayout</code> <span class="ref">:55</span>, RasterizerState <span class="ref">:41</span>, DepthStencilState <span class="ref">:44</span></li>
+                  <li>Sampler 2개 WRAP · CLAMP <span class="ref">:58-59</span></li>
+                  <li>CPU 쪽 상수 데이터 5개 <span class="ref">:62-66</span>, 화면 뷰포트 · Bloom 크기 · 디버그 뷰 <span class="ref">:81-87</span></li>
+                </ul>
+              </dd>
+
+              <dt class="f-refs">References</dt>
+              <dd>
+                <ul>
+                  <li><code>GraphicsDevice*</code>, <code>GraphicsResourceManager*</code> <span class="ref">.h:38-39</span></li>
+                  <li><code>BufferHandle</code> ×5, <code>TextureHandle</code> ×4 <span class="ref">.h:69-79</span> — 실제 상수 버퍼와 렌더 타깃은 GRM이 소유</li>
+                  <li>Draw 동안 <code>RenderItem</code>의 <code>const Mesh*</code> · <code>const Material*</code>, Material의 <code>const Texture*</code> — 읽기만 <span class="ref">Renderer.cpp:585-587</span></li>
+                </ul>
+              </dd>
+
+              <dt class="f-nope">Does Not Know</dt>
+              <dd>
+                <ul>
+                  <li>Scene, GameObject, Transform, Camera, Model, AssetManager, AppBase, ImGui</li>
+                </ul>
+                <p class="evidence">근거: <code>Renderer.h</code>/<code>.cpp</code> include 목록에 없다 <span class="ref">.h:2-7, .cpp:1-8</span>. 반대로 <code>Mesh.h</code> · <code>Material.h</code> · <code>Texture.h</code>는 include한다 — 에셋 객체는 알지만 그것을 만든 AssetManager는 모른다.</p>
+              </dd>
+
+              <dt>Relevant Files</dt>
+              <dd><code>Renderer.h/.cpp</code>, <code>ShaderConstants.h</code>, <code>RenderItem.h</code>, <code>FrameRenderData.h</code>, <code>D3D11Utils.h/.cpp</code>, <code>Shaders/*</code></dd>
+
+              <dt>Important Functions</dt>
+              <dd>
+                <ul>
+                  <li><code>Initialize</code> <span class="ref">:13</span>, <code>Resize</code> <span class="ref">:229</span></li>
+                  <li><code>BeginFrame</code> <span class="ref">:293</span> — FrameRenderData를 받는 곳</li>
+                  <li><code>DrawRenderItem</code> <span class="ref">:563</span> — RenderItem을 받는 곳</li>
+                  <li><code>EndScene</code> <span class="ref">:420</span>, <code>DrawFullScreenPass</code> <span class="ref">:393</span>, <code>EndFrame</code> <span class="ref">:546</span></li>
+                  <li><code>SrgbToLinear</code> <span class="ref">:733</span></li>
+                </ul>
+              </dd>
+            </dl>
+          </article>
+
+          <!-- Scene -->
+          <article class="sys-card" id="sys-scene">
+            <div class="sys-card__head"><h3>Scene</h3><span class="sys-card__layer">게임 계층</span></div>
+            <dl class="sys-fields">
+              <dt>Responsibility</dt>
+              <dd><p>GameObject 목록을 소유하고, 다른 시스템이 필요로 하는 데이터를 컴포넌트에서 모아 준다(Gather).</p></dd>
+
+              <dt class="f-owns">Owns</dt>
+              <dd>
+                <ul>
+                  <li><code>vector&lt;unique_ptr&lt;GameObject&gt;&gt;</code> <span class="ref">Scene.h:23</span></li>
+                  <li><code>unique_ptr</code>이라 vector가 커져도 GameObject의 주소가 바뀌지 않는다. 그래서 PowerSwitch · PointLightSequence · EditorUI가 저장한 <code>GameObject*</code>가 vector 재할당 뒤에도 유효하다.</li>
+                </ul>
+              </dd>
+
+              <dt class="f-refs">References</dt>
+              <dd><ul><li>없음</li></ul></dd>
+
+              <dt class="f-nope">Does Not Know</dt>
+              <dd>
+                <ul>
+                  <li>Renderer, AssetManager, GRM, GraphicsDevice, AppBase, ImGui</li>
+                  <li>DX11 렌더링 과정</li>
+                </ul>
+                <p class="evidence">근거: include는 <code>GameObject.h</code>, <code>PointLight.h</code>, <code>DirectXCollision.h</code>뿐이다 <span class="ref">Scene.h:2-8</span>. <code>DirectXCollision</code>은 BoundingBox 수학 라이브러리이고 D3D11이 아니다.</p>
+              </dd>
+
+              <dt>Relevant Files</dt>
+              <dd><code>Scene.h/.cpp</code>, <code>PointLight.h</code></dd>
+
+              <dt>Important Functions</dt>
+              <dd>
+                <ul>
+                  <li><code>CreateGameObject</code> <span class="ref">:6</span> — 참조를 반환</li>
+                  <li><code>CreatePointLightObject</code> <span class="ref">:13</span></li>
+                  <li><code>GetGameObjects</code> <span class="ref">.h:16</span> — const 목록</li>
+                  <li><code>GatherPointLights</code> <span class="ref">:20</span> — Transform + PointLightComponent → <code>PointLight</code> 구조체(최대 8)</li>
+                  <li><code>GatherBoxColliders</code> <span class="ref">:57</span> — Transform → <code>BoundingBox</code></li>
+                </ul>
+              </dd>
+            </dl>
+          </article>
+
+          <!-- GameObject -->
+          <article class="sys-card" id="sys-gameobject">
+            <div class="sys-card__head"><h3>GameObject</h3><span class="sys-card__layer">게임 계층</span></div>
+            <dl class="sys-fields">
+              <dt>Responsibility</dt>
+              <dd><p>이름, Transform, 선택적 컴포넌트를 묶은 데이터 묶음이다. 스스로 Update하는 동작은 없다.</p></dd>
+
+              <dt class="f-owns">Owns</dt>
+              <dd>
+                <p>모두 값 멤버 (<span class="ref">GameObject.h:47-54</span>)</p>
+                <ul>
+                  <li>이름(<code>std::string</code>), <code>Transform</code></li>
+                  <li><code>MeshComponent</code>, <code>ModelComponent</code>, <code>PointLightComponent</code>, <code>BoxCollisionComponent</code></li>
+                  <li><code>Has</code> 플래그 2개 — Point Light, Box Collision</li>
+                </ul>
+              </dd>
+
+              <dt class="f-refs">References</dt>
+              <dd>
+                <ul>
+                  <li><code>MeshComponent</code> → <code>const Mesh*</code>, <code>Material*</code> <span class="ref">MeshComponent.h:22-23</span></li>
+                  <li><code>ModelComponent</code> → <code>const Model*</code> <span class="ref">ModelComponent.h:16</span></li>
+                  <li>모두 AssetManager가 소유한다</li>
+                </ul>
+              </dd>
+
+              <dt class="f-nope">Does Not Know</dt>
+              <dd>
+                <ul>
+                  <li>Scene(자기 부모), Renderer, RenderItem, AssetManager, GRM, GraphicsDevice, AppBase</li>
+                </ul>
+                <p class="evidence">근거: <code>GameObject.h</code> include는 Transform과 컴포넌트 헤더뿐이다 <span class="ref">:2-7</span>. 컴포넌트는 Mesh · Material · Model을 전방 선언만 한다 <span class="ref">MeshComponent.h:5-6</span></p>
+              </dd>
+
+              <dt>Relevant Files</dt>
+              <dd><code>GameObject.h/.cpp</code>, <code>Transform.h/.cpp</code>, <code>MeshComponent.h</code>, <code>ModelComponent.h</code>, <code>PointLightComponent.h</code>, <code>BoxCollisionComponent.h</code></dd>
+
+              <dt>Important Functions</dt>
+              <dd>
+                <ul>
+                  <li><code>GetTransform</code> <span class="ref">.h:19-20</span>, <code>GetMeshComponent</code> / <code>GetModelComponent</code> <span class="ref">:22-26</span></li>
+                  <li><code>AddPointLightComponent</code> <span class="ref">:28</span>, <code>AddBoxCollisionComponent</code> <span class="ref">:37</span> — 컴포넌트는 항상 있고 플래그만 켠다</li>
+                  <li><code>Transform::GetWorldMatrix</code> <span class="ref">Transform.cpp:7</span> — S · Ry · Rx · Rz · T</li>
+                  <li><code>BoxCollisionComponent</code>는 빈 클래스 — 모양은 Transform에서 유도 <span class="ref">Scene.cpp:71-72</span></li>
+                </ul>
+              </dd>
+            </dl>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="boundary">
+        <h2>경계 구조체: RenderItem과 FrameRenderData</h2>
+        <div class="predict"><p><code>FrameRenderData</code>에 <code>Camera</code> 객체 대신 행렬 두 개와 위치만 들어 있는 이유는?</p></div>
+        <p>
+          Renderer는 Scene과 GameObject를 모른다. 그래도 화면을 그리려면 둘의 정보가 필요하다.
+          그래서 <code>AppBase::Render</code>가 게임 쪽 상태를 Renderer가 아는 타입으로 <strong>번역</strong>해 넘긴다.
+          그 번역 결과가 두 구조체다.
+        </p>
+
+        <figure class="arch-figure">
+          <svg class="arch-svg" viewBox="0 0 1040 440" role="img" aria-label="AppBase가 게임 상태를 FrameRenderData와 RenderItem으로 번역해 Renderer에 넘기는 흐름">
+            <defs>
+              <marker id="mk-plain-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto">
+                <path class="mk-plain" d="M0,0 L10,5 L0,10 z"/>
+              </marker>
+            </defs>
+
+            <line class="bd-divider" x1="335" y1="14" x2="335" y2="404"/>
+            <text class="bd-divider-label" x="335" y="430" text-anchor="middle">← 이 선 왼쪽의 타입을 Renderer는 모른다</text>
+
+            <!-- 1행: FrameRenderData -->
+            <rect class="bd-src" x="20" y="30" width="270" height="160" rx="8"/>
+            <text class="bd-title" x="34" y="56">AppBase가 가진 게임 쪽 상태</text>
+            <text class="bd-line t-mono" x="34" y="82">Camera</text>
+            <text class="bd-line t-mono" x="34" y="106">DirectionalLight</text>
+            <text class="bd-line t-mono" x="34" y="130">Scene::GatherPointLights</text>
+            <text class="bd-line t-mono" x="34" y="154">PostProcessSettings</text>
+            <text class="bd-line t-muted" x="34" y="178">AppBase.cpp:566-574</text>
+
+            <path class="bd-arrow" d="M292,110 L376,110" marker-end="url(#mk-plain-arrow)"/>
+            <text class="edge-label" x="335" y="98" text-anchor="middle">프레임당 1회</text>
+            <text class="edge-label" x="335" y="130" text-anchor="middle">값 복사</text>
+
+            <rect class="bd-struct" x="380" y="30" width="280" height="160" rx="8"/>
+            <text class="bd-title" x="520" y="58" text-anchor="middle">FrameRenderData</text>
+            <text class="bd-line t-mono" x="396" y="84">view · projection</text>
+            <text class="bd-line t-mono" x="396" y="106">cameraPosition</text>
+            <text class="bd-line t-mono" x="396" y="128">directionalLight</text>
+            <text class="bd-line t-mono" x="396" y="150">pointLights[8] · pointLightCount</text>
+            <text class="bd-line t-mono" x="396" y="172">postProcess</text>
+
+            <path class="bd-arrow" d="M662,110 L736,110" marker-end="url(#mk-plain-arrow)"/>
+            <text class="edge-label" x="699" y="100" text-anchor="middle">인자로 전달</text>
+
+            <rect class="bd-dst" x="740" y="30" width="280" height="160" rx="8"/>
+            <text class="bd-title t-mono" x="754" y="58">Renderer::BeginFrame</text>
+            <text class="bd-line" x="754" y="84">Transpose → Camera CB</text>
+            <text class="bd-line" x="754" y="106">SrgbToLinear → Light CB</text>
+            <text class="bd-line" x="754" y="128">bool → uint (isEnabled)</text>
+            <text class="bd-line" x="754" y="150">dx · dy 추가 → PostProcess CB</text>
+            <text class="bd-line t-muted" x="754" y="176">Renderer.cpp:293</text>
+
+            <!-- 2행: RenderItem -->
+            <rect class="bd-src" x="20" y="230" width="270" height="170" rx="8"/>
+            <text class="bd-title" x="34" y="258">Scene 순회 (오브젝트마다)</text>
+            <text class="bd-line t-mono" x="34" y="284">Transform::GetWorldMatrix</text>
+            <text class="bd-line t-mono" x="34" y="308">MeshComponent</text>
+            <text class="bd-line t-mono" x="34" y="332">또는 ModelPart ×N</text>
+            <text class="bd-line t-muted" x="34" y="382">AppBase.cpp:585-631</text>
+
+            <path class="bd-arrow" d="M292,315 L376,315" marker-end="url(#mk-plain-arrow)"/>
+            <text class="edge-label" x="335" y="303" text-anchor="middle">오브젝트마다</text>
+            <text class="edge-label" x="335" y="335" text-anchor="middle">임시값</text>
+
+            <rect class="bd-struct" x="380" y="230" width="280" height="170" rx="8"/>
+            <text class="bd-title" x="520" y="258" text-anchor="middle">RenderItem</text>
+            <text class="bd-line t-mono" x="396" y="284">const Mesh* mesh</text>
+            <text class="bd-line t-mono" x="396" y="308">const Material* material</text>
+            <text class="bd-line t-mono" x="396" y="332">Matrix world</text>
+            <text class="bd-line t-muted" x="396" y="362">포인터 2개는 비소유</text>
+            <text class="bd-line t-muted" x="396" y="382">수명은 AssetManager가 보장</text>
+
+            <path class="bd-arrow" d="M662,315 L736,315" marker-end="url(#mk-plain-arrow)"/>
+            <text class="edge-label" x="699" y="305" text-anchor="middle">인자로 전달</text>
+
+            <rect class="bd-dst" x="740" y="230" width="280" height="170" rx="8"/>
+            <text class="bd-title t-mono" x="754" y="258">Renderer::DrawRenderItem</text>
+            <text class="bd-line" x="754" y="284">world → Object CB (+invTranspose)</text>
+            <text class="bd-line" x="754" y="308">Material → Material CB (선형)</text>
+            <text class="bd-line" x="754" y="332">Mesh 핸들 → VB · IB → IA</text>
+            <text class="bd-line" x="754" y="356">Texture 핸들 → SRV → t0</text>
+            <text class="bd-line t-muted" x="754" y="382">Renderer.cpp:563</text>
+          </svg>
+        </figure>
+
+        <div class="table-wrap">
+          <table class="compare-table">
+            <thead><tr><th></th><th>FrameRenderData</th><th>RenderItem</th></tr></thead>
+            <tbody>
+              <tr><td>단위</td><td>프레임</td><td>오브젝트 (Model이면 파트마다)</td></tr>
+              <tr><td>정의</td><td class="ref">FrameRenderData.h:14</td><td class="ref">RenderItem.h:11</td></tr>
+              <tr><td>만드는 곳</td><td><code>AppBase::Render</code> <span class="ref">:566-574</span></td><td><code>AppBase::Render</code> <span class="ref">:603, :622</span></td></tr>
+              <tr><td>받는 곳</td><td><code>Renderer::BeginFrame</code> <span class="ref">:293</span></td><td><code>Renderer::DrawRenderItem</code> <span class="ref">:563</span></td></tr>
+              <tr><td>담는 방식</td><td>전부 값 — 행렬, 구조체, 배열까지 복사</td><td>비소유 포인터 2개 + 행렬 값</td></tr>
+              <tr><td>수명</td><td><code>Render()</code>의 지역 변수, 한 프레임</td><td>루프 안 지역 변수, Draw 한 번</td></tr>
+              <tr><td>끊는 의존</td><td>Camera, Scene, PointLightComponent</td><td>GameObject, Transform, MeshComponent, ModelComponent, Model</td></tr>
+              <tr><td>GPU로 바뀌는 곳</td><td>Camera · Light · PostProcess 상수 버퍼</td><td>Object · Material 상수 버퍼, VB / IB, SRV</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>RenderItem의 역할 — 오브젝트 단위 제출 경계</h3>
+        <p>
+          Renderer가 GameObject를 직접 받으면 Transform이나 컴포넌트 구조가 바뀔 때마다 Renderer도 바뀌어야 한다.
+          <code>RenderItem</code>은 Draw 한 번에 필요한 세 가지(메시, 재질, 월드 행렬)만 남긴다.
+        </p>
+        <p>
+          효과가 코드에 그대로 보인다. Model 분기(<span class="ref">AppBase.cpp:603</span>)와 Mesh 분기(<span class="ref">AppBase.cpp:622</span>)가
+          같은 <code>RenderItem</code>으로 합쳐지므로, <strong>Renderer는 Model이라는 개념이 있다는 것조차 모른다.</strong>
+          또 MeshComponent의 <code>Material*</code>가 RenderItem에서는 <code>const Material*</code>가 되어, Renderer는 재질을 읽기만 하고 바꿀 수 없다.
+        </p>
+
+        <h3>FrameRenderData의 역할 — 프레임 단위 제출 경계</h3>
+        <p>
+          Camera 객체를 넘기면 Renderer가 Camera 클래스(Yaw/Pitch를 도 단위로 다루는 방식 등)를 알아야 한다.
+          계산이 끝난 행렬만 넘기면 카메라 구현이 바뀌어도 Renderer는 그대로다.
+        </p>
+        <p>
+          모든 필드가 값이므로 <code>BeginFrame</code>이 받는 순간의 <strong>스냅샷</strong>이다. 그 뒤에 Scene이 바뀌어도 이번 프레임의 상수는 바뀌지 않는다.
+          Renderer는 받은 값을 GPU 규약으로만 바꾼다: 전치(<span class="ref">Renderer.cpp:331, 333</span>), sRGB → 선형(<span class="ref">:345, :357</span>), bool → uint(<span class="ref">:359</span>).
+        </p>
+
+        <div class="trap">
+          <p><code>RenderItem</code>을 멤버에 저장해 다음 프레임에 쓰면 안 된다. 포인터는 비소유이고, 지금은 에셋 삭제 기능이 없어서 문제가 드러나지 않을 뿐이다.</p>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="ownership">
+        <h2>소유 사슬</h2>
+        <div class="predict"><p><code>leftWall</code>의 정점 데이터를 담은 COM 객체를 실제로 Release하는 소멸자는 누구의 것인가?</p></div>
+        <figure class="diagram is-planned">
+          <div class="diagram__body">GameObject → MeshComponent → <code>const Mesh*</code> → <code>BufferHandle{i}</code> → <code>GRM::m_buffers[i]</code> → <code>ComPtr&lt;ID3D11Buffer&gt;</code>. Texture 사슬과 렌더 타깃 사슬을 나란히.</div>
+          <figcaption><span class="diagram__id">A2</span> 소유 사슬 <span class="badge badge--planned">다이어그램 예정</span></figcaption>
+        </figure>
+
+        <h3>코드 흐름: Mesh 생성</h3>
+        <pre><code>AppBase::InitGreyBoxScene              AppBase.cpp:303-304
+└ AssetManager::CreateMesh             AssetManager.cpp:58
+  └ Mesh::Initialize                   Mesh.cpp:6
+    ├ GRM::CreateVertexBuffer&lt;Vertex&gt;  GraphicsResourceManager.h:33
+    │ └ CreateImmutableBufferInternal  GraphicsResourceManager.cpp:193
+    │   └ D3D11Utils::CreateImmutableBuffer   D3D11Utils.cpp:219
+    │     └ ID3D11Device::CreateBuffer (USAGE_IMMUTABLE)
+    └ GRM::CreateIndexBuffer           GraphicsResourceManager.cpp:179</code></pre>
+
+        <h3>코드 흐름: Texture 생성</h3>
+        <pre><code>AppBase::InitGreyBoxScene              AppBase.cpp:311
+└ AssetManager::LoadTexture            AssetManager.cpp:29   키 = (path, TextureType)
+  └ Texture::Initialize                Texture.cpp:21
+    ├ ToDxgiFormat                     Texture.cpp:6         Albedo만 _SRGB
+    └ GRM::CreateTexture               GraphicsResourceManager.cpp:98
+      └ D3D11Utils::CreateTexture      D3D11Utils.cpp:319
+        └ CreateTexture2D → UpdateSubresource → CreateShaderResourceView → GenerateMips</code></pre>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="handles">
+        <h2>Handle과 무효화</h2>
+        <div class="predict"><p>창 크기를 바꾼 뒤에도 Renderer의 <code>TextureHandle</code>은 그대로 유효하다. 그런데 이전 프레임에 받아 둔 <code>ID3D11ShaderResourceView*</code>는 어떻게 되는가?</p></div>
+        <figure class="diagram is-planned">
+          <div class="diagram__body">같은 index에 새 ComPtr가 move되고 옛 SRV/RTV가 해제되는 전후 비교. 바깥에 저장한 raw pointer가 dangling 되는 지점.</div>
+          <figcaption><span class="diagram__id">A4</span> Resize 전후 슬롯 <span class="badge badge--planned">다이어그램 예정</span></figcaption>
+        </figure>
+        <p>
+          <code>GRM::ResizeRenderTarget</code>(<span class="ref">GraphicsResourceManager.cpp:141-177</span>)은 새 텍스처를 임시 ComPtr로 만든 뒤
+          같은 슬롯에 <code>std::move</code>한다. 그래서 <code>Renderer::EndScene</code>은 raw pointer를 멤버에 두지 않고 매 프레임 핸들로 다시 조회한다
+          (<span class="ref">Renderer.cpp:488-496</span>).
+        </p>
+        <div class="trap"><p><code>GraphicsResourceManager</code>는 append-only다. 개별 삭제와 generation이 없으므로, 삭제를 도입하는 날 핸들에 generation을 같이 넣어야 한다.</p></div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="lifetime">
+        <h2>생성과 파괴 순서</h2>
+        <div class="predict"><p><code>EditorUI</code>는 <code>Camera*</code>를 들고 있는데, <code>m_editorUI</code>(<span class="ref">AppBase.h:88</span>)가 <code>m_camera</code>(<span class="ref">:90</span>)보다 먼저 선언되어 있다. 종료할 때 어느 쪽이 먼저 파괴되고, 지금 문제가 없는 이유는?</p></div>
+        <figure class="diagram is-planned">
+          <div class="diagram__body"><code>AppBase::Initialize</code>의 생성 순서(→)와 멤버 파괴 순서(←), 그 사이에 실행되는 소멸자 본문.</div>
+          <figcaption><span class="diagram__id">A5</span> 생성·파괴 타임라인 <span class="badge badge--planned">다이어그램 예정</span></figcaption>
+        </figure>
+        <ol>
+          <li><strong>생성</strong>(<span class="ref">AppBase.cpp:73-117</span>): Window → GraphicsDevice → GRM → AssetManager → Renderer → ImGui → Controller · EditorUI · Sequence → 그레이박스 씬</li>
+          <li><strong>소멸자 본문 먼저</strong>(<span class="ref">AppBase.cpp:506-519</span>): <code>DestroyWindow</code>, ImGui Shutdown. 이 시점에는 모든 멤버가 아직 살아 있다.</li>
+          <li><strong>멤버 파괴 — 선언 역순</strong>(<span class="ref">AppBase.h:78-98</span>): … Scene → InputSystem → GameTimer → Renderer → AssetManager → GRM → GraphicsDevice. GPU 계층(Renderer → AssetManager → GRM → GraphicsDevice)에서는 참조하는 쪽이 먼저 파괴된다.</li>
+        </ol>
+        <div class="trap">
+          <p>
+            모든 멤버가 그런 것은 아니다. <code>EditorUI</code>(<span class="ref">AppBase.h:88</span>)는 <code>Camera*</code> · <code>FirstPersonCameraController*</code> · <code>PostProcessSettings*</code> · <code>DirectionalLight*</code> · 배경색 포인터를 들고 있는데(<span class="ref">EditorUI.h:40-44</span>),
+            이 대상들은 모두 <code>EditorUI</code>보다 뒤에 선언되어(<span class="ref">AppBase.h:90-98</span>) <strong>먼저 파괴된다</strong>. 지금은 <code>EditorUI</code>에 이 포인터를 쓰는 소멸자가 없어서 문제가 드러나지 않는다.
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="questions">
+        <h2>학습 질문</h2>
+        <div class="questions-toolbar">
+          <button type="button" class="btn" data-action="toggle-answers" data-target="questions">정답 모두 펼치기</button>
+        </div>
+
+        <div class="question-group">
+          <h3><span class="level">확인</span> 코드에서 바로 찾을 수 있는 것</h3>
+          <div class="question">
+            <p>현재 씬에서 <code>GRM::m_buffers.size()</code>와 <code>m_textures.size()</code>는 각각 몇인가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p><strong>7</strong>: Renderer의 상수 버퍼 5개(<span class="ref">Renderer.cpp:42-86</span>) + greybox 메시의 VB·IB 2개. 모든 오브젝트가 메시 하나를 공유한다.</p>
+              <p><strong>8</strong>: PNG 4장(<span class="ref">AppBase.cpp:311-335</span>) + 렌더 타깃 4개(<span class="ref">Renderer.cpp:93-126</span>).</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>Renderer는 AssetManager를 모른다. 그러면 그리는 데 필요한 <code>Mesh</code>는 어떤 경로로 손에 넣는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p><code>AppBase::Render</code>가 GameObject의 MeshComponent에서 꺼낸 포인터를 <code>RenderItem</code>에 담아 <code>DrawRenderItem</code>의 인자로 넘긴다(<span class="ref">AppBase.cpp:622-624</span>). Renderer는 <code>Mesh.h</code>만 include해서 그 객체를 읽는다.</p>
+            </div></details>
+          </div>
+        </div>
+
+        <div class="question-group">
+          <h3><span class="level">추론</span> 코드를 따라가 결론을 내야 하는 것</h3>
+          <div class="question">
+            <p>Scene이 <code>vector&lt;GameObject&gt;</code>(값) 대신 <code>vector&lt;unique_ptr&lt;GameObject&gt;&gt;</code>를 쓰는 이유는?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>값으로 담으면 <code>emplace_back</code>으로 vector가 재할당될 때 모든 GameObject의 주소가 바뀐다. 그런데 <code>PowerSwitch::m_gameObject</code>(<span class="ref">PowerSwitch.h:25</span>), <code>SequenceEntry::pointLightObject</code>(<span class="ref">PointLightSequence.h:14</span>), <code>EditorUI::m_selectedObject</code>(<span class="ref">EditorUI.h:45</span>)가 <code>GameObject*</code>를 저장한다. <code>unique_ptr</code>이면 vector가 옮기는 것은 포인터뿐이라 객체 주소가 고정된다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>GRM은 Renderer를 모르는데, Resize 때 Renderer의 HDR 타깃을 같은 포맷으로 다시 만든다. 포맷은 어디서 알아내는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>처음 만들 때 <code>TextureResource::textureFormat</code>에 저장해 둔다(<span class="ref">GraphicsResourceManager.cpp:127</span>). <code>ResizeRenderTarget</code>은 Renderer가 넘긴 핸들과 크기만 받고, 포맷은 슬롯에 저장된 값을 쓴다(<span class="ref">.cpp:166-167</span>). 의미(HDR인지)는 몰라도 다시 만드는 데 필요한 사실은 GRM이 갖고 있다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>같은 PNG를 <code>Albedo</code>와 <code>Data</code>로 한 번씩 <code>LoadTexture</code>하면 GPU 텍스처는 몇 개 생기는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>2개. 캐시 키가 <code>(path, TextureType)</code>이고(<span class="ref">AssetManager.cpp:36</span>), 용도에 따라 포맷이 <code>_SRGB</code>인지 아닌지가 달라진다(<span class="ref">Texture.cpp:6-19</span>).</p>
+            </div></details>
+          </div>
+        </div>
+
+        <div class="question-group">
+          <h3><span class="level">실험</span> 실행해서 확인할 것</h3>
+          <div class="question">
+            <p>RenderDoc의 Resource Inspector에서 Texture2D 목록을 GRM의 <code>m_textures</code> 8개와 대조하라. GRM 밖에서 만들어진 텍스처는 각각 누가 만들었는가?</p>
+            <details><summary>확인 포인트</summary><div>
+              <p>코드에서 GRM을 거치지 않고 Texture2D를 만드는 곳은 세 군데다. 스왑체인 백버퍼(<code>GraphicsDevice::InitDirect3D</code>가 만드는 스왑체인 소유, <span class="ref">GraphicsDevice.cpp:112</span>), 깊이 텍스처(<span class="ref">GraphicsDevice.cpp:194</span>), ImGui 폰트 텍스처(<span class="ref">imgui_impl_dx11.cpp:393</span>). 실제 캡처에서 몇 개로 보이는지는 직접 확인한다.</p>
+            </div></details>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="doc-diff">
+        <h2>문서와 다른 점</h2>
+        <ul class="docdiff-list">
+          <li>
+            <span class="badge badge--docdiff">문서와 다름</span>
+            AGENTS.md §4는 "참조하는 쪽이 항상 먼저 죽는다"고 적었다. GPU 계층에서는 맞지만, <code>EditorUI</code>는 자기가 참조하는 Camera · 카메라 컨트롤러 · 후처리 설정 · 방향광 · 배경색보다 먼저 선언되어 그것들보다 <strong>나중에</strong> 파괴된다(<span class="ref">AppBase.h:88-98</span>, <span class="ref">EditorUI.h:40-44</span>).
+          </li>
+          <li>
+            <span class="badge badge--unused">현재 미사용</span>
+            <code>AssetManager::LoadModel</code>과 <code>ModelLoader::Load</code>는 구현되어 있지만 현재 씬에서 호출되지 않는다.
+            그래서 <code>AppBase::Render</code>의 ModelComponent 분기(<span class="ref">AppBase.cpp:592</span>)는 지금 실행되지 않는다.
+          </li>
+          <li>
+            <span class="badge badge--unused">현재 미사용</span>
+            <code>D3D11Utils::CreateDepthBuffer</code>(<span class="ref">D3D11Utils.cpp:31</span>)와 <code>D3D11Utils::CreateIndexBuffer</code>(<span class="ref">D3D11Utils.cpp:249</span>)는 호출하는 곳이 없다.
+            깊이 버퍼는 <code>GraphicsDevice::CreateDepthBuffer</code>가 따로 만든다.
+          </li>
+        </ul>
+      </section>
+
+      <nav class="pager" id="pager" aria-label="이전 / 다음 페이지"></nav>
+    </main>
+  </div>
+
+  <footer class="site-footer">MyPF Study · 코드 기준 main @ adee25f</footer>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MyPF Study</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <script src="assets/site.js"></script>
+</head>
+<body data-page="index">
+  <header id="site-header"></header>
+  <noscript>
+    <nav class="noscript-nav">
+      <a href="architecture.html">1. Architecture</a> ·
+      <a href="frame.html">2. Frame Analysis</a> ·
+      <a href="pipeline.html">3. Rendering Pipeline</a>
+    </nav>
+  </noscript>
+
+  <div class="layout layout--single">
+    <main class="content">
+      <div class="page-kicker">MyPF DX11 Renderer</div>
+      <h1>내 렌더러를 다시 읽는 학습 노트</h1>
+      <p>
+        이 사이트는 프로젝트 소개가 아니라 <strong>내가 작성한 DX11 렌더러 코드를 다시 공부하기 위한 노트</strong>다.
+        모든 설명은 실제 코드의 <span class="ref">파일:줄</span>에 근거한다.
+      </p>
+      <p class="muted">
+        코드 기준: <code>main</code> @ <code>adee25f</code> · 작성 2026-10-05.
+        코드가 바뀌면 줄 번호가 어긋날 수 있으니 의심되면 소스를 직접 연다.
+      </p>
+
+      <section id="path-section">
+        <h2>학습 경로</h2>
+        <p>정적 구조 → 시간축 → GPU 내부 순서로 읽는다. 앞 페이지의 용어를 뒤 페이지에서 그대로 쓴다.</p>
+        <div class="path-cards">
+          <a class="path-card" href="architecture.html">
+            <span class="path-card__step">1 · 정적 구조</span>
+            <span class="path-card__title">Architecture</span>
+            <span class="path-card__q">벽 하나를 그리는 <code>ID3D11Buffer</code>는 누가 만들고, 누가 소유하고, 누가 빌려 쓰는가?</span>
+          </a>
+          <a class="path-card" href="frame.html">
+            <span class="path-card__step">2 · 시간축</span>
+            <span class="path-card__title">Frame Analysis</span>
+            <span class="path-card__q"><code>Run</code> 루프 한 바퀴 동안 마우스 움직임과 E 키 한 번은 어떤 함수를 거쳐 픽셀이 되는가?</span>
+          </a>
+          <a class="path-card" href="pipeline.html">
+            <span class="path-card__step">3 · GPU 내부</span>
+            <span class="path-card__title">Rendering Pipeline</span>
+            <span class="path-card__q">내 코드의 각 <code>Context-&gt;…Set…</code> 줄은 파이프라인의 어느 단계를 바꾸고, 그 상태는 다음 Draw까지 어떻게 살아남는가?</span>
+          </a>
+        </div>
+      </section>
+
+      <section id="how-to-read">
+        <h2>읽는 법</h2>
+        <p>세 페이지는 같은 골격을 쓴다.</p>
+        <ol>
+          <li><strong>이 페이지의 질문</strong> — 페이지 전체를 끌고 가는 질문 하나</li>
+          <li><strong>학습 목표</strong> — 페이지를 마치면 설명할 수 있어야 하는 것</li>
+          <li><strong>참고 파일</strong> — 열어 둘 소스와 줄 범위</li>
+          <li><strong>섹션</strong> — 예측 질문 → 다이어그램 → 코드 흐름 → 함정</li>
+          <li><strong>학습 질문</strong> — 확인 / 추론 / 실험. 정답은 접혀 있고 근거 줄이 붙어 있다</li>
+          <li><strong>문서와 다른 점</strong> — AGENTS.md 등 문서와 실제 코드가 어긋나는 곳</li>
+        </ol>
+        <p>예측 질문은 <strong>답을 보기 전에 소스를 열어 직접 따라가 본 뒤</strong> 아래 내용과 맞춰 보는 용도다.</p>
+      </section>
+
+      <section id="legend">
+        <h2>표기 규칙</h2>
+        <div class="legend">
+          <div class="predict"><p>섹션을 읽기 전에 스스로 답해 볼 질문.</p></div>
+          <div class="trap"><p>코드만 읽어서는 알기 어려운 함정. 대부분 AGENTS.md §7과 연결된다.</p></div>
+
+          <article class="fn-card">
+            <div class="fn-card__head">
+              <span class="fn-card__name">Class::Function</span>
+              <span class="ref">File.cpp:줄</span>
+            </div>
+            <dl>
+              <dt>Caller</dt><dd>이 함수를 부르는 곳</dd>
+              <dt>Callee</dt><dd>이 함수가 부르는 프로젝트 함수</dd>
+              <dt>DX11 API</dt><dd>이 함수가 직접 호출하는 D3D11 / DXGI API</dd>
+              <dt>Stage</dt><dd>영향을 주는 GPU 파이프라인 단계</dd>
+              <dt>HLSL</dt><dd>연결되는 셰이더 파일·함수</dd>
+              <dt>Ownership</dt><dd>다루는 리소스의 실제 소유자와 비소유 참조</dd>
+            </dl>
+          </article>
+
+          <p>
+            <span class="badge badge--unused">현재 미사용</span> 구현은 있지만 현재 씬에서 실행되지 않는 코드 ·
+            <span class="badge badge--docdiff">문서와 다름</span> 문서 서술과 실제 코드가 다른 곳 ·
+            <span class="badge badge--planned">다이어그램 예정</span> 1차 버전에서 자리만 마련한 그림
+          </p>
+        </div>
+      </section>
+
+      <section id="scope">
+        <h2>1차 버전 범위</h2>
+        <p>
+          Architecture · Frame Analysis · Rendering Pipeline 세 페이지의 본문, 다이어그램, 학습 질문이 들어 있다.
+          Architecture의 소유 사슬 · Resize 슬롯 · 생성/파괴 타임라인 그림(A2 · A4 · A5)은 아직 자리만 있다.
+        </p>
+        <p>
+          모든 <span class="ref">파일:줄</span> 참조와 식별자는 <code>adee25f</code> 기준 소스와 대조해 검증했다.
+          코드가 바뀌면 줄 번호부터 어긋나므로, 의심되면 소스를 직접 연다.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <footer class="site-footer">MyPF Study · 로컬 학습용 정적 페이지</footer>
+</body>
+</html>

@@ -1,0 +1,847 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rendering Pipeline · MyPF Study</title>
+  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/pipeline.css">
+  <script src="assets/site.js"></script>
+</head>
+<body data-page="pipeline">
+  <header id="site-header"></header>
+  <noscript>
+    <nav class="noscript-nav">
+      <a href="index.html">MyPF Study</a> ·
+      <a href="architecture.html">1. Architecture</a> ·
+      <a href="frame.html">2. Frame Analysis</a> ·
+      <a href="pipeline.html">3. Rendering Pipeline</a>
+    </nav>
+  </noscript>
+
+  <div class="layout">
+    <aside class="toc" id="toc" aria-label="이 페이지 목차"></aside>
+
+    <main class="content">
+      <ol class="path" id="path" aria-label="학습 경로"></ol>
+      <div class="page-kicker">3 · GPU 내부</div>
+      <h1>Rendering Pipeline</h1>
+      <p class="page-question">
+        <small>이 페이지의 질문</small>
+        DX11 파이프라인의 각 단계는 MyPF의 어느 줄에서 설정되고, 어느 셰이더 줄에서 쓰이는가?
+      </p>
+
+      <!-- ===================================================== -->
+      <section id="goals">
+        <h2>학습 목표</h2>
+        <p>이 페이지를 마치면 다음을 할 수 있다.</p>
+        <ol>
+          <li>IA · VS · RS · PS · OM 각 단계의 입력과 출력을 MyPF의 실제 데이터(큐브 24정점, HDR 타깃 등)로 말한다</li>
+          <li>각 단계를 <strong>만드는 줄</strong>(Initialize), <strong>거는 줄</strong>(Draw 직전), <strong>쓰는 줄</strong>(HLSL)을 짚는다</li>
+          <li>같은 단계가 씬 패스와 전체 화면 패스에서 어떻게 다르게 쓰이는지 설명한다</li>
+          <li>CPU 구조체 ↔ InputLayout ↔ HLSL 구조체, CPU 상수 데이터 ↔ cbuffer를 바이트 단위로 대조한다</li>
+          <li>행렬 전치 규약과 색공간 변환이 각각 어느 단계, 어느 줄에서 일어나는지 설명한다</li>
+        </ol>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="files">
+        <h2>참고 파일</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>파일</th><th>범위</th><th>볼 것</th></tr></thead>
+            <tbody>
+              <tr><td><code>Renderer.cpp</code></td><td class="ref">13-227, 744-779</td><td>셰이더 · InputLayout · 샘플러 · 상수 버퍼 · 렌더 타깃 · Rasterizer State 생성</td></tr>
+              <tr><td><code>Renderer.cpp</code></td><td class="ref">293-391, 563-678</td><td>씬 패스의 OM · CB · IA · VS · PS 바인딩</td></tr>
+              <tr><td><code>Renderer.cpp</code></td><td class="ref">393-544</td><td>전체 화면 패스의 바인딩과 후처리 체인</td></tr>
+              <tr><td><code>D3D11Utils.cpp</code></td><td class="ref">89-217, 219-433</td><td>DSS, 셰이더 컴파일, 버퍼 · 텍스처 · 렌더 타깃 생성</td></tr>
+              <tr><td><code>MeshData.h</code>, <code>GeometryGenerator.cpp</code></td><td class="ref">12-18 · 49-187</td><td><code>Vertex</code>와 큐브 정점 · 인덱스</td></tr>
+              <tr><td><code>ShaderConstants.h</code></td><td class="ref">전체</td><td>CPU 쪽 상수 버퍼 레이아웃</td></tr>
+              <tr><td><code>Transform.cpp</code>, <code>Camera.cpp</code>, <code>Camera.h</code></td><td class="ref">전체</td><td>월드 · 뷰 · 투영 행렬</td></tr>
+              <tr><td><code>Shaders/*.hlsl</code>, <code>*.hlsli</code></td><td class="ref">전체</td><td>각 단계에서 실행되는 코드</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="map">
+        <h2>파이프라인 지도</h2>
+        <div class="predict"><p>전체 화면 패스는 정점 버퍼 없이 그린다. 그러면 IA 단계에서는 무엇을 설정하는가?</p></div>
+        <p>
+          MyPF가 쓰는 단계는 IA · VS · RS · PS · OM 다섯이다. 테셀레이션(HS · DS)과 GS는 쓰지 않는다.
+          아래 두 줄은 각 단계에 무엇이 걸리는지를 <strong>씬 패스</strong>와 <strong>전체 화면 패스</strong>로 나눠 보여 준다. 열을 누르면 그 단계 설명으로 이동한다.
+        </p>
+
+        <figure class="pl-figure">
+          <svg class="pl-svg pl-svg--wide" viewBox="0 0 1050 395" role="img" aria-label="MyPF 파이프라인 단계별 바인딩: 씬 패스와 전체 화면 패스">
+            <defs>
+              <marker id="mk-pl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+                <path class="mk-pl" d="M0,0 L10,5 L0,10 z"/>
+              </marker>
+            </defs>
+
+            <!-- 단계 사이를 흐르는 데이터 -->
+            <text class="pl-flow-label" x="195" y="20" text-anchor="middle">VS_INPUT</text>
+            <text class="pl-flow-label" x="430" y="20" text-anchor="middle">PS_INPUT · 클립 좌표</text>
+            <text class="pl-flow-label" x="665" y="20" text-anchor="middle">보간된 PS_INPUT</text>
+            <text class="pl-flow-label" x="855" y="20" text-anchor="middle">SV_TARGET</text>
+
+            <path class="pl-arrow" d="M180,65 L208,65" marker-end="url(#mk-pl)"/>
+            <path class="pl-arrow pl-arrow--dashed" d="M370,65 L398,65" marker-end="url(#mk-pl)"/>
+            <path class="pl-arrow pl-arrow--dashed" d="M460,65 L488,65" marker-end="url(#mk-pl)"/>
+            <path class="pl-arrow" d="M650,65 L678,65" marker-end="url(#mk-pl)"/>
+            <path class="pl-arrow" d="M840,65 L868,65" marker-end="url(#mk-pl)"/>
+
+            <text class="pl-row-label" x="20" y="124">씬 패스 · DrawRenderItem</text>
+            <text class="pl-row-label" x="20" y="264">전체 화면 패스 · DrawFullScreenPass</text>
+
+            <!-- IA -->
+            <a class="pl-col" data-stage="ia" href="#stage-ia" aria-label="Input Assembler 설명으로 이동">
+              <rect class="pl-stage-box" x="20" y="30" width="160" height="70" rx="8"/>
+              <text class="pl-stage-title" x="100" y="58" text-anchor="middle">IA</text>
+              <text class="pl-stage-name" x="100" y="76" text-anchor="middle">Input Assembler</text>
+              <text class="pl-stage-name" x="100" y="92" text-anchor="middle">입력 조립</text>
+              <rect class="pl-bind-box" x="20" y="132" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="30" y="152">VB greybox · 44B 정점</text>
+              <text class="pl-bind-line" x="30" y="170">IB R32_UINT · 36개</text>
+              <text class="pl-bind-line" x="30" y="188">InputLayout 4요소</text>
+              <text class="pl-bind-line" x="30" y="206">TRIANGLELIST</text>
+              <text class="pl-bind-ref" x="30" y="232">Renderer.cpp:662-665</text>
+              <rect class="pl-bind-box" x="20" y="272" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="30" y="292">VB · IB 안 읽음</text>
+              <text class="pl-bind-line" x="30" y="310">InputLayout = null</text>
+              <text class="pl-bind-line" x="30" y="328">TRIANGLELIST</text>
+              <text class="pl-bind-line" x="30" y="346">Draw(3, 0)</text>
+              <text class="pl-bind-ref" x="30" y="372">:408-409 · :414</text>
+            </a>
+
+            <!-- VS -->
+            <a class="pl-col" data-stage="vs" href="#stage-vs" aria-label="Vertex Shader 설명으로 이동">
+              <rect class="pl-stage-box" x="210" y="30" width="160" height="70" rx="8"/>
+              <text class="pl-stage-title" x="290" y="58" text-anchor="middle">VS</text>
+              <text class="pl-stage-name" x="290" y="76" text-anchor="middle">Vertex Shader</text>
+              <text class="pl-stage-name" x="290" y="92" text-anchor="middle">정점 셰이더</text>
+              <rect class="pl-bind-box" x="210" y="132" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="220" y="152">simpleVertexShader</text>
+              <text class="pl-bind-line" x="220" y="170">b0 Object CB</text>
+              <text class="pl-bind-line" x="220" y="188">b1 Camera CB</text>
+              <text class="pl-bind-line" x="220" y="206">→ 클립 좌표 + 월드값</text>
+              <text class="pl-bind-ref" x="220" y="232">:667-668</text>
+              <rect class="pl-bind-box" x="210" y="272" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="220" y="292">fullscreenVertexShader</text>
+              <text class="pl-bind-line" x="220" y="310">입력 SV_VertexID</text>
+              <text class="pl-bind-line" x="220" y="328">상수 버퍼 없음</text>
+              <text class="pl-bind-line" x="220" y="346">→ 클립 좌표 + uv</text>
+              <text class="pl-bind-ref" x="220" y="372">:410</text>
+            </a>
+
+            <!-- HS · DS · GS: 미사용 -->
+            <rect class="pl-unused-box" x="400" y="30" width="60" height="70" rx="8"/>
+            <text class="pl-unused-text" x="430" y="58" text-anchor="middle">HS · DS</text>
+            <text class="pl-unused-text" x="430" y="74" text-anchor="middle">GS</text>
+            <text class="pl-unused-text" x="430" y="90" text-anchor="middle">미사용</text>
+            <rect class="pl-unused-box" x="400" y="132" width="60" height="112" rx="6"/>
+            <text class="pl-unused-text" x="430" y="192" text-anchor="middle">null</text>
+            <rect class="pl-unused-box" x="400" y="272" width="60" height="112" rx="6"/>
+            <text class="pl-unused-text" x="430" y="332" text-anchor="middle">null</text>
+
+            <!-- RS -->
+            <a class="pl-col" data-stage="rs" href="#stage-rs" aria-label="Rasterizer 설명으로 이동">
+              <rect class="pl-stage-box" x="490" y="30" width="160" height="70" rx="8"/>
+              <text class="pl-stage-title" x="570" y="58" text-anchor="middle">RS</text>
+              <text class="pl-stage-name" x="570" y="76" text-anchor="middle">Rasterizer</text>
+              <text class="pl-stage-name" x="570" y="92" text-anchor="middle">래스터라이저</text>
+              <rect class="pl-bind-box" x="490" y="132" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="500" y="152">CULL_NONE · SOLID</text>
+              <text class="pl-bind-line" x="500" y="170">FrontCCW = false</text>
+              <text class="pl-bind-line" x="500" y="188">Viewport 화면 전체</text>
+              <text class="pl-bind-line" x="500" y="206">State는 Init에서 1회</text>
+              <text class="pl-bind-ref" x="500" y="232">:776 · :730</text>
+              <rect class="pl-bind-box" x="490" y="272" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="500" y="292">같은 RS State</text>
+              <text class="pl-bind-line" x="500" y="310">Bloom: ½ 뷰포트</text>
+              <text class="pl-bind-line" x="500" y="328">톤 매핑: 화면 복원</text>
+              <text class="pl-bind-line" x="500" y="346">삼각형이 화면을 덮음</text>
+              <text class="pl-bind-ref" x="500" y="372">:506 · :517</text>
+            </a>
+
+            <!-- PS -->
+            <a class="pl-col" data-stage="ps" href="#stage-ps" aria-label="Pixel Shader 설명으로 이동">
+              <rect class="pl-stage-box" x="680" y="30" width="160" height="70" rx="8"/>
+              <text class="pl-stage-title" x="760" y="58" text-anchor="middle">PS</text>
+              <text class="pl-stage-name" x="760" y="76" text-anchor="middle">Pixel Shader</text>
+              <text class="pl-stage-name" x="760" y="92" text-anchor="middle">픽셀 셰이더</text>
+              <rect class="pl-bind-box" x="680" y="132" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="690" y="152">simplePixelShader</text>
+              <text class="pl-bind-line" x="690" y="170">t0 Albedo · s0 WRAP</text>
+              <text class="pl-bind-line" x="690" y="188">b0 Light (:388)</text>
+              <text class="pl-bind-line" x="690" y="206">b1 Camera · b2 Material</text>
+              <text class="pl-bind-ref" x="690" y="232">:669-673</text>
+              <rect class="pl-bind-box" x="680" y="272" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="690" y="292">Bright · BlurX · BlurY</text>
+              <text class="pl-bind-line" x="690" y="310">ToneMap · Copy</text>
+              <text class="pl-bind-line" x="690" y="328">t0 (+t1) · s0</text>
+              <text class="pl-bind-line" x="690" y="346">b0 PostProcess</text>
+              <text class="pl-bind-ref" x="690" y="372">:404-411</text>
+            </a>
+
+            <!-- OM -->
+            <a class="pl-col" data-stage="om" href="#stage-om" aria-label="Output Merger 설명으로 이동">
+              <rect class="pl-stage-box" x="870" y="30" width="160" height="70" rx="8"/>
+              <text class="pl-stage-title" x="950" y="58" text-anchor="middle">OM</text>
+              <text class="pl-stage-name" x="950" y="76" text-anchor="middle">Output Merger</text>
+              <text class="pl-stage-name" x="950" y="92" text-anchor="middle">출력 병합</text>
+              <rect class="pl-bind-box" x="870" y="132" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="880" y="152">RTV HDR R16G16B16A16</text>
+              <text class="pl-bind-line" x="880" y="170">DSV D24S8 · LESS</text>
+              <text class="pl-bind-line" x="880" y="188">Depth write ALL</text>
+              <text class="pl-bind-line" x="880" y="206">Blend 기본값</text>
+              <text class="pl-bind-ref" x="880" y="232">:326-327</text>
+              <rect class="pl-bind-box" x="870" y="272" width="160" height="112" rx="6"/>
+              <text class="pl-bind-line" x="880" y="292">RTV Bright · Blur</text>
+              <text class="pl-bind-line" x="880" y="310">→ 마지막은 백버퍼</text>
+              <text class="pl-bind-line" x="880" y="328">DSV 없음</text>
+              <text class="pl-bind-line" x="880" y="346">Blend 기본값</text>
+              <text class="pl-bind-ref" x="880" y="372">:403</text>
+            </a>
+          </svg>
+          <figcaption>줄 번호는 모두 <code>Renderer.cpp</code>. 점선 화살표 구간(HS · DS · GS)은 null이라 데이터가 그대로 지나간다.</figcaption>
+        </figure>
+
+        <h3>셰이더 8개는 모두 런타임에 컴파일된다</h3>
+        <p>
+          <code>Renderer::Initialize</code>가 <code>D3D11Utils</code>를 거쳐 <code>D3DCompileFromFile</code>로 컴파일한다(진입점 <code>main</code>, <code>vs_5_0</code> / <code>ps_5_0</code>, <span class="ref">D3D11Utils.cpp:124, 167, 198</span>).
+          경로가 <code>Shaders\…</code> 상대 경로라 작업 디렉터리가 <code>MyPF/</code>여야 한다.
+        </p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>파일</th><th>단계</th><th>쓰는 곳</th><th>생성</th></tr></thead>
+            <tbody>
+              <tr><td><code>simpleVertexShader.hlsl</code></td><td>VS</td><td>씬 패스 (+ InputLayout 생성 기준)</td><td class="ref">Renderer.cpp:156</td></tr>
+              <tr><td><code>simplePixelShader.hlsl</code></td><td>PS</td><td>씬 패스</td><td class="ref">Renderer.cpp:162</td></tr>
+              <tr><td><code>fullscreenVertexShader.hlsl</code></td><td>VS</td><td>모든 후처리 패스</td><td class="ref">Renderer.cpp:167</td></tr>
+              <tr><td><code>copyPixelShader.hlsl</code></td><td>PS</td><td>디버그 뷰 (Final 아닐 때)</td><td class="ref">Renderer.cpp:173</td></tr>
+              <tr><td><code>toneMappingPixelShader.hlsl</code></td><td>PS</td><td>최종 합성 → 백버퍼</td><td class="ref">Renderer.cpp:179</td></tr>
+              <tr><td><code>brightPassPixelShader.hlsl</code></td><td>PS</td><td>Bloom 추출</td><td class="ref">Renderer.cpp:185</td></tr>
+              <tr><td><code>blurXPixelShader.hlsl</code> / <code>blurYPixelShader.hlsl</code></td><td>PS</td><td>Bloom 블러</td><td class="ref">Renderer.cpp:191 / :197</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="trap"><p><code>.hlsl</code> / <code>.hlsli</code>를 UTF-8 BOM으로 저장하면 컴파일러가 <code>X3000: Illegal character</code>로 실패한다. 셰이더 파일은 BOM 없는 UTF-8이다.</p></div>
+      </section>
+
+      <!-- ===================================================== IA -->
+      <section id="stage-ia" data-stage="ia">
+        <div class="stage-head">
+          <span class="stage-chip">IA</span>
+          <div><h2>Input Assembler</h2><small>입력 조립 — 버퍼에서 정점을 읽어 삼각형을 만든다</small></div>
+        </div>
+        <div class="predict"><p><code>Vertex</code> 한 개는 몇 바이트이고, TEXCOORD는 몇 번째 바이트에서 시작하는가?</p></div>
+
+        <div class="table-wrap">
+          <table class="spec-table">
+            <thead><tr><th scope="col">항목</th><th scope="col">씬 패스 (<code>DrawRenderItem</code>)</th><th scope="col">전체 화면 패스 (<code>DrawFullScreenPass</code>)</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Purpose</th><td colspan="2">메모리의 정점 · 인덱스 버퍼를 읽어, InputLayout이 정한 형식대로 셰이더 입력 정점을 조립하고, Topology에 따라 삼각형을 만든다.</td></tr>
+              <tr><th scope="row">Input</th>
+                <td><ul>
+                  <li>VB: greybox 큐브 24정점 × 44B (<code>Vertex</code> <span class="ref">MeshData.h:12-18</span>)</li>
+                  <li>IB: <code>uint32_t</code> 36개 = 삼각형 12개 <span class="ref">GeometryGenerator.cpp:178-185</span></li>
+                  <li>InputLayout: POSITION · COLOR · NORMAL · TEXCOORD <span class="ref">Renderer.cpp:150-154</span></li>
+                  <li>Topology: TRIANGLELIST</li>
+                </ul></td>
+                <td><ul>
+                  <li>정점 · 인덱스 버퍼를 읽지 않는다. 슬롯에는 씬 패스의 VB · IB가 남아 있지만 InputLayout이 null이라 쓰이지 않는다</li>
+                  <li>InputLayout = null</li>
+                  <li>정점 3개만 요청 — <code>Draw(3, 0)</code></li>
+                </ul></td>
+              </tr>
+              <tr><th scope="row">Output</th>
+                <td>인덱스 36개가 가리키는 정점들(<code>VS_INPUT</code> 형식)과 삼각형 12개</td>
+                <td><code>SV_VertexID</code> 0, 1, 2만 가진 정점 3개와 삼각형 1개</td>
+              </tr>
+              <tr><th scope="row">MyPF Code</th>
+                <td>
+                  <span class="sub">생성 (씬 조립 때 1회)</span>
+                  <code>Mesh::Initialize</code> <span class="ref">Mesh.cpp:6</span> → <code>GRM::CreateVertexBuffer</code> / <code>CreateIndexBuffer</code> → <code>D3D11Utils::CreateImmutableBuffer</code> <span class="ref">D3D11Utils.cpp:219</span>
+                  <span class="sub">InputLayout 생성 (Initialize)</span>
+                  <code>Renderer::Initialize</code> <span class="ref">Renderer.cpp:150-157</span> → <code>D3D11Utils::CreateVertexShaderAndInputLayout</code> <span class="ref">D3D11Utils.cpp:112</span>
+                  <span class="sub">바인딩 (매 Draw)</span>
+                  <code>DrawRenderItem</code> <span class="ref">Renderer.cpp:662-665</span>. stride는 <code>sizeof(Vertex)</code> <span class="ref">Mesh.h:30</span>
+                </td>
+                <td>
+                  <span class="sub">바인딩</span>
+                  <code>DrawFullScreenPass</code> <span class="ref">Renderer.cpp:408-409</span>
+                  <span class="sub">Draw</span>
+                  <span class="ref">:414</span>
+                </td>
+              </tr>
+              <tr><th scope="row">DX11 API</th>
+                <td><code>CreateBuffer</code>(IMMUTABLE, VERTEX / INDEX_BUFFER) · <code>CreateInputLayout</code> · <code>IASetInputLayout</code> · <code>IASetVertexBuffers</code> · <code>IASetIndexBuffer</code> · <code>IASetPrimitiveTopology</code> · <code>DrawIndexed</code></td>
+                <td><code>IASetInputLayout(nullptr)</code> · <code>IASetPrimitiveTopology</code> · <code>Draw(3, 0)</code></td>
+              </tr>
+              <tr><th scope="row">관련 HLSL</th>
+                <td><code>VS_INPUT</code> <span class="ref">Common.hlsli:6-12</span> — 시맨틱 이름이 InputLayout과 짝</td>
+                <td><code>SV_VertexID</code> <span class="ref">fullscreenVertexShader.hlsl:10</span> — 시스템 값이라 InputLayout이 필요 없다</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>정점 44바이트가 세 곳에서 같은 모양이어야 한다</h3>
+        <div class="byte-ruler" role="table" aria-label="Vertex 바이트 배치">
+          <div class="br-label" role="rowheader">바이트</div>
+          <div class="br-head">0 – 11</div>
+          <div class="br-head">12 – 23</div>
+          <div class="br-head">24 – 35</div>
+          <div class="br-head">36 – 43</div>
+
+          <div class="br-label">C++ <code>Vertex</code><br><span class="ref">MeshData.h:14-17</span></div>
+          <div><code>Vector3 position</code></div>
+          <div><code>Vector3 color</code></div>
+          <div><code>Vector3 normal</code></div>
+          <div><code>Vector2 uv</code></div>
+
+          <div class="br-label">InputLayout<br><span class="ref">Renderer.cpp:150-154</span></div>
+          <div><code>POSITION</code> R32G32B32_FLOAT, 오프셋 0</div>
+          <div><code>COLOR</code> R32G32B32_FLOAT, 오프셋 12</div>
+          <div><code>NORMAL</code> R32G32B32_FLOAT, 오프셋 24</div>
+          <div><code>TEXCOORD</code> R32G32_FLOAT, 오프셋 36</div>
+
+          <div class="br-label">HLSL <code>VS_INPUT</code><br><span class="ref">Common.hlsli:8-11</span></div>
+          <div><code>float3 pos : POSITION0</code></div>
+          <div><code>float3 color : COLOR0</code></div>
+          <div><code>float3 normal : NORMAL0</code></div>
+          <div><code>float2 uv : TEXCOORD0</code></div>
+        </div>
+        <p>
+          InputLayout은 <strong>VS 바이트코드의 입력 시그니처와 대조해서</strong> 만들어진다. 그래서 <code>CreateInputLayout</code>에 컴파일된 VS의 <code>shaderBlob</code>를 같이 넘긴다(<span class="ref">D3D11Utils.cpp:142-143</span>).
+          VS가 요구하는 시맨틱이 InputLayout에 없으면 생성이 실패한다.
+        </p>
+        <div class="trap"><p>오프셋이 <code>4 * 3</code>, <code>4 * 3 * 2</code>처럼 손으로 쓴 숫자다(<span class="ref">Renderer.cpp:152-154</span>). <code>Vertex</code>에 필드를 추가하면 C++ 구조체, InputLayout, <code>VS_INPUT</code> 세 곳을 함께 고쳐야 한다. 하나만 고치면 컴파일은 통과하고 화면만 깨진다.</p></div>
+      </section>
+
+      <!-- ===================================================== VS -->
+      <section id="stage-vs" data-stage="vs">
+        <div class="stage-head">
+          <span class="stage-chip">VS</span>
+          <div><h2>Vertex Shader</h2><small>정점 셰이더 — 위치를 클립 공간으로 옮기고 PS가 쓸 값을 넘긴다</small></div>
+        </div>
+        <div class="predict"><p>CPU에서 <code>Transpose()</code>를 했는데 HLSL은 <code>mul(pos, model)</code>로 행벡터 곱을 한다. 둘이 어떻게 맞아떨어지는가?</p></div>
+
+        <div class="table-wrap">
+          <table class="spec-table">
+            <thead><tr><th scope="col">항목</th><th scope="col">씬 패스 (<code>simpleVertexShader</code>)</th><th scope="col">전체 화면 패스 (<code>fullscreenVertexShader</code>)</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Purpose</th><td colspan="2">정점마다 한 번 실행된다. 위치를 로컬 → 월드 → 뷰 → 클립 공간으로 바꾸고, 다음 단계가 쓸 값을 출력 구조체에 담는다.</td></tr>
+              <tr><th scope="row">Input</th>
+                <td><ul>
+                  <li><code>VS_INPUT</code> 정점</li>
+                  <li>b0 Object CB — <code>model</code>, <code>invTranspose</code></li>
+                  <li>b1 Camera CB — <code>view</code>, <code>projection</code>, <code>cameraPos</code></li>
+                </ul></td>
+                <td><code>SV_VertexID</code> (0, 1, 2). 상수 버퍼 없음</td>
+              </tr>
+              <tr><th scope="row">Output</th>
+                <td><code>PS_INPUT</code> <span class="ref">Common.hlsli:14-21</span> — <code>SV_POSITION</code>(클립 좌표), <code>posWorld</code>(TEXCOORD0), <code>color</code>, <code>normal</code>(월드 · 정규화), <code>uv</code>(TEXCOORD1)</td>
+                <td><code>SV_Position</code>(클립 좌표) + <code>uv</code>(TEXCOORD0)</td>
+              </tr>
+              <tr><th scope="row">MyPF Code</th>
+                <td>
+                  <span class="sub">행렬 만들기 (CPU)</span>
+                  <code>Transform::GetWorldMatrix</code> <span class="ref">Transform.cpp:7</span> · <code>Camera::GetViewMatrix</code> <span class="ref">Camera.cpp:44</span> · <code>GetProjectionMatrix</code> <span class="ref">:49</span> (FOV 70°, near 0.01, far 100 <span class="ref">Camera.h:42-44</span>)
+                  <span class="sub">업로드</span>
+                  <code>BeginFrame</code> <span class="ref">Renderer.cpp:330-336</span> (view · projection 전치) · <code>DrawRenderItem</code> <span class="ref">:596-606</span> (model 전치, invTranspose)
+                  <span class="sub">생성 · 바인딩</span>
+                  <code>Initialize</code> <span class="ref">:156</span> · <code>DrawRenderItem</code> <span class="ref">:667-668</span>
+                </td>
+                <td>
+                  <span class="sub">생성</span>
+                  <code>Initialize</code> <span class="ref">Renderer.cpp:167</span>
+                  <span class="sub">바인딩</span>
+                  <code>DrawFullScreenPass</code> <span class="ref">:410</span>
+                </td>
+              </tr>
+              <tr><th scope="row">DX11 API</th>
+                <td><code>D3DCompileFromFile</code>(main, vs_5_0) <span class="ref">D3D11Utils.cpp:124</span> · <code>CreateVertexShader</code> · <code>VSSetShader</code> · <code>VSSetConstantBuffers(0, 2)</code> · <code>Map</code> / <code>Unmap</code></td>
+                <td><code>D3DCompileFromFile</code> <span class="ref">D3D11Utils.cpp:167</span> · <code>CreateVertexShader</code> · <code>VSSetShader</code></td>
+              </tr>
+              <tr><th scope="row">관련 HLSL</th>
+                <td><code>simpleVertexShader.hlsl</code> main <span class="ref">:9</span> — <code>mul(pos, model)</code> <span class="ref">:14</span> → <code>posWorld</code> <span class="ref">:16</span> → view <span class="ref">:18</span> → projection <span class="ref">:19</span>, 법선 <span class="ref">:24-26</span> · cbuffer b0 <span class="ref">:3</span> · Camera b1 <span class="ref">Common.hlsli:23</span></td>
+                <td><code>fullscreenVertexShader.hlsl</code> main <span class="ref">:10</span> — <code>edge[]</code> <span class="ref">:8</span>, 위치 <span class="ref">:16</span>, uv의 y 뒤집기 <span class="ref">:19</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>한 정점이 거치는 좌표 공간</h3>
+        <ol class="chain" data-stage="vs">
+          <li><div class="chain-box"><b>로컬</b><code>VS_INPUT.pos</code><br>큐브 ±0.5</div></li>
+          <li><div class="chain-box chain-box--accent"><b>월드</b>× model <span class="ref">VS:14</span><br><code>posWorld</code>로 PS에 전달</div></li>
+          <li><div class="chain-box chain-box--accent"><b>뷰</b>× view <span class="ref">VS:18</span><br>LookToLH</div></li>
+          <li><div class="chain-box chain-box--accent"><b>클립</b>× projection <span class="ref">VS:19</span><br><code>SV_POSITION</code></div></li>
+          <li><div class="chain-box"><b>NDC</b>RS가 ÷ w<br>x, y −1~1 · z 0~1</div></li>
+          <li><div class="chain-box"><b>화면 픽셀</b>RS가 뷰포트 변환</div></li>
+        </ol>
+        <p class="muted">색칠된 세 상자(월드 · 뷰 · 클립)는 VS가 계산하고, 마지막 두 상자(NDC · 화면 픽셀)는 <a href="#stage-rs">RS</a>가 한다. <span class="ref">VS:줄</span>은 <code>simpleVertexShader.hlsl</code>의 줄 번호다.</p>
+
+        <h3>행렬이 CPU에서 셰이더로 가는 길</h3>
+        <ol class="chain" data-stage="vs">
+          <li><div class="chain-box"><b>CPU 행렬 M</b>SimpleMath, 행벡터 규약 (v · M)</div></li>
+          <li><div class="chain-box chain-box--accent"><b>Transpose() 후 업로드</b>메모리에 Mᵀ <span class="ref">Renderer.cpp:597</span></div></li>
+          <li><div class="chain-box chain-box--accent"><b>HLSL 기본 column_major</b>열 단위로 읽어 다시 M</div></li>
+          <li><div class="chain-box"><b>mul(pos, model)</b>행벡터 × M <span class="ref">simpleVertexShader.hlsl:14</span></div></li>
+        </ol>
+        <p>
+          법선용 <code>invTranspose</code>는 반대로 <strong>전치하지 않고</strong> M⁻¹을 올린다(<span class="ref">Renderer.cpp:599-601</span>). 셰이더는 그것을 (M⁻¹)ᵀ로 읽고,
+          <code>w = 0</code>인 법선에 곱한 뒤 <code>.xyz</code>만 쓴다(<span class="ref">simpleVertexShader.hlsl:24-25</span>). 행벡터 규약에서 법선 변환 행렬은 (M⁻¹)ᵀ이므로 결과가 맞다.
+          중간의 <code>Translation(Vector3(0))</code>은 이미 전치된 행렬의 4행을 0으로 만드는데, 그 자리는 원래 0이라 아무 일도 하지 않는다.
+        </p>
+        <div class="trap"><p>보간을 거치면 법선 길이가 1보다 짧아진다. 그래서 VS에서 정규화하고(<span class="ref">simpleVertexShader.hlsl:26</span>) PS에서 한 번 더 정규화한다(<span class="ref">simplePixelShader.hlsl:24</span>).</p></div>
+      </section>
+
+      <!-- ===================================================== RS -->
+      <section id="stage-rs" data-stage="rs">
+        <div class="stage-head">
+          <span class="stage-chip">RS</span>
+          <div><h2>Rasterizer</h2><small>래스터라이저 — 삼각형을 픽셀로 바꾸고 값을 보간한다</small></div>
+        </div>
+        <div class="predict"><p>Rasterizer State는 초기화 때 한 번만 건다. ImGui가 매 프레임 자기 상태를 거는데도 씬이 정상인 이유는?</p></div>
+
+        <div class="table-wrap">
+          <table class="spec-table">
+            <thead><tr><th scope="col">항목</th><th scope="col">씬 패스</th><th scope="col">전체 화면 패스</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Purpose</th><td colspan="2">VS가 낸 클립 좌표 삼각형을 화면 픽셀로 바꾼다. 클리핑 → w로 나누기 → 뷰포트 변환 → 컬링 → 픽셀마다 VS 출력값 보간. 셰이더가 없는 고정 기능 단계다.</td></tr>
+              <tr><th scope="row">Input</th>
+                <td>큐브 삼각형 12개의 <code>PS_INPUT</code> · RS State · 뷰포트(화면 전체)</td>
+                <td>큰 삼각형 1개 · 같은 RS State · 뷰포트(Bloom이면 화면 ½, 톤 매핑이면 화면)</td>
+              </tr>
+              <tr><th scope="row">Output</th>
+                <td>삼각형이 덮는 픽셀마다 보간된 <code>PS_INPUT</code>. <code>SV_POSITION</code>은 픽셀 좌표가 된다</td>
+                <td>타깃의 모든 픽셀 — 삼각형이 화면을 다 덮는다. 보간된 uv는 0~1</td>
+              </tr>
+              <tr><th scope="row">MyPF Code</th>
+                <td>
+                  <span class="sub">State 생성 · 적용 (Initialize 1회)</span>
+                  <code>Renderer::CreateRasterizerState</code> <span class="ref">Renderer.cpp:744-779</span> ← <code>Initialize</code> <span class="ref">:26</span> — FILL_SOLID, CULL_NONE, <code>FrontCounterClockwise = false</code>, <code>DepthClipEnable = true</code>, <code>RSSetState</code> <span class="ref">:776</span>
+                  <span class="sub">뷰포트 (매 프레임)</span>
+                  <code>AppBase::Run</code> <span class="ref">AppBase.cpp:739</span> → <code>Renderer::SetSceneViewport</code> <span class="ref">Renderer.cpp:680</span> → <code>SetViewPort</code> <span class="ref">Renderer.cpp:705-731</span>
+                </td>
+                <td>
+                  <span class="sub">뷰포트</span>
+                  <code>EndScene</code> — 지역 <code>D3D11_VIEWPORT</code>(화면 ½) <span class="ref">Renderer.cpp:499-506</span> → 화면으로 복원 <span class="ref">:517</span>
+                </td>
+              </tr>
+              <tr><th scope="row">DX11 API</th>
+                <td><code>CreateRasterizerState</code> · <code>RSSetState</code> · <code>RSSetViewports</code></td>
+                <td><code>RSSetViewports</code></td>
+              </tr>
+              <tr><th scope="row">관련 HLSL</th>
+                <td>셰이더 없음. VS가 쓴 <code>SV_POSITION</code> <span class="ref">Common.hlsli:16</span>을 소비하고, 나머지 <code>PS_INPUT</code> 멤버를 보간한다</td>
+                <td>화면보다 큰 삼각형 <span class="ref">fullscreenVertexShader.hlsl:7-8</span> — 화면 밖 부분은 RS가 잘라낸다</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>전체 화면 삼각형</h3>
+        <figure class="pl-figure">
+          <svg class="pl-svg pl-svg--small" viewBox="0 0 400 330" role="img" aria-label="클립 좌표 (-1,-1), (-1,3), (3,-1) 삼각형이 화면 사각형을 덮는 그림">
+            <polygon class="ft-tri" points="40,300 40,20 320,300"/>
+            <rect class="ft-screen" x="40" y="160" width="140" height="140"/>
+            <circle class="ft-dot" cx="40" cy="300" r="4"/>
+            <circle class="ft-dot" cx="40" cy="20" r="4"/>
+            <circle class="ft-dot" cx="320" cy="300" r="4"/>
+            <text class="ft-label t-mono" x="48" y="318">(−1, −1) · uv (0, 1)</text>
+            <text class="ft-label t-mono" x="50" y="26">(−1, 3) · uv (0, −1)</text>
+            <text class="ft-label t-mono" x="320" y="290" text-anchor="end">(3, −1) · uv (2, 1)</text>
+            <text class="ft-label t-bold" x="110" y="222" text-anchor="middle">화면</text>
+            <text class="ft-label" x="110" y="240" text-anchor="middle">클립 −1 ~ 1</text>
+            <text class="ft-label" x="110" y="258" text-anchor="middle">uv 0 ~ 1</text>
+            <text class="ft-label t-muted" x="48" y="120">잘려 나감</text>
+            <text class="ft-label t-muted" x="196" y="262">잘려 나감</text>
+          </svg>
+          <figcaption>정점 3개를 <code>SV_VertexID</code>로 만들고 정점 버퍼는 읽지 않는다. 화면 밖 부분은 RS의 클리핑이 버린다. <span class="ref">fullscreenVertexShader.hlsl:8, 19</span></figcaption>
+        </figure>
+
+        <h3>컬링과 정점 감기 방향</h3>
+        <p>
+          <code>FrontCounterClockwise = false</code>라서 화면에서 <strong>시계 방향</strong>으로 감긴 삼각형이 앞면이다. greybox 큐브는 여섯 면 모두 바깥에서 볼 때 시계 방향으로 정점이 놓여 있다
+          (<span class="ref">GeometryGenerator.cpp:59-163, 178-185</span>). 그런데 <code>CullMode</code>가 <code>NONE</code>이라 뒷면도 그려진다.
+        </p>
+        <div class="trap"><p>뒷면을 그리기 때문에 PS가 표면 뒤에서 보는 픽셀도 계산한다. 이때 빛 방향 L이 시선 V의 정반대가 되면 하프 벡터 <code>L + V</code>가 0이 되어 <code>normalize</code>가 NaN을 만든다. <code>ComputeDirectLighting</code>이 그 길이를 따로 검사하는 이유다(<span class="ref">Lighting.hlsli:128-133</span>).</p></div>
+        <div class="trap"><p><code>Renderer::SetViewPort</code>는 <code>m_screenViewport</code> 멤버를 덮어쓴다. 후처리에서 이 함수를 쓰면 복원할 화면 뷰포트가 사라지므로, Bloom 구간은 지역 <code>D3D11_VIEWPORT</code>를 쓴다(<span class="ref">Renderer.cpp:499-506</span>).</p></div>
+      </section>
+
+      <!-- ===================================================== PS -->
+      <section id="stage-ps" data-stage="ps">
+        <div class="stage-head">
+          <span class="stage-chip">PS</span>
+          <div><h2>Pixel Shader</h2><small>픽셀 셰이더 — 픽셀마다 색을 계산한다</small></div>
+        </div>
+        <div class="predict"><p>Point Light가 꺼져 있을 때 <code>GetPointLight</code>는 왜 방향을 <code>(0, 1, 0)</code>으로 채워서 돌려주는가?</p></div>
+
+        <div class="table-wrap">
+          <table class="spec-table">
+            <thead><tr><th scope="col">항목</th><th scope="col">씬 패스 (<code>simplePixelShader</code>)</th><th scope="col">전체 화면 패스 (후처리 PS 5개)</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Purpose</th><td colspan="2">픽셀마다 실행되어 색을 계산한다. 씬 패스에서는 재질과 빛으로 조명을 계산하고, 후처리에서는 텍스처를 읽어 이미지를 가공한다.</td></tr>
+              <tr><th scope="row">Input</th>
+                <td><ul>
+                  <li>보간된 <code>PS_INPUT</code></li>
+                  <li>t0 Albedo — <code>_SRGB</code> 포맷이라 샘플할 때 선형으로 바뀐다 · s0 WRAP</li>
+                  <li>b0 Light · b1 Camera · b2 Material</li>
+                </ul></td>
+                <td><ul>
+                  <li>보간된 uv</li>
+                  <li>t0 입력 텍스처 (+ 톤 매핑은 t1 Bloom) · s0 WRAP 또는 CLAMP</li>
+                  <li>b0 PostProcess</li>
+                </ul></td>
+              </tr>
+              <tr><th scope="row">Output</th>
+                <td><code>SV_TARGET</code> float4 — 선형 HDR. <code>saturate</code>가 없어 1을 넘을 수 있다 <span class="ref">simplePixelShader.hlsl:59</span></td>
+                <td><code>SV_Target</code> float4 — Bright는 밝은 부분, Blur는 번진 값, 톤 매핑은 감마 인코드된 0~1</td>
+              </tr>
+              <tr><th scope="row">MyPF Code</th>
+                <td>
+                  <span class="sub">생성</span>
+                  <code>Initialize</code> <span class="ref">Renderer.cpp:162</span>(PS), <span class="ref">:204-216</span>(WRAP 샘플러)
+                  <span class="sub">내용 업로드</span>
+                  <code>BeginFrame</code> <span class="ref">:343-365</span>(Light) · <code>DrawRenderItem</code> <span class="ref">:609-620</span>(Material)
+                  <span class="sub">바인딩</span>
+                  <code>BeginFrame</code> <span class="ref">:388</span>(b0) · <code>DrawRenderItem</code> <span class="ref">:669-673</span>
+                </td>
+                <td>
+                  <span class="sub">생성</span>
+                  <code>Initialize</code> <span class="ref">Renderer.cpp:173-200</span>(PS 5개), <span class="ref">:218-224</span>(CLAMP 샘플러)
+                  <span class="sub">패스 선택</span>
+                  <code>EndScene</code> <span class="ref">:508-541</span>
+                  <span class="sub">바인딩 · 해제</span>
+                  <code>DrawFullScreenPass</code> <span class="ref">:404-406, :411</span> · 해제 <span class="ref">:417</span>
+                </td>
+              </tr>
+              <tr><th scope="row">DX11 API</th>
+                <td><code>D3DCompileFromFile</code>(main, ps_5_0) <span class="ref">D3D11Utils.cpp:198</span> · <code>CreatePixelShader</code> · <code>CreateSamplerState</code> · <code>PSSetShader</code> · <code>PSSetShaderResources</code> · <code>PSSetConstantBuffers</code> · <code>PSSetSamplers</code></td>
+                <td>같은 호출 + <code>PSSetShaderResources(0, 2, null)</code>로 입력 해제</td>
+              </tr>
+              <tr><th scope="row">관련 HLSL</th>
+                <td><code>simplePixelShader.hlsl</code> main <span class="ref">:20</span> · <code>Lighting.hlsli</code> — <code>CalcAttenuation</code> <span class="ref">:46</span>, <code>GetDirectionalLight</code> <span class="ref">:64</span>, <code>GetPointLight</code> <span class="ref">:78</span>, <code>SpecularBlinnPhong</code> <span class="ref">:109</span>, <code>ComputeDirectLighting</code> <span class="ref">:119</span></td>
+                <td>main 함수: <span class="ref">brightPassPixelShader.hlsl:12</span> · <span class="ref">blurXPixelShader.hlsl:13</span> · <span class="ref">blurYPixelShader.hlsl:13</span> · <span class="ref">toneMappingPixelShader.hlsl:24</span> · <span class="ref">copyPixelShader.hlsl:11</span> · 공통 cbuffer <span class="ref">PostProcess.hlsli:1</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>씬 패스: 픽셀 하나의 조명 계산</h3>
+        <ol class="flow-steps">
+          <li><b>입력 정리</b>법선 재정규화 <span class="ref">simplePixelShader.hlsl:24</span> · albedo = <code>Sample(t0)</code> × baseColor <span class="ref">:25-26</span> · 시선 방향 <span class="ref">:27</span></li>
+          <li><b>표면 속성 채우기</b><code>SurfaceData</code>에 albedo · normal · roughness · specular <span class="ref">:29-33</span></li>
+          <li><b>방향광</b><code>GetDirectionalLight</code>가 빛 방향 부호를 뒤집고 정규화해 <code>IncidentLight</code>로 만든다 <span class="ref">Lighting.hlsli:64</span> → <code>ComputeDirectLighting</code> <span class="ref">simplePixelShader.hlsl:38</span></li>
+          <li><b>점광원 × pointLightCount</b><code>GetPointLight</code> — 꺼졌거나 범위 밖이면 radiance 0, 아니면 거리 감쇠 <code>CalcAttenuation</code> <span class="ref">Lighting.hlsli:78, 46</span> → 결과를 누적 <span class="ref">simplePixelShader.hlsl:41-45</span></li>
+          <li><b>빛 하나의 직접광</b><code>ComputeDirectLighting</code>: N·L → 하프 벡터(L + V 길이 검사) → <code>SpecularBlinnPhong</code> × f0(0.08 × specular) → (albedo + specular) × radiance × N·L <span class="ref">Lighting.hlsli:119-144</span></li>
+          <li><b>합성</b>ambient(albedo × ambientStrength) <span class="ref">simplePixelShader.hlsl:48</span> + 직접광 + emissive <span class="ref">:51</span> + rim <span class="ref">:53-54</span> → <code>float4(finalColor, 1)</code> <span class="ref">:57-59</span></li>
+        </ol>
+
+        <h3>전체 화면 패스: 패스마다 다른 PS</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>패스</th><th>PS</th><th>t0</th><th>t1</th><th>s0</th><th>출력</th><th>호출</th></tr></thead>
+            <tbody>
+              <tr><td>Bright</td><td><code>brightPass</code></td><td>HDR</td><td>—</td><td>WRAP</td><td>Bright</td><td class="ref">:508</td></tr>
+              <tr><td>BlurX ×5</td><td><code>blurX</code></td><td>Bright(1회차) / BlurY</td><td>—</td><td>CLAMP</td><td>BlurX</td><td class="ref">:512</td></tr>
+              <tr><td>BlurY ×5</td><td><code>blurY</code></td><td>BlurX</td><td>—</td><td>CLAMP</td><td>BlurY</td><td class="ref">:513</td></tr>
+              <tr><td>Final</td><td><code>toneMapping</code></td><td>HDR</td><td>BlurY</td><td>WRAP</td><td>백버퍼</td><td class="ref">:541</td></tr>
+              <tr><td>디버그 뷰</td><td><code>copy</code></td><td>Bright / BlurX / BlurY</td><td>(BlurY, 안 읽음)</td><td>WRAP</td><td>백버퍼</td><td class="ref">:522-541</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="trap"><p>PS b0 슬롯은 씬 패스에서 Light, 후처리에서 PostProcess가 쓴다. 후처리가 남긴 PostProcess를 지우지 않으므로 <code>BeginFrame</code>이 매 프레임 Light를 다시 건다(<span class="ref">Renderer.cpp:388</span>).</p></div>
+      </section>
+
+      <!-- ===================================================== OM -->
+      <section id="stage-om" data-stage="om">
+        <div class="stage-head">
+          <span class="stage-chip">OM</span>
+          <div><h2>Output Merger</h2><small>출력 병합 — 깊이를 검사하고 렌더 타깃에 기록한다</small></div>
+        </div>
+        <div class="predict"><p>후처리 패스는 깊이 테스트를 하는가? DepthStencil State는 그대로 LESS인데.</p></div>
+
+        <div class="table-wrap">
+          <table class="spec-table">
+            <thead><tr><th scope="col">항목</th><th scope="col">씬 패스</th><th scope="col">전체 화면 패스</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Purpose</th><td colspan="2">PS가 낸 색을 깊이 검사하고, 통과한 픽셀을 렌더 타깃에 기록한다. 블렌드 상태에 따라 기존 색과 섞는다.</td></tr>
+              <tr><th scope="row">Input</th>
+                <td><ul>
+                  <li><code>SV_TARGET</code> 색 · 픽셀 깊이</li>
+                  <li>DepthStencil: DepthEnable · LESS · write ALL</li>
+                  <li>Blend: 기본값 (블렌딩 없음)</li>
+                  <li>RTV = HDR 씬 타깃, DSV = 깊이 버퍼</li>
+                </ul></td>
+                <td><ul>
+                  <li><code>SV_Target</code> 색</li>
+                  <li>RTV = 그 패스의 출력 타깃</li>
+                  <li>DSV 없음 → 깊이 검사 없음</li>
+                </ul></td>
+              </tr>
+              <tr><th scope="row">Output</th>
+                <td>HDR 씬 타깃(<code>R16G16B16A16_FLOAT</code>)에 선형 HDR 색, 깊이 버퍼에 더 가까운 깊이</td>
+                <td>Bright · BlurX · BlurY(화면 ½, R16F) 또는 백버퍼(<code>R8G8B8A8_UNORM</code>)</td>
+              </tr>
+              <tr><th scope="row">MyPF Code</th>
+                <td>
+                  <span class="sub">생성</span>
+                  DSS: <code>Initialize</code> <span class="ref">Renderer.cpp:33</span> → <code>D3D11Utils::CreateDepthStencilState</code> <span class="ref">D3D11Utils.cpp:89-110</span> · 깊이 버퍼: <code>GraphicsDevice::CreateDepthBuffer</code> <span class="ref">GraphicsDevice.cpp:157</span> · HDR 타깃: <code>Initialize</code> <span class="ref">Renderer.cpp:93</span> → <code>GRM::CreateRenderTarget</code> → <code>D3D11Utils::CreateRenderTargetTexture</code> <span class="ref">D3D11Utils.cpp:391</span>
+                  <span class="sub">매 프레임</span>
+                  <code>BeginFrame</code> <span class="ref">Renderer.cpp:322-327</span> — Clear 2개, <code>OMSetRenderTargets</code>, <code>OMSetDepthStencilState</code>
+                </td>
+                <td>
+                  <span class="sub">생성</span>
+                  Bloom 타깃 3개 <span class="ref">Renderer.cpp:101-126</span> · 백버퍼 RTV <code>GraphicsDevice::CreateRenderTargetView</code> <span class="ref">GraphicsDevice.cpp:131</span>
+                  <span class="sub">바인딩</span>
+                  <code>DrawFullScreenPass</code> <span class="ref">Renderer.cpp:403</span> — DSV 자리에 <code>nullptr</code>
+                </td>
+              </tr>
+              <tr><th scope="row">DX11 API</th>
+                <td><code>CreateTexture2D</code> · <code>CreateRenderTargetView</code> · <code>CreateDepthStencilView</code> · <code>CreateDepthStencilState</code> · <code>ClearRenderTargetView</code> · <code>ClearDepthStencilView</code> · <code>OMSetRenderTargets</code> · <code>OMSetDepthStencilState</code>. <code>OMSetBlendState</code>는 프로젝트 코드에 없다</td>
+                <td><code>OMSetRenderTargets(1, target, nullptr)</code></td>
+              </tr>
+              <tr><th scope="row">관련 HLSL</th>
+                <td><code>SV_TARGET</code> 하나 <span class="ref">simplePixelShader.hlsl:20</span> — 렌더 타깃 0번에 쓴다</td>
+                <td>각 후처리 PS의 <code>SV_Target</code> 반환값</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>한 프레임 동안 OM에 걸리는 타깃</h3>
+        <figure class="pl-figure">
+          <svg class="pl-svg pl-svg--wide" viewBox="0 0 1000 215" role="img" aria-label="HDR 씬 타깃에서 Bright, BlurX, BlurY를 거쳐 백버퍼로 가는 렌더 타깃 흐름">
+            <defs>
+              <marker id="mk-rt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto">
+                <path class="mk-pl" d="M0,0 L10,5 L0,10 z"/>
+              </marker>
+            </defs>
+
+            <text class="rt-sub" x="100" y="34" text-anchor="middle">씬 패스 DrawIndexed ×8</text>
+            <path class="pl-arrow" d="M100,42 L100,76" marker-end="url(#mk-rt)"/>
+            <text class="rt-sub" x="905" y="34" text-anchor="middle">Present</text>
+            <path class="pl-arrow" d="M905,78 L905,44" marker-end="url(#mk-rt)"/>
+
+            <rect class="rt-box rt-box--hdr" x="20" y="80" width="160" height="72" rx="8"/>
+            <text class="rt-title" x="100" y="104" text-anchor="middle">HDR 씬 타깃</text>
+            <text class="rt-sub" x="100" y="124" text-anchor="middle">화면 크기</text>
+            <text class="rt-sub t-mono" x="100" y="140" text-anchor="middle">R16G16B16A16_FLOAT</text>
+
+            <rect class="rt-box" x="250" y="80" width="130" height="72" rx="8"/>
+            <text class="rt-title" x="315" y="104" text-anchor="middle">Bright</text>
+            <text class="rt-sub" x="315" y="124" text-anchor="middle">화면 ½</text>
+            <text class="rt-sub t-mono" x="315" y="140" text-anchor="middle">R16F × 4</text>
+
+            <rect class="rt-box" x="450" y="80" width="130" height="72" rx="8"/>
+            <text class="rt-title" x="515" y="104" text-anchor="middle">BlurX</text>
+            <text class="rt-sub" x="515" y="124" text-anchor="middle">화면 ½</text>
+            <text class="rt-sub t-mono" x="515" y="140" text-anchor="middle">R16F × 4</text>
+
+            <rect class="rt-box" x="630" y="80" width="130" height="72" rx="8"/>
+            <text class="rt-title" x="695" y="104" text-anchor="middle">BlurY</text>
+            <text class="rt-sub" x="695" y="124" text-anchor="middle">화면 ½</text>
+            <text class="rt-sub t-mono" x="695" y="140" text-anchor="middle">R16F × 4</text>
+
+            <rect class="rt-box rt-box--back" x="830" y="80" width="150" height="72" rx="8"/>
+            <text class="rt-title" x="905" y="104" text-anchor="middle">백버퍼</text>
+            <text class="rt-sub" x="905" y="124" text-anchor="middle">화면 크기</text>
+            <text class="rt-sub t-mono" x="905" y="140" text-anchor="middle">R8G8B8A8_UNORM</text>
+
+            <path class="pl-arrow" d="M180,116 L248,116" marker-end="url(#mk-rt)"/>
+            <text class="rt-label" x="214" y="108" text-anchor="middle">Bright</text>
+            <path class="pl-arrow" d="M380,116 L448,116" marker-end="url(#mk-rt)"/>
+            <text class="rt-label" x="414" y="108" text-anchor="middle">BlurX 1회차</text>
+            <path class="pl-arrow" d="M580,104 L628,104" marker-end="url(#mk-rt)"/>
+            <text class="rt-label" x="604" y="96" text-anchor="middle">BlurY</text>
+            <path class="pl-arrow" d="M630,128 L582,128" marker-end="url(#mk-rt)"/>
+            <text class="rt-label" x="606" y="146" text-anchor="middle">2회차~</text>
+            <path class="pl-arrow" d="M760,116 L828,116" marker-end="url(#mk-rt)"/>
+            <text class="rt-label" x="794" y="108" text-anchor="middle">톤 매핑 t1</text>
+            <path class="pl-arrow" d="M100,152 C100,205 905,205 905,155" marker-end="url(#mk-rt)"/>
+            <text class="rt-label" x="500" y="196" text-anchor="middle">톤 매핑 t0 — HDR 원본</text>
+          </svg>
+          <figcaption>
+            Clear하는 것은 HDR 타깃과 깊이 버퍼뿐이다(<span class="ref">Renderer.cpp:322-323</span>). 나머지는 전체 화면 패스가 매번 전부 덮어쓴다.
+            백버퍼가 <code>_SRGB</code> 포맷이 아니므로(<span class="ref">GraphicsDevice.cpp:100</span>) 감마 인코드는 톤 매핑 셰이더가 직접 한다.
+          </figcaption>
+        </figure>
+        <div class="trap"><p>같은 텍스처를 RTV와 SRV로 동시에 걸 수 없다. 그래서 <code>DrawFullScreenPass</code>는 출력을 먼저 바꾸고(<span class="ref">Renderer.cpp:403</span>) 입력을 건 뒤 Draw하고, 끝나면 입력 두 슬롯을 해제한다(<span class="ref">Renderer.cpp:417</span>). 한 슬롯만 해제하면 다음 프레임에 그 텍스처를 출력으로 걸 때 충돌한다.</p></div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="slots">
+        <h2>상수 버퍼와 슬롯</h2>
+        <div class="predict"><p>C++의 <code>pad2</code>와 HLSL의 <code>pad3</code>는 이름이 다르다. 그래도 값이 제대로 전달되는 이유는?</p></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>슬롯</th><th>씬 패스</th><th>전체 화면 패스</th><th>HLSL 선언</th><th>C++ 구조체</th></tr></thead>
+            <tbody>
+              <tr><td>VS b0</td><td>Object</td><td>—</td><td class="ref">simpleVertexShader.hlsl:3</td><td><code>ObjectConstantData</code> 128B</td></tr>
+              <tr><td>VS b1 · PS b1</td><td>Camera</td><td>—</td><td class="ref">Common.hlsli:23</td><td><code>CameraConstantData</code> 144B</td></tr>
+              <tr><td>PS b0</td><td>Light <span class="ref">(:388)</span></td><td>PostProcess <span class="ref">(:411)</span></td><td class="ref">Lighting.hlsli:35 / PostProcess.hlsli:1</td><td><code>LightConstantData</code> 432B / <code>PostProcessConstantData</code> 32B</td></tr>
+              <tr><td>PS b2</td><td>Material</td><td>—</td><td class="ref">simplePixelShader.hlsl:7</td><td><code>MaterialConstantData</code> 64B</td></tr>
+              <tr><td>PS t0</td><td>Albedo</td><td>패스 입력</td><td class="ref">simplePixelShader.hlsl:4</td><td>—</td></tr>
+              <tr><td>PS t1</td><td>—</td><td>Bloom (Final만)</td><td class="ref">toneMappingPixelShader.hlsl:4</td><td>—</td></tr>
+              <tr><td>PS s0</td><td>WRAP</td><td>WRAP / CLAMP(Blur)</td><td>각 PS</td><td>—</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Material 버퍼를 16바이트 레지스터로 나눠 보기</h3>
+        <div class="table-wrap">
+          <table class="reg-table">
+            <thead><tr><th>레지스터</th><th>바이트</th><th>C++ <span class="ref">ShaderConstants.h:49-60</span></th><th>HLSL <span class="ref">simplePixelShader.hlsl:7-18</span></th></tr></thead>
+            <tbody>
+              <tr><td>c0</td><td>0 – 15</td><td><code>Vector3 baseColor</code> · <code>float roughness</code></td><td><code>float3 baseColor</code> · <code>float roughness</code></td></tr>
+              <tr><td>c1</td><td>16 – 31</td><td><code>emissiveColor</code> · <code>emissiveIntensity</code></td><td><code>emissiveColor</code> · <code>emissiveIntensity</code></td></tr>
+              <tr><td>c2</td><td>32 – 47</td><td><code>rimColor</code> · <code>rimIntensity</code></td><td><code>rimColor</code> · <code>rimIntensity</code></td></tr>
+              <tr><td>c3</td><td>48 – 63</td><td><code>rimPower</code> · <code>specular</code> · <code>Vector2 pad2</code></td><td><code>rimPower</code> · <code>specular</code> · <code>float2 pad3</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          C++과 HLSL은 <strong>이름이 아니라 순서와 크기</strong>로 맞춰진다. <code>float3</code> 다음에 <code>float</code> 하나를 붙여 16바이트를 채우는 배치가 양쪽에서 같기 때문에 그대로 복사된다.
+          Light 버퍼는 머리 3개 레지스터(방향 · 세기 / 색 · ambient / 개수 · 패드)와 Point Light 8개 × 3개 레지스터, 합쳐 27개 = 432바이트다(<span class="ref">ShaderConstants.h:26-47</span>).
+        </p>
+        <div class="trap"><p>슬롯 번호는 HLSL <code>register</code>와 C++ 바인딩 배열 순서가 짝이다. 한쪽만 바꾸면 컴파일은 통과하고 화면만 틀린다. 또 cbuffer 멤버 이름은 셰이더 전역이라 공유 include에서는 <code>cameraPad</code>, <code>lightPad</code>처럼 고유하게 짓는다.</p></div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="colorspace">
+        <h2>색공간 경로</h2>
+        <div class="predict"><p>Albedo 텍스처는 <code>_SRGB</code> 포맷인데 셰이더에 <code>pow(2.2)</code>가 없다. 선형화는 어느 단계에서 일어나는가?</p></div>
+        <ol class="chain">
+          <li><div class="chain-box"><b>PNG (sRGB)</b>Albedo 용도 → <code>R8G8B8A8_UNORM_SRGB</code> <span class="ref">Texture.cpp:11</span></div></li>
+          <li><div class="chain-box chain-box--accent" data-stage="ps"><b>PS의 Sample</b>하드웨어가 선형으로 디코드 <span class="ref">simplePixelShader.hlsl:25</span></div></li>
+          <li><div class="chain-box chain-box--accent" data-stage="ps"><b>선형 조명 계산</b>색 상수는 CPU에서 <code>SrgbToLinear</code> <span class="ref">Renderer.cpp:733</span></div></li>
+          <li><div class="chain-box chain-box--accent" data-stage="om"><b>HDR 타깃에 선형 저장</b><code>R16G16B16A16_FLOAT</code></div></li>
+          <li><div class="chain-box chain-box--accent" data-stage="ps"><b>톤 매핑에서만 감마 인코드</b><code>pow(1/2.2)</code> <span class="ref">toneMappingPixelShader.hlsl:43</span></div></li>
+          <li><div class="chain-box"><b>백버퍼</b><code>R8G8B8A8_UNORM</code> <span class="ref">GraphicsDevice.cpp:100</span></div></li>
+        </ol>
+        <div class="trap"><p>텍스처의 디코드는 필터링보다 먼저 일어나서 셰이더에서 되돌릴 수 없다. 데이터 텍스처(노멀 맵 등)를 Albedo로 읽으면 값이 왜곡된다. 용도(<code>TextureType</code>)가 원본이고 포맷은 파생값이다(<span class="ref">Texture.cpp:6-19</span>).</p></div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="questions">
+        <h2>학습 질문</h2>
+        <div class="questions-toolbar">
+          <button type="button" class="btn" data-action="toggle-answers" data-target="questions">정답 모두 펼치기</button>
+        </div>
+
+        <div class="question-group">
+          <h3><span class="level">확인</span> 코드에서 바로 찾을 수 있는 것</h3>
+          <div class="question">
+            <p><code>Vertex</code> 한 개는 몇 바이트이고, TEXCOORD는 몇 번째 바이트에서 시작하는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>44바이트, 36번째 바이트부터. Vector3 세 개(12 × 3) + Vector2 하나(8)이고, InputLayout의 TEXCOORD 오프셋이 <code>4 * 3 * 3</code>이다(<span class="ref">Renderer.cpp:154</span>).</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p><code>LightConstantData</code>의 크기를 바이트로 계산하라.</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>432바이트 = 16바이트 레지스터 27개. 머리 3개 + <code>PointLightConstantData</code>(48B, 3개) × 8(<span class="ref">ShaderConstants.h:26-47</span>). 16의 배수라 <code>static_assert</code>를 통과한다.</p>
+            </div></details>
+          </div>
+        </div>
+
+        <div class="question-group">
+          <h3><span class="level">추론</span> 코드를 따라가 결론을 내야 하는 것</h3>
+          <div class="question">
+            <p>정점 COLOR는 최종 색에 쓰이지 않는다. InputLayout에서 COLOR 항목만 지우면 무슨 일이 생기나?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p><code>VS_INPUT</code>에 <code>COLOR0</code>가 남아 있으므로 VS 입력 시그니처를 만족하지 못해 <code>CreateInputLayout</code>이 실패한다(<span class="ref">D3D11Utils.cpp:142</span>). <code>Renderer::Initialize</code>가 false를 반환해 앱이 시작되지 않는다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p><code>model</code> 행렬을 전치하지 않고 올리면 셰이더 결과는 어떻게 되는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>셰이더가 Mᵀ를 쓰게 된다. 행벡터 v에 Mᵀ를 곱하면 x · y · z에는 M의 3×3 부분이 전치된 채 적용되고(순수 회전이면 반대 방향 회전), M의 4행에 있던 이동 성분은 x · y · z가 아니라 w로 들어간다. 이동이 사라지고 w가 바뀌어 원근 나눗셈 결과도 달라진다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>전체 화면을 사각형(삼각형 2개) 대신 큰 삼각형 하나로 덮는 이유는?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>정점이 3개뿐이라 정점 버퍼 없이 <code>SV_VertexID</code>와 상수 배열로 만들 수 있고(<span class="ref">fullscreenVertexShader.hlsl:8, 14</span>), 화면 밖으로 나간 부분은 RS 클리핑이 버린다. 그래서 IA에는 InputLayout을 null로 두고 <code>Draw(3, 0)</code>만 부른다(<span class="ref">Renderer.cpp:408, 414</span>).</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>후처리 패스는 깊이 테스트를 하는가? DepthStencil State는 그대로 LESS다.</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>하지 않는다. <code>DrawFullScreenPass</code>가 DSV 자리에 <code>nullptr</code>를 건다(<span class="ref">Renderer.cpp:403</span>). 깊이 버퍼가 없으면 깊이 테스트와 기록이 일어나지 않는다. State 객체는 남아 있어도 쓸 대상이 없다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>Debug View를 <code>Bright</code>로 두면 Final보다 색이 거칠고 밝은 곳이 하얗게 날아간다. 어느 단계의 차이 때문인가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>PS가 다르다. 디버그 뷰는 <code>copyPixelShader</code>(<span class="ref">Renderer.cpp:524-527</span>)라 톤 매핑과 감마 인코드 없이 선형 HDR을 OM의 UNORM 백버퍼에 그대로 쓴다. 1을 넘는 값은 잘리고 감마가 적용되지 않아 어두운 부분은 더 어둡다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p><code>BeginFrame</code>의 PS b0 바인딩(<span class="ref">Renderer.cpp:388</span>)을 지우면 씬 PS의 <code>dirLightDirection</code> 자리에는 첫 프레임과 두 번째 프레임에 각각 무엇이 들어 있는가?</p>
+            <details><summary>정답과 근거</summary><div>
+              <p>첫 프레임: Light 버퍼를 b0에 거는 곳이 다른 데 없으므로 아무것도 바인딩되지 않은 상태(0으로 읽힘). 두 번째 프레임부터: 직전 <code>EndScene</code>이 남긴 PostProcess 버퍼(<span class="ref">:411</span>). <code>exposure</code>, <code>threshold</code>가 빛 방향으로 해석된다.</p>
+            </div></details>
+          </div>
+        </div>
+
+        <div class="question-group">
+          <h3><span class="level">실험</span> 실행해서 확인할 것</h3>
+          <div class="question">
+            <p>RenderDoc에서 씬 <code>DrawIndexed</code> 하나를 고르고 Mesh Viewer의 VS Input / VS Output을 보라. 정점 수, 인덱스 수, <code>SV_POSITION</code>의 w는 어떤 값인가?</p>
+            <details><summary>확인 포인트</summary><div>
+              <p>정점 24개, 인덱스 36개(<span class="ref">GeometryGenerator.cpp:178-185</span>). w는 투영 행렬이 뷰 공간 z를 옮겨 둔 값이라 카메라에서 멀수록 크다.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>Rasterizer State의 <code>CullMode</code>를 <code>BACK</code>으로 바꿔 보고, 골목에서 사라지는 면이 있는지 확인하라. 바꾸기 전에 결과를 먼저 예측하라.</p>
+            <details><summary>예상과 근거</summary><div>
+              <p>예상: 바깥 면은 그대로 보인다. 큐브의 여섯 면 모두 바깥에서 볼 때 시계 방향이고 <code>FrontCounterClockwise = false</code>이기 때문이다(<span class="ref">GeometryGenerator.cpp:59-185</span>, <span class="ref">Renderer.cpp:766</span>). 카메라가 상자 안에 들어가면 그 상자의 안쪽 면이 사라진다. 실제로 확인한 뒤 결과를 기록해 둘 것.</p>
+            </div></details>
+          </div>
+          <div class="question">
+            <p>Play 모드에서 전원을 켜고 네온이 모두 켜진 뒤 캡처하라. Texture Viewer에서 HDR 씬 타깃의 네온 픽셀 값은 1을 넘는가? 같은 위치의 백버퍼 값은?</p>
+            <details><summary>확인 포인트</summary><div>
+              <p>네온의 emissive 세기는 7~18이다(<span class="ref">AppBase.cpp:380, 395, 410</span>). 다만 시퀀스가 켜기 전에는 emissive 배율이 0이라(<span class="ref">PointLightSequence.cpp:85</span>) 전원을 켠 뒤에 봐야 한다. 백버퍼 값은 톤 매핑을 거쳐 0~1 범위다.</p>
+            </div></details>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== -->
+      <section id="doc-diff">
+        <h2>문서와 다른 점</h2>
+        <ul class="docdiff-list">
+          <li>
+            <span class="badge badge--docdiff">문서와 다름</span>
+            <code>DirectionalLight.h:11</code> 주석은 "셰이더가 normalize하지 않으므로"라고 하지만, 실제로는 GPU(<span class="ref">Lighting.hlsli:69</span>)와
+            CPU(<span class="ref">Renderer.cpp:344</span>) 양쪽에서 정규화한다. AGENTS.md의 "그 함수 한 곳에서만"은 부호 반전에 대해서만 맞다.
+          </li>
+          <li>
+            <span class="badge badge--docdiff">문서와 다름</span>
+            AGENTS.md는 PS b0 재바인딩을 지우면 "두 번째 프레임부터 조명이 사라진다"고 적었다. 현재 코드에서는 첫 프레임부터 Light가 걸리지 않는다(위 추론 질문 참고).
+          </li>
+          <li>
+            <span class="badge badge--docdiff">문서 보충</span>
+            AGENTS.md §7은 <code>invTranspose</code>의 결과가 "우연히 맞다"고 적었다. 코드를 따라가면 <code>Translation(0)</code>만 효과가 없고, 결과가 맞는 것은 전치 두 번과 w = 0 때문이다(<a href="#stage-vs">VS 섹션</a>).
+          </li>
+          <li>
+            Ambient 항은 조명 색을 쓰지 않는다: <code>albedo * ambientStrength</code>(<span class="ref">simplePixelShader.hlsl:48</span>).
+          </li>
+        </ul>
+      </section>
+
+      <nav class="pager" id="pager" aria-label="이전 / 다음 페이지"></nav>
+    </main>
+  </div>
+
+  <footer class="site-footer">MyPF Study · 코드 기준 main @ adee25f</footer>
+</body>
+</html>
