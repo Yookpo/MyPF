@@ -472,6 +472,22 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - `EditorUI`는 자기가 가리키는 Camera·CameraController·PostProcessSettings·DirectionalLight·배경색보다 `AppBase`에서 먼저 선언돼 **나중에 파괴**된다. 소멸자가 없어 지금은 무해하다(AGENTS.md §4). `EditorUI`에 정리 코드를 넣게 되면 선언 순서를 먼저 확인한다.
 - Directional Light 방향은 CPU(`Renderer::BeginFrame`)와 GPU(`GetDirectionalLight`)에서 **두 번** 정규화된다. 결과는 같아 무해하고, 한쪽으로 줄일지는 필요해질 때 판단한다.
 
+### 확장 예약 목록
+
+**작업 원칙 (2026-10-23 사용자 결정)**: 지금은 현재 로드맵 단계에 **필요한 기능만** 구현한다. 확장은 **설계 모양으로만** 열어 둔다(예: 상수 `1`을 나중에 인자로 바꾸기 쉬운 식 형태, 일반형 인자 이름). 공용 함수 추출, 최적화, 매개변수 정리는 **여기에 예약**해 두고, **트리거**(실제 사용처나 변경 압력)가 생기는 단계에서 꺼내 처리한다. AGENTS.md §3 "사용처 없는 추상화 금지"를 실행하는 방법이다. 항목을 처리하면 지우고 §8에 기록한다.
+
+| 예약 항목 | 지금 형태 | 꺼낼 트리거 | 할 일 |
+|---|---|---|---|
+| `FresnelSchlick`의 `f90` 인자 | `f0 + (1 − f0) × w` (최대 반사율 1 고정) | 10-5 IBL diffuse(Lagarde: `f90 = max(1 − roughness, f0)`) 또는 specular 0 재질의 스침 반사를 꺼야 할 때(Unreal: `f90 = saturate(50 × f0)`) | `f0 + (f90 − f0) × w`로 확장(Filament 형태). 호출부는 `ComputeDirectLighting` 한 곳 |
+| `FresnelSchlick` 등 F0 계열의 `float3`화 | `float` (비금속만) | 10-8 metallic | `F0 = lerp(0.08 × specular, albedo, metallic)`, 반환·인자 `float3`. 본문은 그대로 동작 |
+| `Pow5` 공용 수학 함수 | `FresnelSchlick` 안에서 직접 곱셈 | Schlick을 두 번째 곳(IBL, 평면 반사)에서 쓸 때 | `Common.hlsli`에 `Pow5(x)` (Unreal `Common.ush`와 같음). 순수 수학이라 모든 셰이더가 쓸 수 있는 종류 |
+| 분포 함수 교체 | `SpecularBlinnPhong` | 10-2' GGX | `NdfGGX` + Smith 가시성으로 교체, `/π` 제거(AGENTS §7). roughness 변환식은 그대로 |
+| 파생 BRDF 값 묶음(`BRDFData`) | `ComputeDirectLighting` 안에서 빛마다 α·n·F0 계산 | 파생 값이 셋 이상 늘거나(GGX·metallic 이후) 빛 수가 늘어 비용이 보일 때 | Unity URP `InitializeBRDFData`처럼 픽셀당 한 번 계산해 구조체로 넘김 |
+| `ComputeIndirectLighting` | `main`의 ambient 한 줄 | 10-5 IBL | 간접광 함수로 분리, IBL Fresnel은 N·V |
+| 셰이더 디버그 뷰 | 임시 코드(주석 처리 후 복구) | 항이 더 늘 때(Fresnel·IBL) | ImGui 드롭다운 + cbuffer 플래그로 Final / Diffuse / Specular / F 선택 |
+| cbuffer `roughness` → `roughnessFactor` | Material 상수 = 최종값 | 10-6 roughness 맵 | 맵 × 배율이 되어 뜻이 갈라질 때 이름 변경(강의 Ch13, glTF) |
+| Directional 이중 정규화 | CPU·GPU 양쪽 | 셰이더 비용을 줄일 때 | 한쪽으로 통일 |
+
 ---
 
 ## 6. 바로 다음 작업

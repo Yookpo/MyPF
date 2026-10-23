@@ -115,6 +115,17 @@ float SpecularBlinnPhong(float NdotH, float roughness)
     return pow(NdotH, n) * (n + 8) / 8;
 }
 
+// Schlick 근사 Fresnel, 미세면(H)에 빛이 스치듯 들어올수록 반사율이 F0 -> 1로 커진다.
+// 직접광은 cosθ로 V·H를, 간접광/IBL은 N·V
+float FresnelSchlick(float f0, float cosTheta)
+{
+    float oneMinusCos = 1.0 - cosTheta;
+    float fresnelWeight = (oneMinusCos * oneMinusCos * oneMinusCos * oneMinusCos * oneMinusCos);
+    float reflectance = f0 + (1.0 - f0) * fresnelWeight;
+    
+    return reflectance;
+}
+
 // 빛 하나가 표면에 만드는 직접광. 모든 빛 종류가 이 함수를 지난다
 float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light, float3 viewDir)
 {
@@ -134,11 +145,16 @@ float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light, float3 vi
     halfVec = normalize(halfVec);
     
     float NdotH = saturate(dot(surface.normal, halfVec));
+    float VdotH = saturate(dot(viewDir, halfVec));
+    
     float f0 = 0.08 * surface.specular;
+    float F = FresnelSchlick(f0, VdotH);
     
-    float specularTerm = SpecularBlinnPhong(NdotH, surface.roughness) * f0;
-    
-    float3 directColor = (surface.albedo + specularTerm) * light.radiance * NdotL;
+    float specularTerm = SpecularBlinnPhong(NdotH, surface.roughness) * F;
+    float diffuseWeight = 1 - F;
+    float3 diffuseTerm = surface.albedo * diffuseWeight;
+
+    float3 directColor = (diffuseTerm + specularTerm) * light.radiance * NdotL;
     
     return directColor;
 }
