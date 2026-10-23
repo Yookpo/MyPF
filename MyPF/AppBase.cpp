@@ -361,12 +361,12 @@ namespace My
 		}
 
 		floorMat->SetAlbedoTexture(floorAlbedoTex);
+
 		// 젖은 아스팔트: 물이 틈을 채워 어두워지고(albedo↓), 물막이 매끈하다(roughness↓).
-		// 물의 실제 F0는 약 2%(specular 0.25)지만 아직 Fresnel이 없어 비스듬한 시선의 반사가
-		// 과소평가되므로 0.5로 둔다. Fresnel(로드맵 10-2)을 넣은 뒤 0.25로 다시 비교한다.
+		// 물의 실제 F0는 약 2%(specular 0.25)
 		floorMat->SetBaseColor(Vector3(0.75f));
 		floorMat->SetRoughness(0.3f);
-		floorMat->SetSpecular(0.5f);
+		floorMat->SetSpecular(0.25f);
 
 		// Neon test
 		NeonSignDesc desc1{};
