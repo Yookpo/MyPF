@@ -507,11 +507,20 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
      - ✅ F(10-1c) 정규화 항 **`(n + 8) / 8`** — 교과서의 `/(8π)`가 아니다. 우리 diffuse에 1/π가 없기 때문이다(§4) (`e9ab696`)
      - ✅ G(10-1d) 재질값 — 바닥 0.75 / 0.3 / 0.5, 벽 0.85 / 0.5, 스위치 0.4 / 0.5, 네온 0.3 / 0.5 (§3 표) (`e9ab696`)
    - **10-2 Fresnel ← 바로 다음.** `ComputeDirectLighting`의 고정 F0를 Schlick 근사 `F = F0 + (1 − F0)(1 − V·H)⁵`로 바꾸고, diffuse에 `(1 − F)`를 곱해 에너지를 나눈다. 끝나면 **바닥 specular를 물리값 0.25로 되돌려 비교**한다. 강의 Ch10 `BasicPixelShader.hlsl`과 Ch13 `BasicPS.hlsl`에 `SchlickFresnel`이 있다(Ch13은 `pow(2, …)` 형태의 Unreal 근사).
-   - **그다음**: 10-3 Cube Map + Skybox(DDS, Ch13 `SkyboxVS/PS` — 카메라가 `Common`의 b1이라 스카이박스 VS는 `Common`만 include하면 된다) → 10-4 환경 매핑(`reflect(-V, N)`) → 10-5 IBL(`main`의 ambient 한 줄을 `ComputeIndirectLighting`으로, `PI` 사용) → 법선 시각화 도구(§7 강의 연계 B) → 10-6 Normal/Roughness 맵.
+   - **10번 나머지 순서 (2026-10-23 보강, 강의 11~13장 분석 반영 — 근거는 §7 "강의 PBR 자료 지도")**:
+     - **10-2'** GGX + Smith — `SpecularBlinnPhong`을 `NdfGGX`·`SchlickGGX` 계열로 교체. **IBL의 BRDF LUT가 GGX 전제라 IBL보다 먼저** 한다. 강의 `NdfGGX`의 `/π`는 우리 규약에 맞게 뺀다(AGENTS §7)
+     - **10-3** DDS 로더 + Skybox(HDRI) — 11 Step4 `CreateDDSTextureFromFileEx`, Ch13 `SkyboxVS/PS`. 카메라가 `Common`의 b1이라 스카이박스 VS는 `Common`만 include하면 된다
+     - **10-4** 환경 매핑(`reflect(-V, N)`)
+     - **10-5** IBL(split-sum) — `main`의 ambient 한 줄을 `ComputeIndirectLighting`으로, `PI` 사용. IBL용 Fresnel은 N·V
+     - 법선 시각화 도구(§7 강의 연계 B) → **10-6** 탄젠트 + Normal/Roughness/AO 맵 — **에셋 도입 시점**(§7 "에셋 정책")
+     - **10-7 ★ 평면 반사** — 13 Step1 Mirror(반사 행렬). 강의는 스텐실로 선명한 거울을 그리지만, 우리는 **반사 씬을 렌더 타깃에 그리고 roughness만큼 블러**(기존 Bloom 블러 재사용)해서 젖은 바닥에 쓴다. 골목 안 네온과 벽이 **실제로** 비치는 유일한 방법이라 효과가 가장 크다
+     - **10-8** (선택) metallic — 금속 소품이 생길 때. `FresnelSchlick`을 `float3`로 바꾼다
+     - **10-9** (선택) 높이 맵 — 평평한 큐브라 VS 변위는 안 맞는다. POM(PS) 또는 테셀레이션(11 Step3 HS/DS)
+   - **10번 뒤**: 9 섀도 맵 → PCF → PCSS(13 Step4~6) → PSO/BlendState 정리(13 Step2) → 12 안개 + Halo(HDR에서, 13 Step3·7) · 비(10 Step1~2). 개선 항목: Bloom 밉 체인(Ch13 BloomDown/Up), 네온 튜브 면광원(13 Step8 대표점 — 강의도 TODO).
    - **노멀 맵 메모**: 밉에서 법선을 평균하면 길이가 1보다 짧아진다(방향이 다른 단위 벡터의 평균). 노멀 맵을 샘플한 뒤 셰이더에서 **반드시 `normalize`**한다.
    - **비등방 필터링**: 밉맵 뒤 먼 바닥이 약간 뭉개진다. 비스듬히 보는 바닥은 픽셀 하나가 덮는 영역이 골목 방향으로 길쭉해서, 트라이리니어가 긴 축 기준으로 레벨을 골라 옆 방향까지 과하게 흐려지기 때문이다. 샘플러를 `D3D11_FILTER_ANISOTROPIC` + `MaxAnisotropy` 8~16으로 바꾸면 개선된다. 지금은 거슬리지 않아 보류했고, 젖은 바닥 반사로 먼 바닥 디테일이 중요해지면 적용한다.
    - Cube Map/IBL 단계에서 큐브맵을 **DDS + DirectXTK `DDSTextureLoader`**로 읽고, `TextureType`이 `DDS_LOADER_FORCE_SRGB`/`IGNORE_SRGB`를 고르는 규칙을 같이 설계한다(§4 "텍스처 파이프라인 방향").
-   - 순서: Specular → Fresnel → Cube Map/Skybox → 환경 매핑 → IBL(CMFT) → Normal/Roughness Map 순서다. 바닥에 네온이 번지는 느낌은 대부분 Point Light Specular에서 나오고, 정적 Cube Map은 골목 안 네온을 반사하지 못한다는 한계를 알고 진행한다. Bloom과 HDR이 이미 있으므로 젖은 표면의 하이라이트가 곧바로 번진다.
+   - 바닥에 네온이 번지는 느낌은 지금 Point Light Specular에서 나오고, 정적 Cube Map은 골목 안 네온을 반사하지 못한다. 그 한계를 10-7 평면 반사가 메운다. Bloom과 HDR이 이미 있으므로 젖은 표면의 하이라이트가 곧바로 번진다.
 
 **참고 — 로드맵 10번용 테스트 에셋 (2026-09-17 논의, 도입 보류)**
 
@@ -560,7 +569,7 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
-10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·Cube Mapping·IBL+CMFT를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular 완료(2026-09-30), 다음은 10-2 Fresnel — §6 참고)
+10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular 완료(2026-09-30), 다음은 10-2 Fresnel — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
 11. ✅ HDR Scene Target, Bloom과 Tone Mapping (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 2026-09-15, Bloom Step 5~7과 블러 반복·룩 재튜닝 2026-09-17에 완료)
 12. 안개, 비와 색조 보정 (기하 파이프라인 챕터의 기하 셰이더·빌보드가 여기 본체다 — 아래 "강의 연계 아이디어" 참고)
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류. 디버그 UI는 아래 "강의 연계 아이디어" A그룹으로 상당 부분 해결된다)
@@ -631,6 +640,60 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 **Point Light 슬롯 여유**: 상한 8개 중 현재 **4개만 쓴다**(네온 3 + `EnvironmentFillLight` 1). 드럼통 불, 스파크 섬광, 환기구 아래 조명 같은 것을 **4개까지 더** 상한 변경 없이 넣을 수 있다.
 
 **기하 셰이더의 성능 평판**: 출력 개수가 가변이라 결과를 버퍼링해야 하고 병렬성이 떨어져 현대 GPU에서 느리다는 평가가 있다. 실무는 인스턴싱이나 컴퓨트 셰이더로 대체하는 추세다. 이 규모에서는 문제없고 학습용으로는 개념이 명확하지만, **왜 요즘 잘 안 쓰는지를 같이 알아두면 면접에서 오히려 가점이다.**
+
+### 강의 PBR 자료 지도 (11~13장, 2026-10-23 분석)
+
+렌더링 품질을 최대한 끌어올리기 위해 강의 폴더(`Hong_Graphics2/Graphics_Part2` 04~08장, `Hong_Graphics3/HongGraphicsPart3` 09장, `Hong_Graphics_Part3_Chapter10~13`)를 전부 훑었다. 셰이더 코드는 대부분 `13_LightAndShadow_Step8_UnrealSphereLight`가 가장 완성된 형태다. 아래 경로는 `Hong_Graphics_Part3_Chapter10~13` 기준이다.
+
+| 강의 단계 | 기법 | MyPF 적용 | 참고 위치 |
+|---|---|---|---|
+| Part2 08 Step2~5 | 큐브맵, 환경 매핑, IBL, Fresnel(입문판) | 10-2~10-5 복습 | |
+| 11 Step2 NormalMapping | 탄젠트, TBN, GL/DX 노멀 전환 | 10-6 | 13 Step8 `BasicPS.hlsl` `GetNormal`(43~65행, `invertNormalMapY`) |
+| 11 Step3 HeightMapping | VS 변위, 테셀레이션 HS/DS | 10-9(선택) | `BasicVertexShader.hlsl`, `TessellatedQuadHS/DS.hlsl` |
+| 11 Step4 HDRI | DDS 큐브맵 로드, float 텍스처 | 10-3 | `D3D11Utils.cpp` `CreateDDSTextureFromFileEx`(483행) |
+| 11 Step5 HDRPipeline | float 렌더 타깃 | ✅ 완료(로드맵 11) | |
+| 12 Step1 UnrealPBR | GGX, Smith, metallic | 10-2', 10-8 | 13 Step8 `BasicPS.hlsl` `NdfGGX`(101), `SchlickGGX`(117), 조립(301~330) |
+| 12 Step2 PBRModels | glTF PBR 텍스처 로딩 | 10-6 / 모델 파이프라인 | metallicRoughness 묶음(G = roughness, B = metallic) |
+| 13 Step1 Mirror | 평면 반사(반사 행렬 + 스텐실) | **10-7** | `ExampleApp.cpp` `Matrix::CreateReflection`(262), 바닥을 거울로(59) |
+| 13 Step2 PSO | 상태 묶음 `GraphicsPSO` | 반사·그림자·투명 패스 전 | `GraphicsCommon.cpp` |
+| 13 Step3 DepthBufferAndFog | 깊이 → 뷰 공간 복원, 거리 안개 | 12 | `PostEffectsPS.hlsl` `TexcoordToView` |
+| 13 Step4~6 | 섀도 맵 → PCF → PCSS | 9 | `BasicPS.hlsl` `PCF_Filter`(146), `PCSS`(185) |
+| 13 Step7 Halo | 광원 주변 볼륨 광륜(Ray-Sphere 적분) | 12 | `PostEffectsPS.hlsl` `HaloEmission`(63) |
+| 13 Step8 UnrealSphereLight | 구형 면광원 대표점 | 네온 튜브 면광원(개선) | `BasicPS.hlsl:293` — **강의도 TODO** |
+| Ch13 Bloom | 다단계 Down/Up 체인 | Bloom 개선(§5) | `BloomDownPS.hlsl`, `BloomUpPS.hlsl` |
+| 10 Step1~5 | 기하 셰이더, 빌보드, 법선 선, 파이어볼, 테셀레이션 | 12 비·입자, 디버그 도구 | 위 "강의 연계 아이디어" A~D |
+
+**가져올 때 그대로 옮기면 안 되는 곳** (코드를 직접 읽고 확인)
+
+1. **π 규약이 섞여 있다.** `NdfGGX`는 `/π`(107행)인데 diffuse는 `kd * albedo`(311행)로 π가 없다. 10-1에서 피한 바로 그 불일치라 강의 화면은 specular가 3.14배 약하다. 우리 규약(diffuse에 π 없음)에 맞춰 GGX의 `/π`를 뺀다.
+2. **후처리가 LDR에서 돈다.** `PostEffectsPS.hlsl:99`가 `clamp(0, 1)` 뒤에 Halo와 안개를 더하고, 안개 색은 흰색 하드코딩이다. 우리는 **톤 매핑 전 HDR**에서, 밤 골목 색으로 한다.
+3. **Halo가 `lights[1]` 하나만 본다.** Point Light 배열 전체로 일반화한다.
+4. **구형 면광원 대표점이 미완성(TODO)이다.** 네온 튜브를 면광원으로 보이게 하려면 Karis 2013 방식을 직접 구현한다 — 포트폴리오 차별점이 될 수 있다.
+5. **IBL 매직 넘버.** `SpecularIBL`의 밉 `2 + roughness * 5`와 LUT 좌표 `1 - roughness`는 강의가 쓴 IBLBaker 출력 기준이다. 다른 도구(CMFT, cmgen)로 만들면 밉 개수와 LUT 방향을 다시 확인한다.
+6. **Fresnel 매개변수 이름.** Ch13 `SchlickFresnel(F0, NdotH)`는 이름과 달리 직접광에서 **V·H**(309행), IBL에서 **N·V**(71행)를 받는다.
+
+**사이버펑크 젖은 골목에서 효과가 큰 순서**: ① 평면 반사 + roughness 블러(바닥이 평면 하나라 조건이 완벽하고, 골목 안 네온이 실제로 비친다) ② Normal + Roughness 맵(젖은 정도가 픽셀마다 다르다) ③ GGX + Smith(하이라이트의 긴 꼬리) ④ 그림자 PCF → PCSS ⑤ 안개 + Halo(HDR) ⑥ IBL(골목이 좁아 효과는 상대적으로 작다) ⑦ Bloom 밉 체인. 기법은 "가장 고급"이 아니라 **"이 씬의 조건에 가장 맞는 것"**으로 고른다는 판단이 평면 반사를 1순위로 둔 근거다.
+
+### 에셋 정책 (2026-10-23 라이선스 확인)
+
+| 출처 | 라이선스 | 공개 저장소 커밋 | 사용 |
+|---|---|---|---|
+| **ambientCG** | **CC0** (공식 라이선스 페이지: 복사·수정·배포·상업 사용 허용, 출처 표기 불필요) | ✅ | **주력** |
+| **Poly Haven** | CC0 | ✅ | 텍스처 + **HDRI**(10-3) |
+| **FreePBR** | 무료는 비상업용, 상업 권한은 유료($19). 작성자가 **"다른 사이트에 재배포하지 말 것"**을 요청(About 페이지) | ❌ 원본 파일을 공개 GitHub에 올리면 이 요청에 어긋난다 | 로컬 실험용만(`.gitignore`) 또는 쓰지 않는다 |
+| 직접 제작 | 본인 | ✅ | **네온 간판 글자 emissive 마스크**처럼 사이트에서 구하기 어려운 것 |
+
+참고로 강의 에셋 `Assets/Textures/PBR/Bricks075A_4K`는 ambientCG, `patchy-meadow1`은 FreePBR이다.
+
+**ambientCG 파일 → `TextureType`**
+
+| 파일 | `TextureType` | 주의 |
+|---|---|---|
+| `_Color` | `Albedo` | sRGB |
+| `_NormalDX` | `NormalMap` | **`_NormalGL`이 아니라 DX를 받는다.** G 채널 뒤집기가 필요 없다 |
+| `_Roughness`, `_AmbientOcclusion`, `_Metalness`, `_Displacement` | `Data` | 선형. 처음엔 분리 텍스처로 쓰고, 쿠킹 단계(§4 "텍스처 파이프라인 방향")에서 ORM 한 장으로 묶는다 |
+
+**저장소 관리**: 4K가 아니라 **2K**로 받는다(골목 크기·화면 해상도에 충분, 용량 1/4). `MyPF/Assets/Textures/PBR/<에셋ID>/`로 나누고, 출처와 라이선스를 적은 `CREDITS.md`를 함께 둔다. 에셋이 수십 MB를 넘기면 Git LFS를 검토한다.
 
 ---
 
@@ -711,6 +774,17 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
+### 2026-10-23 — 강의 폴더 PBR 자료 분석, 로드맵 10 보강, 에셋 정책 ✅
+
+- 완료한 작업: 사용자가 "강의를 활용해 PBR·metallic 등을 적용하고 렌더링 품질을 최대한 높이며, 에셋은 직접 만들거나 freepbr·ambientCG 같은 무료 사이트에서 가져오겠다"는 방향을 정했다. 강의 폴더 세 곳을 단계별로 훑고 핵심 셰이더(13 Step8 `BasicPS.hlsl`, `PostEffectsPS.hlsl`, `ExampleApp.cpp`)를 직접 읽어 §7 "강의 PBR 자료 지도"를 만들었다. §6 로드맵 10의 남은 순서를 보강했다(10-2' GGX, 10-7 평면 반사, 10-8 metallic, 10-9 높이 맵). 10-2 Fresnel 가이드(10-2a `FresnelSchlick` 선언·Schlick 표·V·H vs N·V·에너지 분배)를 제공했고 사용자 구현 대기 중이다.
+- 확인한 결과: ambientCG 라이선스 페이지(CC0, 재배포·상업 사용 허용)와 FreePBR About 페이지(무료는 비상업, 재배포하지 말라는 요청)를 직접 확인했다. 강의 코드의 π 규약 혼재, LDR 후처리, `lights[1]` 하드코딩, 구형 면광원 TODO, IBLBaker 기준 매직 넘버를 찾았다.
+- 남아 있는 문제: 에셋은 아직 하나도 받지 않았다(10-6에서 도입). 저장소 공개 여부에 따라 FreePBR 사용 범위가 정해진다.
+- 다음에 이어서 할 작업: 10-2a `FresnelSchlick` 작성 → 10-2b 조립 → 10-2c 바닥 specular 0.25 비교.
+- 중요한 설계 결정과 이유:
+  - **GGX를 IBL보다 먼저** — split-sum의 BRDF LUT가 GGX 기준이라, Blinn-Phong 직접광과 섞으면 같은 roughness에서 하이라이트와 환경 반사의 퍼짐이 어긋난다.
+  - **평면 반사를 로드맵에 추가하고 효과 1순위로** — 바닥이 평면 하나라는 씬 조건에 정확히 맞고, 정적 큐브맵이 못 하는 골목 안 네온 반사를 해결한다. 기존 렌더 타깃·블러 인프라를 재사용한다.
+  - **CC0만 커밋** — 포트폴리오는 공개 저장소에 올라가므로 재배포가 허용된 에셋만 저장소에 둔다.
 
 ### 2026-10-23 — 작업 재개 점검: 문서·설정 동기화 ✅
 

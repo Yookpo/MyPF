@@ -14,7 +14,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 최종 결과물은 범용 엔진 자체가 아니라 `DX11 렌더링 기술 + 확장 가능한 구조 + 짧지만 완결된 플레이 경험`을 보여주는 포트폴리오다.
 
-남은 목표 기능: 그림자, 젖은 바닥 반사(Specular·Fresnel·Cube Map·IBL), 안개·비·색조 보정, 나머지 이동 제한.
+남은 목표 기능: 그림자, 젖은 바닥 반사(Specular·Fresnel·GGX·Cube Map·IBL·재질 맵·평면 반사), 안개·비·색조 보정, 나머지 이동 제한. 강의(11~13장)의 PBR 자료를 최대한 활용해 렌더링 품질을 끌어올리는 것이 방향이다(CODEX_HANDOFF.md §7 "강의 PBR 자료 지도").
 
 현재 전체 진행률은 약 78%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅, 셰이더 빛/표면 분리와 정규화된 Blinn-Phong Specular(젖은 바닥 재질값 포함)까지 완료했다. **로드맵 11번이 닫혔고 10번의 10-1(Specular)이 끝났다.**
 
@@ -163,7 +163,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **셰이더 공통 파일과 슬롯 규칙.** `Common.hlsli`에는 include하는 **모든** 셰이더가 쓰는 것만 둔다(정점 구조체, `PI`, 카메라 cbuffer). 빛 데이터와 빛 함수는 `Lighting.hlsli`, Material cbuffer는 그것을 쓰는 PS 파일에 둔다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**이며 HLSL `register`와 `Renderer::DrawRenderItem`의 바인딩 배열 순서가 짝이다. 한쪽만 바꾸면 컴파일은 통과하고 화면만 틀린다.
 - **cbuffer 멤버 이름은 셰이더 전역이다.** C++ 구조체와 달리 cbuffer는 이름공간을 만들지 않아서, 공유 include의 cbuffer에 `pad`·`color` 같은 일반 이름을 쓰면 include하는 다른 셰이더와 `redefinition`이 난다. 고유하게 짓는다(`cameraPad`, `lightPad`, `dirLight*`). `struct` 멤버는 범위가 구조체 안이라 괜찮다. C++과는 이름이 아니라 순서·크기로 매칭된다.
 - **조명 함수가 돌려주는 방향은 조기 반환에서도 단위 벡터여야 한다.** `NaN * 0 = NaN`이라 radiance가 0이어도 0벡터 방향이 뒤의 `normalize`/`pow`에서 NaN 픽셀을 만들고 Bloom이 번지게 한다. 하프 벡터도 `L = −V`이면 0이 되고, `CullMode`가 `NONE`이라 뒷면을 볼 때 N·L > 0이어도 이런 경우가 생기므로 `ComputeDirectLighting`이 `L + V`의 제곱 길이를 따로 검사한다.
-- **Specular 정규화 계수는 `(n + 8) / 8`이다. `/ PI`를 넣지 않는다.** 교과서의 `(n+8)/(8π)`는 diffuse를 `albedo / π`로 두는 규약이고, 이 프로젝트의 diffuse는 `albedo`(π 없음)이며 조명 세기도 그 기준으로 튜닝했다. specular에만 π를 넣으면 diffuse 대비 3.14배 어두워진다. 공식을 가져올 때는 그 공식이 전제하는 규약이 우리 코드와 같은지 먼저 확인한다.
+- **Specular 정규화 계수는 `(n + 8) / 8`이다. `/ PI`를 넣지 않는다.** 교과서의 `(n+8)/(8π)`는 diffuse를 `albedo / π`로 두는 규약이고, 이 프로젝트의 diffuse는 `albedo`(π 없음)이며 조명 세기도 그 기준으로 튜닝했다. specular에만 π를 넣으면 diffuse 대비 3.14배 어두워진다. 공식을 가져올 때는 그 공식이 전제하는 규약이 우리 코드와 같은지 먼저 확인한다. **강의 12~13장 코드도 섞여 있다**(`NdfGGX`는 `/π`, diffuse는 `kd * albedo`). GGX를 가져올 때 `/π`를 뺀다.
 - **Material `BaseColor` 배율도 sRGB 값이다.** `Renderer`가 선형으로 바꾸므로 `SetBaseColor(0.6)`은 화면 밝기로 0.6배가 아니라 **선형 0.32배**다. 텍스처를 어둡게 누를 때 이 환산을 거친다. Roughness/Specular는 배율이라 변환하지 않는다.
 - **룩 값은 감이 아니라 휘도로 맞춘다.** Bloom 추출이 `dot(color, (0.2126, 0.7152, 0.0722))`로 판정하므로 같은 Intensity라도 색에 따라 밝기가 다르다(선형 변환 후 단위 세기당 휘도가 Cyan은 Pink의 2.4배). 네온 세기를 바꿀 때는 이 환산을 거친다. 확정값과 위치는 CODEX_HANDOFF.md §3 "룩 재튜닝" 참고.
 - **`Renderer::SetViewPort`는 `m_screenViewport` 멤버를 덮어쓴다.** 후처리 패스에서 이 함수를 부르면 복구할 화면 뷰포트가 사라져 이후 패스가 화면 일부에만 그려진다. Bloom처럼 타깃 크기가 다른 패스는 **지역 `D3D11_VIEWPORT` + `RSSetViewports`**를 쓰고, 구간이 끝나면 `m_screenViewport`로 되돌린다.
@@ -203,3 +203,4 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - 코드와 문서가 다르면 **코드를 기준으로 문서를 고친다.**
 - 기능이나 구조가 달라졌다면 이 파일과 `MyPF/docs/CODEX_HANDOFF.md`를 갱신한다.
 - 외부 캐릭터 에셋은 테스트용이며 공개 전 라이선스를 확인한다.
+- **저장소에 커밋하는 텍스처·HDRI는 재배포가 허용된 것(CC0: ambientCG, Poly Haven)과 직접 만든 것만이다.** FreePBR은 작성자가 재배포하지 말라고 요청하므로 원본 파일을 커밋하지 않는다. 에셋 폴더마다 출처·라이선스를 `CREDITS.md`에 적는다. 상세는 CODEX_HANDOFF.md §7 "에셋 정책".
