@@ -34,8 +34,9 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `a431f1f` — 웹사이트 추가 (`origin/main`과 같다, push 완료). **렌더러 코드의 마지막 변경은 `e9ab696`(2026-09-30)**이고, 그 뒤 커밋은 문서(`adee25f`)와 학습 사이트(`a431f1f`)뿐이다.
-- 현재 작업 트리: 브랜치 **`main`**, 2026-10-23 재개 점검에서 고친 문서·설정 파일만 미커밋. commit/push는 사용자가 요청할 때만 한다.
+- 문서 갱신 기준 HEAD: `04fab3c` — 바닥 specular를 물리값 0.25로 (10-2c). `origin/main`(`a431f1f`)보다 앞서 있다(push 전).
+- 현재 작업 트리: 브랜치 **`main`**, 이 문서 커밋 후 clean. commit/push는 사용자가 요청할 때만 한다.
+- 10-2 Fresnel은 두 커밋이다 — `6fd8742`(사용자: `FresnelSchlick`과 `ComputeDirectLighting` 조립 + 확장 예약 목록 문서), `04fab3c`(바닥 specular 0.5 → 0.25).
 - `a431f1f`는 렌더러와 무관한 학습용 정적 사이트(`study-site/`), 그 생성 규칙 스킬(`.claude/skills/study-site/SKILL.md`), 프리뷰 서버 설정(`.claude/launch.json`)을 추가했다(13개 파일). 상세는 §3 "학습 사이트".
 - `e9ab696`은 10-1 E~G를 한 번에 담고 있다 — 셰이더 E-1(`viewDir` 전달)·E-2(`SurfaceData`에 roughness/specular)·E-3(Blinn-Phong)·F(정규화)와 G(`AppBase.cpp`·`NeonSign.cpp`의 재질값). 4개 파일.
 - `8e4cadc`는 메시지는 카메라 이동이지만 **10-1a(Material Roughness/Specular 값 경로), R-1(`Common.hlsli` 신설), R-2(카메라 cbuffer 공유와 슬롯 재배치)**를 함께 담고 있다(11개 파일).
@@ -47,6 +48,10 @@
 최근 기능 commit:
 
 ```text
+04fab3c 바닥 specular를 물리값 0.25로 (10-2c)
+6fd8742 슐릭근사 함수 세팅 및 적용 (10-2a·b, 확장 예약 목록)
+1a13af1 Update MD - 강의 PBR 자료 지도, 로드맵 10 보강, 에셋 정책
+e1ea36e Update MD - 작업 재개 점검, 문서·스킬 설정 동기화
 a431f1f 웹사이트 추가 (study-site, 렌더러 코드 변경 없음)
 adee25f Update MD (10-1 Specular 완료 반영)
 e9ab696 Specular 추가
@@ -122,12 +127,13 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - (`8e4cadc`) `Material`에 `roughness`(기본 0.5, `[0.05, 1]`로 clamp — 0이면 Blinn-Phong 지수가 무한대)와 `specular`(기본 0.5, `[0, 1]`)를 추가했다. `MaterialConstantData`는 64바이트를 유지한 채 기존 패딩 자리(`baseColor` 뒤, `rimPower` 뒤)를 채웠다. 둘 다 배율이라 `SrgbToLinear`를 거치지 않는다. Inspector에 슬라이더가 있다.
 - **셰이더 공통 파일 구조** (`8e4cadc`, `f0273c2`, `b59242a`, `e9ab696`): `Common.hlsli` = 모든 씬 셰이더가 쓰는 선언(`PI`, `VS_INPUT`/`PS_INPUT`, 카메라 cbuffer `b1`). `Lighting.hlsli` = 빛 쪽(`PointLight`, `IncidentLight`, Light cbuffer `b0`, `CalcAttenuation`, `GetDirectionalLight()`, `GetPointLight(index, posWorld)`)과 표면 쪽(`SurfaceData`, `SpecularBlinnPhong`, `ComputeDirectLighting`). Material cbuffer(`b2`)는 `simplePixelShader.hlsl`에 남는다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**. 설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리"
 - **`main`의 흐름** (`b59242a`): 입력 준비(`normal`, 텍스처 × `baseColor`, `viewDir`, `SurfaceData`) → 직접광(`ComputeDirectLighting`을 방향광 결과로 시작해 점광원 루프에서 누적) → 간접광(ambient, 함수 밖에서 한 번) → 연출 항(emissive, rim) → 합성. 렌더링 방정식 `Le + Σ직접광 + 간접광`과 블록이 1:1로 대응한다
-- **Specular — 정규화된 Blinn-Phong** (`e9ab696`): `ComputeDirectLighting(surface, light, viewDir)` 한 곳에서 모든 빛에 적용된다. `NdotL ≤ 0`이면 조기 반환 → `L + V`의 제곱 길이가 0에 가까우면 반환(NaN 방지) → `H = normalize(L + V)` → `SpecularBlinnPhong(NdotH, roughness)` = `pow(NdotH, n) × (n + 8) / 8`(`α = roughness²`, `n = max(2/α² − 2, 1)`) → `× F0`(`0.08 × specular`) → `(albedo + specularTerm) × radiance × NdotL`. specular 항에는 albedo를 곱하지 않는다. 설계 이유는 §4 "Specular — 정규화된 Blinn-Phong과 재질값"
+- **Specular — 정규화된 Blinn-Phong** (`e9ab696`): `ComputeDirectLighting(surface, light, viewDir)` 한 곳에서 모든 빛에 적용된다. `NdotL ≤ 0`이면 조기 반환 → `L + V`의 제곱 길이가 0에 가까우면 반환(NaN 방지) → `H = normalize(L + V)` → `SpecularBlinnPhong(NdotH, roughness)` = `pow(NdotH, n) × (n + 8) / 8`(`α = roughness²`, `n = max(2/α² − 2, 1)`) → `× F`(Fresnel) → `(diffuseTerm + specularTerm) × radiance × NdotL`. specular 항에는 albedo를 곱하지 않는다. 설계 이유는 §4 "Specular — 정규화된 Blinn-Phong과 재질값"
+- **Fresnel — Schlick 근사** (`6fd8742`): `FresnelSchlick(f0, cosTheta)` = `f0 + (1 − f0) × (1 − cos)⁵`(입력 `saturate`). `ComputeDirectLighting`에서 `VdotH`로 `F`를 구해 `specularTerm = SpecularBlinnPhong(…) × F`, `diffuseTerm = albedo × (1 − F)`. `f0 = 0.08 × specular`. 비스듬한 시선일수록 반사가 강해지고 그만큼 diffuse가 줄어든다. 설계 이유는 §4 "Fresnel — Schlick 근사"
 - **재질별 Roughness/Specular** (`e9ab696`):
 
 | 재질 | 위치 | BaseColor | Roughness | Specular |
 |---|---|---:|---:|---:|
-| 바닥 (젖은 아스팔트) | `AppBase::InitGreyBoxScene` `floorMat` | 1.0 → **0.75** | 0.3 | 0.5 (물리값 0.25, Fresnel 전 임시 보정) |
+| 바닥 (젖은 아스팔트) | `AppBase::InitGreyBoxScene` `floorMat` | 1.0 → **0.75** | 0.3 | **0.25** (물의 F0 약 2%, `04fab3c`. 그 전 0.5는 Fresnel이 없던 때의 임시 보정) |
 | 벽 (마른 콘크리트) | 〃 `wallMat` | 1.0 | 0.85 | 0.5 |
 | 전원 스위치 (도장 패널) | 〃 `powerSwitchMat` | — | 0.4 | 0.5 |
 | 네온 (유리관, 3개 공통) | `NeonSignFactory::Create` `neonMat` | — | 0.3 | 0.5 |
@@ -356,9 +362,19 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - **재질값: 젖은 표면은 "더 어둡고 더 매끈하게".** Lagarde가 정리하고 Unreal·Frostbite가 쓰는 모델이다. 물이 다공성 표면 틈을 채우면 흡수가 늘어 albedo가 어두워지고, 물막이 roughness를 낮추며, 반사율은 물의 F0(약 2%)를 따른다. 에이전트가 직접 빌드·실행하며 세 번 비교했다.
   - v1 (바닥 BaseColor 0.6 / roughness 0.22 / specular 0.25): 반사가 **동그란 점**이고 바닥이 너무 어두웠다. BaseColor는 sRGB라 0.6이 선형 **0.32**배다.
   - v2 (0.75 / 0.3 / 0.25): 반사가 **보는 쪽으로 길게 늘어진 줄무늬**가 됐다. roughness가 너무 낮으면 로브가 좁아 비스듬한 시선에서의 늘어남이 보이지 않는다. 분홍 반사가 흐렸다.
-  - **v3 (0.75 / 0.3 / 0.5) 확정.** 물리값 0.25가 아니라 0.5로 둔 이유는 **Fresnel이 없어서**다. 실제로는 비스듬한 시선에서 반사율이 크게 늘어나는데(젖은 거리가 멀리서 거울처럼 보이는 이유) 그 증가분이 빠져 있다. **10-2 Fresnel을 넣은 뒤 0.25로 되돌려 비교한다**(코드 주석에도 적어 둠).
+  - **v3 (0.75 / 0.3 / 0.5) 확정.** 물리값 0.25가 아니라 0.5로 둔 이유는 **Fresnel이 없어서**다. 실제로는 비스듬한 시선에서 반사율이 크게 늘어나는데(젖은 거리가 멀리서 거울처럼 보이는 이유) 그 증가분이 빠져 있다. **10-2 Fresnel을 넣은 뒤 0.25로 되돌려 비교한다**(코드 주석에도 적어 둠). → 2026-10-23 Fresnel 뒤 0.25로 확정했다(아래 "Fresnel" 절).
   - 바닥 roughness를 0.2 아래로 내리지 않는다. n이 수천 단위가 되면 하이라이트가 픽셀보다 좁아져 카메라가 움직일 때 깜빡이고(스페큘러 에일리어싱), Bloom이 그것을 증폭한다.
   - 네온 roughness/specular는 `NeonSignDesc` 필드가 아니라 팩토리 안의 상수다. 모든 네온이 같은 유리관이고, 네온마다 다른 값이 필요해지면 그때 `desc`로 올린다.
+
+### Fresnel — Schlick 근사 (로드맵 10-2, 2026-10-23)
+
+- **Schlick 근사를 쓴다.** `F = F0 + (1 − F0)(1 − cosθ)⁵`. Unreal·Unity·Filament·강의 모두 직접광에 쓰고, 정확한 Fresnel 방정식과의 차이는 1% 안팎이다. 5제곱 때문에 60°까지는 거의 F0 그대로이고 75°를 넘으며 급격히 커진다(F0 = 0.04: 75° → 0.255, 85° → 0.648). 1인칭으로 앞을 보는 데모에서는 몇 미터 앞 바닥이 바로 이 구간이라 효과가 크다.
+- **직접광의 cosθ는 V·H다.** L을 V로 반사하는 건 법선이 H인 미세면이고, Fresnel은 그 미세면에 대한 입사각으로 정해진다. IBL·평면 반사처럼 특정 H가 없는 경우는 N·V를 쓴다. 그래서 인자 이름을 `VdotH`가 아니라 일반형 **`cosTheta`**로 두고, 무엇을 넘길지는 함수 위 주석과 호출부가 책임진다(강의 Ch13 `SchlickFresnel(F0, NdotH)`는 이름과 달리 V·H·N·V를 받아 혼란스럽다).
+- **diffuse에 `1 − F`를 곱한다.** 표면에서 튕긴 몫은 안으로 들어가 diffuse가 되지 못한다. 없으면 스치는 각에서 받은 빛보다 많이 내보낸다. 먼 바닥은 diffuse가 줄고 그 자리를 반사가 채워 "어두운 거울"처럼 보인다.
+- **`specularTerm`은 `float`, `diffuseTerm`은 `float3`다.** 비금속 반사는 빛의 색 그대로라 F가 스칼라이고, diffuse는 표면 색이라 벡터다. 리뷰 중 `diffuseTerm`을 `float`로 받아 **R 채널만 남는 버그**(X3206 implicit truncation 경고)를 잡았다 — HLSL은 벡터 → 스칼라 대입을 에러가 아니라 경고로 처리한다(AGENTS §7).
+- **5제곱은 곱셈으로 풀어 써도 `pow`와 같다.** 단독 테스트 셰이더를 `fxc /Fc`로 확인하니 컴파일러가 `x² → x⁴ → x⁵` 곱셈 3번과 `mad` 하나로 줄였다. `Pow5` 공용 함수는 성능이 아니라 재사용·가독성 문제라 예약 목록(§5)에 둔다.
+- **확장은 예약만 했다.** `f90` 인자(IBL diffuse·specular 0 재질), `float3`화(metallic), `Pow5`는 §5 "확장 예약 목록"에 트리거와 함께 있다. 지금 식 `f0 + (1 − f0) × w`는 `1`을 `f90`으로 바꾸기만 하면 되는 모양이라 확장에 열려 있다.
+- **바닥 specular를 0.25로 확정했다.** F0 차이는 정면에서만 의미가 있고(0° 0.04 vs 0.02), 스치는 각에서는 둘 다 1로 수렴한다(85° 0.648 vs 0.641). 그래서 물리값으로 되돌려도 먼 거울 반사는 유지되고 발밑만 차분해진다. 기능이 들어온 뒤에도 남은 **임시 보정은 이중 보정**이 되므로 걷어낸다.
 
 ### HDR 씬 타깃, 후처리 패스와 선형 색공간
 
@@ -437,7 +453,7 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - Bloom 타깃 세 개를 앱 생명주기 내내 들고 있다. 상용 엔진은 프레임 내에서만 사는 일시적 리소스로 풀링·에일리어싱한다. 지금 규모(절반 해상도 float16 3장)에서는 문제가 아니다.
 - **`BlendState`가 아예 없다.** 현재 전부 불투명 렌더링이라 투명·가산 합성이 불가능하다. 비·연기·먼지·스파크 같은 입자 계열을 넣으려면 알파/가산 State 두 개와 투명 패스 분리(깊이 쓰기 off + 뒤→앞 정렬)가 먼저 필요하다. `D3D11Utils`에 `CreateGeometryShader`와 Hull/Domain 경로도 없다. 상세는 §7 "강의 연계 아이디어" 참고.
 - Material에 Normal / Metallic / Roughness **맵**이 없다. Roughness / Specular는 Material 단위 상수다.
-- **Fresnel이 없다.** 반사율이 시선 각도와 무관한 F0 고정이라 비스듬한 시선의 반사가 과소평가된다. 그래서 바닥 specular를 물리값 0.25 대신 0.5로 임시 보정했다(§4 "Specular"). diffuse와 specular 사이의 에너지 분배(`1 − F`)도 없다.
+- **젖은 바닥을 평가할 디테일이 없다.** 바닥이 roughness·BaseColor 하나로 **균일**하고, 노멀 맵이 없어 완벽히 평평하며, UV 타일링도 없다. 사람은 젖은 표면을 "웅덩이(거울) 옆의 덜 젖은 곳(무광)" 같은 **대비**로 알아보는데 그 대비가 없어서, Fresnel·GGX 같은 반사 기능의 차이를 화면으로 판단하기 어렵다(2026-10-23 사용자 관찰). → §6의 10-W에서 해결한다.
 - **환경 반사가 없다.** 반사는 Point Light·방향광 하이라이트뿐이라 하늘이나 벽이 바닥에 비치지 않는다(로드맵 10-3~10-5).
 - Blinn-Phong은 GGX보다 하이라이트 꼬리가 짧아 젖은 표면의 "번지는 테두리"가 약하다. roughness 대응식을 GGX 기준으로 맞춰 뒀으므로 분포 함수만 교체할 수 있다.
 - 바닥 반사가 생기면서 UV 타일링 문제(아래)가 더 눈에 띌 수 있다.
@@ -500,7 +516,7 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 
 **다음에 이어서 할 작업 (순서)**
 
-**작업 재개 체크리스트 (2026-10-23 기준)**: ① `Debug | x64` 빌드 후 실행해 `e9ab696` 상태(전원 Off의 파란 바닥 반사, On의 네온 색 줄무늬 반사)가 그대로인지 본다 ② §4 "Specular" 절과 `Lighting.hlsli`의 `ComputeDirectLighting`을 다시 읽는다 — 10-2 Fresnel은 이 함수의 F0 한 줄을 바꾸는 데서 시작한다 ③ 필요하면 `study-site/pipeline.html`로 PS 흐름을 복습한다.
+**작업 재개 체크리스트 (2026-10-23 기준)**: ① `Debug | x64` 빌드 후 실행해 `e9ab696` 상태(전원 Off의 파란 바닥 반사, On의 네온 색 줄무늬 반사)가 그대로인지 본다 ② §4 "Specular"·"Fresnel" 절과 `Lighting.hlsli`의 `ComputeDirectLighting`을 다시 읽는다 ③ §5 "확장 예약 목록"에서 이번 단계가 트리거인 항목을 먼저 확인한다 ④ 필요하면 `study-site/pipeline.html`로 PS 흐름을 복습한다.
 
 그래픽스 강의의 기하 파이프라인 챕터를 녹일 자리는 §7 "강의 연계 아이디어"에 후보 목록으로 정리해뒀다 — 특히 **법선 시각화 디버그 툴은 로드맵 10번을 진행하는 동안 바로 써먹는다.**
 
@@ -512,7 +528,7 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 
 - ✅ **Step 3 — 밉맵** (`f91b0e6`, 2026-09-28). 모든 파일 텍스처가 `GenerateMips`로 전체 밉 체인을 갖는다. 구조는 §3, 결정 이유는 §4 "텍스처 색공간 선택", 기록은 §8.
 
-1. **로드맵 10번 — 젖은 바닥 반사. ← 진행 중 (10-1 Specular 완료, 다음은 10-2 Fresnel).**
+1. **로드맵 10번 — 젖은 바닥 반사. ← 진행 중 (10-1 Specular, 10-2 Fresnel 완료, 다음은 10-W 젖은 바닥 디테일).**
    - **10-1 진행 상황 — 전부 완료 ✅** (설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리", "Specular — 정규화된 Blinn-Phong과 재질값"):
      - ✅ 10-1a Material Roughness/Specular 값 경로 (`8e4cadc`)
      - ✅ A(R-1) `Common.hlsli` 신설, include 정리 (`8e4cadc`)
@@ -522,8 +538,13 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
      - ✅ E(10-1b) Blinn-Phong Specular — E-1 `viewDir` 전달, E-2 `SurfaceData`에 roughness/specular, E-3 `SpecularBlinnPhong`과 조립, 디버그 뷰로 모양 확인 (`e9ab696`)
      - ✅ F(10-1c) 정규화 항 **`(n + 8) / 8`** — 교과서의 `/(8π)`가 아니다. 우리 diffuse에 1/π가 없기 때문이다(§4) (`e9ab696`)
      - ✅ G(10-1d) 재질값 — 바닥 0.75 / 0.3 / 0.5, 벽 0.85 / 0.5, 스위치 0.4 / 0.5, 네온 0.3 / 0.5 (§3 표) (`e9ab696`)
-   - **10-2 Fresnel ← 바로 다음.** `ComputeDirectLighting`의 고정 F0를 Schlick 근사 `F = F0 + (1 − F0)(1 − V·H)⁵`로 바꾸고, diffuse에 `(1 − F)`를 곱해 에너지를 나눈다. 끝나면 **바닥 specular를 물리값 0.25로 되돌려 비교**한다. 강의 Ch10 `BasicPixelShader.hlsl`과 Ch13 `BasicPS.hlsl`에 `SchlickFresnel`이 있다(Ch13은 `pow(2, …)` 형태의 Unreal 근사).
-   - **10번 나머지 순서 (2026-10-23 보강, 강의 11~13장 분석 반영 — 근거는 §7 "강의 PBR 자료 지도")**:
+   - ✅ **10-2 Fresnel** — 10-2a `FresnelSchlick`, 10-2b `ComputeDirectLighting` 조립(V·H, `F`, `1 − F`) (`6fd8742`), 10-2c 바닥 specular 0.5 → 0.25 (`04fab3c`). 화면 확인 완료. 설계 이유는 §4 "Fresnel — Schlick 근사".
+   - **10-W 젖은 바닥 디테일 ← 바로 다음 (2026-10-23 앞당김).** 균일한 바닥으로는 젖은 느낌과 반사 기능을 평가할 수 없어서(§5), 탄젠트 없이 할 수 있는 디테일을 GGX보다 먼저 한다.
+     - **W-1 UV 타일링** — Material에 UV 스케일, VS에서 `uv × scale`. 텍스처를 쓰는 모든 작업의 선행 조건(§5 "UV Tiling 정책이 없다")
+     - **W-2 ambientCG 아스팔트 + roughness 맵** — `TextureType::Data` 텍스처 슬롯을 하나 추가한다. roughness 맵은 UV로 읽는 흑백 값이라 **탄젠트가 필요 없다.** 에셋 정책(§7)대로 CC0, 2K, `CREDITS.md`
+     - **W-3 웅덩이 마스크** — 흑백 마스크(`Data`)로 roughness를 0.05 쪽으로, albedo를 어둡게 보간한다. Lagarde 젖은 표면 모델, Unreal Wet Material과 같은 방식. **젖은 느낌의 핵심**이고, 웅덩이 위에서 Fresnel의 먼 거울 반사가 선명해진다
+     - W-4 노멀 맵은 탄젠트가 필요해 10-6으로 합친다. 병행: 반사에 비칠 Greybox 소품(쓰레기통·상자·배관) 몇 개
+   - **10번 나머지 순서 (2026-10-23 보강, 강의 11~13장 분석 반영 — 근거는 §7 "강의 PBR 자료 지도")**: GGX는 10-W 뒤로 간다. GGX의 장점(하이라이트의 긴 꼬리)은 매끈한 웅덩이 위에서 가장 잘 보이기 때문이다.
      - **10-2'** GGX + Smith — `SpecularBlinnPhong`을 `NdfGGX`·`SchlickGGX` 계열로 교체. **IBL의 BRDF LUT가 GGX 전제라 IBL보다 먼저** 한다. 강의 `NdfGGX`의 `/π`는 우리 규약에 맞게 뺀다(AGENTS §7)
      - **10-3** DDS 로더 + Skybox(HDRI) — 11 Step4 `CreateDDSTextureFromFileEx`, Ch13 `SkyboxVS/PS`. 카메라가 `Common`의 b1이라 스카이박스 VS는 `Common`만 include하면 된다
      - **10-4** 환경 매핑(`reflect(-V, N)`)
@@ -585,7 +606,7 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
-10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular 완료(2026-09-30), 다음은 10-2 Fresnel — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
+10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular(2026-09-30)·10-2 Fresnel(2026-10-23) 완료, 다음은 10-W 젖은 바닥 디테일(UV 타일링 → roughness 맵 → 웅덩이 마스크) — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
 11. ✅ HDR Scene Target, Bloom과 Tone Mapping (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 2026-09-15, Bloom Step 5~7과 블러 반복·룩 재튜닝 2026-09-17에 완료)
 12. 안개, 비와 색조 보정 (기하 파이프라인 챕터의 기하 셰이더·빌보드가 여기 본체다 — 아래 "강의 연계 아이디어" 참고)
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류. 디버그 UI는 아래 "강의 연계 아이디어" A그룹으로 상당 부분 해결된다)
@@ -790,6 +811,18 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
+### 2026-10-23 — 10-2 Fresnel 완료, 젖은 바닥 디테일(10-W) 앞당김 ✅
+
+- 완료한 작업: 10-2a `FresnelSchlick(f0, cosTheta)`, 10-2b `ComputeDirectLighting`에 `VdotH`·`F`·`diffuseWeight`·`diffuseTerm` 조립(`6fd8742`), 10-2c 바닥 specular 0.5 → 0.25와 주석 정리(`04fab3c`). 작업 원칙 "지금 필요한 것만 구현하고 확장은 §5 예약 목록에 트리거와 함께"를 정하고 예약 목록을 만들었다(`6fd8742`). 변수명은 엔진 관례(Unity 계열 `NdotL`/`VdotH`, BRDF 식의 `F`, Unreal `Fc` ↔ `fresnelWeight`, `diffuseTerm`)로 맞췄다.
+- 확인한 결과: `fxc` 컴파일 경고 없음. `FresnelSchlick` 단독 어셈블리로 곱셈 최적화 확인. 검산 0° → 0.04, 85° → 0.649. 사용자가 화면(색 정상, 먼 바닥 반사 강화)을 확인했다.
+  - 리뷰 중 잡은 문제: ① 변수 `cosIncidentAngle`에 실제로는 `1 − cos`가 들어 있었고 `reflectPercent`는 0~1 비율이었다(이름 정정) ② 이름 변경 중 옛 이름이 남아 컴파일 불가 상태 ③ `float diffuseTerm = albedo * w`로 **R 채널만 남는 잘림**(X3206). 내 쪽 정정: 처음 권한 인자 이름 `VdotH`를 사용처(IBL·평면 반사의 N·V)를 보고 `cosTheta`로 바꿨다.
+- 남아 있는 문제: 바닥이 균일해 젖은 느낌과 반사 기능을 평가할 수 없다(사용자 관찰, §5). 커밋 메시지 정정: 내 커밋이 이미 사용자 커밋(`6fd8742`)에 들어간 셰이더까지 설명해서, push 전에 내용(바닥 specular)에 맞게 메시지를 고쳤다.
+- 다음에 이어서 할 작업: §6 **10-W** — W-1 UV 타일링 → W-2 ambientCG 아스팔트 + roughness 맵 → W-3 웅덩이 마스크. 그 뒤 10-2' GGX.
+- 중요한 설계 결정과 이유: §4 "Fresnel — Schlick 근사". 요약:
+  - **평가할 수 있는 화면을 먼저** — 균일한 반사면은 "광택 칠한 바닥"으로 보인다. 기능을 더 쌓기 전에 차이가 드러나는 테스트 장면(웅덩이 대비)을 만든다. 상용 엔진 팀이 기능마다 테스트 레벨을 두는 것과 같은 이유다.
+  - **roughness 맵을 노멀 맵보다 먼저** — 효과는 크고 기반 비용(UV만 필요, 탄젠트 불필요)은 작다.
+  - **GGX를 10-W 뒤로** — GGX의 긴 꼬리는 매끈한 웅덩이 위에서 가장 잘 보인다.
 
 ### 2026-10-23 — 강의 폴더 PBR 자료 분석, 로드맵 10 보강, 에셋 정책 ✅
 

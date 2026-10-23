@@ -16,9 +16,9 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 남은 목표 기능: 그림자, 젖은 바닥 반사(Specular·Fresnel·GGX·Cube Map·IBL·재질 맵·평면 반사), 안개·비·색조 보정, 나머지 이동 제한. 강의(11~13장)의 PBR 자료를 최대한 활용해 렌더링 품질을 끌어올리는 것이 방향이다(CODEX_HANDOFF.md §7 "강의 PBR 자료 지도").
 
-현재 전체 진행률은 약 78%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅, 셰이더 빛/표면 분리와 정규화된 Blinn-Phong Specular(젖은 바닥 재질값 포함)까지 완료했다. **로드맵 11번이 닫혔고 10번의 10-1(Specular)이 끝났다.**
+현재 전체 진행률은 약 78%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅, 셰이더 빛/표면 분리, 정규화된 Blinn-Phong Specular와 Schlick Fresnel(젖은 바닥 재질값 포함)까지 완료했다. **로드맵 11번이 닫혔고 10번의 10-1(Specular)·10-2(Fresnel)가 끝났다.**
 
-**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 셰이더는 빛 쪽(`IncidentLight`, `Get…Light`)과 표면 쪽(`SurfaceData`, `ComputeDirectLighting`)으로 나뉘어 있고 모든 빛이 `ComputeDirectLighting` 한 곳을 지난다. 10-1(Specular)이 끝났고 **다음은 10-2 Fresnel**이다. 10번 다음이 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 셰이더는 빛 쪽(`IncidentLight`, `Get…Light`)과 표면 쪽(`SurfaceData`, `ComputeDirectLighting`)으로 나뉘어 있고 모든 빛이 `ComputeDirectLighting` 한 곳을 지난다. 10-1(Specular)과 10-2(Fresnel)가 끝났고 **다음은 10-W 젖은 바닥 디테일**(UV 타일링 → roughness 맵 → 웅덩이 마스크)이다. 균일한 바닥으로는 반사 기능을 평가할 수 없어서 GGX보다 앞당겼다. 10번 다음이 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
 
 작업 브랜치는 `main` 하나다. 로드맵 11번은 `5794467`로 `main`에 머지됐고 기능 브랜치는 정리됐다.
 
@@ -173,6 +173,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **RenderDoc은 빌드하지 않는다**: RenderDoc Launch는 지정한 exe를 그대로 실행하므로 C++ 수정 후 빌드를 잊으면 옛 코드가 캡처된다. 셰이더만 바꿨다면 앱 재실행으로 충분하다.
 - **단위 혼용**: `Camera`는 Yaw/Pitch를 도(degree)로 다루는데 `Transform`의 회전과 Inspector 라벨은 라디안이다.
 - **`invTranspose` 계산**: `Renderer::DrawRenderItem`의 `Translation(Vector3(0))` 호출은 이미 전치된 행렬(이동이 4열에 있음)의 4행을 지우므로 아무 효과가 없다. 그래도 결과가 맞는 이유는 우연이 아니다. `model`을 전치한 뒤 다시 전치해 `Invert()`하므로 결과는 `M⁻¹`이고, 이것을 전치 없이 올리면 HLSL이 `(M⁻¹)ᵀ`로 읽는다. 남아 있는 이동 성분은 법선의 `w = 0`이 지운다. 코드의 의도(이동 제거)와 실제 동작(전치 두 번 + `w = 0`)이 다르다는 점만 기억한다.
+- **HLSL은 벡터 → 스칼라 대입을 경고(X3206 implicit truncation)로만 알린다.** `float x = albedo * w;`처럼 `float3`를 `float`로 받으면 R 채널만 남고 에러가 나지 않는다(2026-10-23 `diffuseTerm`에서 실제로 발생). 셰이더 컴파일 경고 중 X3206은 거의 항상 버그로 본다. 색(albedo·radiance)은 `float3`, 비금속 반사율(F)처럼 회색 세기는 `float`다.
 - **Vertex Color**: `Vertex`에 존재하고 VS가 PS로 넘기지만 최종 색에 사용되지 않는다.
 - **테스트 없음**: 이 프로젝트에는 테스트 프레임워크가 없다. 검증은 `Debug | x64` 빌드 후 실행해 화면으로 확인하는 것뿐이다. "테스트를 써서 통과시켜라" 방식은 적용되지 않는다.
 
