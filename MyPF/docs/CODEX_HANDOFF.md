@@ -1,6 +1,6 @@
 # MyPF 진행 기록 및 작업 인계
 
-마지막 갱신: 2026-09-30
+마지막 갱신: 2026-10-23
 
 노트북과 데스크톱에서 Git으로 공유하는 MyPF의 실제 구현 상태와 다음 작업을 기록한다.
 
@@ -34,8 +34,9 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `e9ab696` — Specular 추가 (`origin/main`과 같다, push 완료)
-- 현재 작업 트리: 브랜치 **`main`**, 이 문서 갱신만 미커밋. commit/push는 사용자가 요청할 때만 한다.
+- 문서 갱신 기준 HEAD: `a431f1f` — 웹사이트 추가 (`origin/main`과 같다, push 완료). **렌더러 코드의 마지막 변경은 `e9ab696`(2026-09-30)**이고, 그 뒤 커밋은 문서(`adee25f`)와 학습 사이트(`a431f1f`)뿐이다.
+- 현재 작업 트리: 브랜치 **`main`**, 2026-10-23 재개 점검에서 고친 문서·설정 파일만 미커밋. commit/push는 사용자가 요청할 때만 한다.
+- `a431f1f`는 렌더러와 무관한 학습용 정적 사이트(`study-site/`), 그 생성 규칙 스킬(`.claude/skills/study-site/SKILL.md`), 프리뷰 서버 설정(`.claude/launch.json`)을 추가했다(13개 파일). 상세는 §3 "학습 사이트".
 - `e9ab696`은 10-1 E~G를 한 번에 담고 있다 — 셰이더 E-1(`viewDir` 전달)·E-2(`SurfaceData`에 roughness/specular)·E-3(Blinn-Phong)·F(정규화)와 G(`AppBase.cpp`·`NeonSign.cpp`의 재질값). 4개 파일.
 - `8e4cadc`는 메시지는 카메라 이동이지만 **10-1a(Material Roughness/Specular 값 경로), R-1(`Common.hlsli` 신설), R-2(카메라 cbuffer 공유와 슬롯 재배치)**를 함께 담고 있다(11개 파일).
 - **로드맵 11번 작업을 `main`에 머지했다(2026-09-17).** `--no-ff`로 머지해 "HDR + Bloom 작업 덩어리"의 경계를 히스토리에 남겼다. 33개 파일, +1416/-155, 충돌 없음.
@@ -46,6 +47,8 @@
 최근 기능 commit:
 
 ```text
+a431f1f 웹사이트 추가 (study-site, 렌더러 코드 변경 없음)
+adee25f Update MD (10-1 Specular 완료 반영)
 e9ab696 Specular 추가
 b59242a 셰이더 표면 쪽 정리 - SurfaceData, ComputeDirectLighting
 f0273c2 셰이더 빛 쪽 정리 - IncidentLight, GetDirectionalLight, GetPointLight
@@ -243,6 +246,16 @@ Rim 색은 `(1.0, 0.75, 0.25)` 호박색, Power 4.0, 강조 시 Intensity 3.0이
 | EndWall | (0, 2, 20.1) | (4, 4, 0.2) |
 | PowerSwitch | (0, 1.2, 19.95) | (0.4, 0.6, 0.1) |
 | Camera 시작점 | (0, 1.6, 0) | +Z 방향 |
+
+### 학습 사이트 (study-site, `a431f1f`)
+
+렌더러 기능이 아니라 **자기 코드를 다시 공부하기 위한 정적 HTML 노트**다(2026-10-05).
+
+- 위치: 저장소 루트 `study-site/`. `index.html` + 3페이지 — **Architecture**(소유·대여 구조), **Frame Analysis**(`Run` 루프 한 바퀴의 시간축), **Rendering Pipeline**(각 `Context->…Set…` 줄이 바꾸는 파이프라인 단계). 페이지마다 예측 질문 → 다이어그램 → 코드 흐름 → 함정 → 학습 질문 → "문서와 다른 점" 순서다.
+- 코드 기준: `adee25f`. 그 뒤 렌더러 코드가 바뀌지 않았으므로 **현재 코드와 줄 번호가 일치한다.** 코드를 바꾸면 줄 번호부터 어긋나므로 기능 단계를 마칠 때 갱신한다.
+- 여는 법: `fetch`를 쓰지 않는 정적 페이지라 `study-site/index.html`을 브라우저로 **바로 연다.** `.claude/launch.json`의 프리뷰 서버 항목은 다른 세션의 임시 폴더에 있던 서버 스크립트를 가리키다 그 파일이 사라져 2026-10-23에 지웠다.
+- 생성·갱신 규칙: `.claude/skills/study-site/SKILL.md`(`/study-site`). 소스(`.cpp/.h/.hlsl/.hlsli`)는 수정하지 않고 `study-site/` 아래에서만 작업하며, 문서가 아니라 실제 코드를 기준으로 쓴다. Architecture의 A2·A4·A5 다이어그램은 아직 자리만 있다.
+- 사이트가 코드와 대조해 찾은 **"문서와 다른 점" 6개는 2026-10-23 AGENTS.md에 반영했다**(§8 참고). 사이트 HTML에는 아직 미해결로 남아 있으니 다음 사이트 갱신 때 정리한다.
 
 ---
 
@@ -456,6 +469,8 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - 전면 Epic 명명 마이그레이션은 기능 우선 결정으로 보류했다.
 - 외부 캐릭터 에셋은 테스트용이며 공개 전 라이선스를 확인한다.
 - RenderDoc Launch로 실행하면 빌드가 되지 않으므로, C++ 수정 후 빌드를 잊으면 옛 exe가 캡처된다(2026-09-15에 실제로 겪음). 셰이더만 바꿨을 때는 앱 재실행으로 충분하다.
+- `EditorUI`는 자기가 가리키는 Camera·CameraController·PostProcessSettings·DirectionalLight·배경색보다 `AppBase`에서 먼저 선언돼 **나중에 파괴**된다. 소멸자가 없어 지금은 무해하다(AGENTS.md §4). `EditorUI`에 정리 코드를 넣게 되면 선언 순서를 먼저 확인한다.
+- Directional Light 방향은 CPU(`Renderer::BeginFrame`)와 GPU(`GetDirectionalLight`)에서 **두 번** 정규화된다. 결과는 같아 무해하고, 한쪽으로 줄일지는 필요해질 때 판단한다.
 
 ---
 
@@ -468,6 +483,8 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 진행 순서는 그래픽스 강의 연계로 정한 **11번(HDR+Bloom) → 10번(Normal/Roughness+Fresnel+Cube Mapping+IBL) → 9번(Shadow Mapping)**을 그대로 따른다.
 
 **다음에 이어서 할 작업 (순서)**
+
+**작업 재개 체크리스트 (2026-10-23 기준)**: ① `Debug | x64` 빌드 후 실행해 `e9ab696` 상태(전원 Off의 파란 바닥 반사, On의 네온 색 줄무늬 반사)가 그대로인지 본다 ② §4 "Specular" 절과 `Lighting.hlsli`의 `ComputeDirectLighting`을 다시 읽는다 — 10-2 Fresnel은 이 함수의 F0 한 줄을 바꾸는 데서 시작한다 ③ 필요하면 `study-site/pipeline.html`로 PS 흐름을 복습한다.
 
 그래픽스 강의의 기하 파이프라인 챕터를 녹일 자리는 §7 "강의 연계 아이디어"에 후보 목록으로 정리해뒀다 — 특히 **법선 시각화 디버그 툴은 로드맵 10번을 진행하는 동안 바로 써먹는다.**
 
@@ -695,6 +712,23 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
 
+### 2026-10-23 — 작업 재개 점검: 문서·설정 동기화 ✅
+
+- 완료한 작업:
+  - 약 3주 공백 뒤 `git log`, 실제 소스, 세 문서(AGENTS/HANDOFF/CLAUDE)를 대조했다. 렌더러 코드는 `e9ab696` 이후 바뀌지 않았고, 문서에 빠져 있던 것은 `a431f1f`(학습 사이트)였다.
+  - 학습 사이트의 "문서와 다른 점"을 코드로 하나씩 재확인해 AGENTS.md를 고쳤다: §4 파괴 순서의 `EditorUI` 예외, §6 3번의 ImGui 기록/드로우 분리, §6 7·8번 순서(커서 복귀 → `PointLightSequence::Update`), §7 b0 재바인딩("첫 프레임부터"), §7 Directional 정규화(CPU·GPU 양쪽, 부호 반전만 한 곳), §7 `invTranspose`(전치 두 번 + `w = 0`), §8 학습 사이트 위치.
+  - 사용자 결정으로 설정·주석을 고쳤다: `.claude/skills/study-site/SKILL.md`의 마크다운 이스케이프(`\---`, `\#`, `\-`) 복구, `.claude/launch.json`의 사라진 서버 항목 삭제, `DirectionalLight.h`의 낡은 주석("셰이더가 normalize하지 않으므로") 수정 — 동작 변화 없음.
+- 확인한 결과:
+  - `main` = `origin/main` = `a431f1f`. 진행률 약 78%, 로드맵 11 완료, 10-1 완료, 다음은 10-2 Fresnel — 문서의 다음 작업 지정은 정확했다.
+  - SKILL.md는 frontmatter가 `\---`로 시작해 스킬 설명이 `\---`로 인식되고 있었다. launch.json은 다른 세션의 scratchpad(`…/a3ed454c-…/scratchpad/serve-study-site.js`)를 가리켰고 그 파일은 이미 없었다. 사이트는 `fetch`를 쓰지 않아 파일로 바로 열린다.
+  - `CLAUDE.md`는 `@AGENTS.md` import와 우선 규칙뿐이라 바꿀 것이 없었다.
+- 남아 있는 문제: §5 — Fresnel 없음(바닥 specular 0.5 임시 보정), 환경 반사·재질 맵 없음, UV 타일링, `EditorUI` 파괴 순서 메모, 방향광 이중 정규화(무해). study-site HTML의 "문서와 다른 점" 목록은 다음 사이트 갱신 때 정리.
+- 다음에 이어서 할 작업: §6 재개 체크리스트 → **10-2 Fresnel**.
+- 중요한 설계 결정과 이유:
+  - **학습 사이트가 찾은 차이를 그대로 옮기지 않고 코드로 재확인한 뒤 반영했다.** 사이트도 문서의 일종이라, 문서끼리 맞추는 게 아니라 코드를 기준으로 맞춘다(AGENTS §10).
+  - **학습 사이트 위치는 AGENTS §8, 내용과 상태는 HANDOFF §3에** 둔다. AGENTS는 "어디에 무엇이 있고 무엇을 하면 안 되는가", HANDOFF는 "지금 어떤 상태인가"를 담는 기존 역할 분담을 따랐다.
+  - **프리뷰 서버를 새로 만들지 않고 항목을 지웠다.** 정적 페이지라 서버가 필요 없고, 저장소 밖 임시 경로를 가리키는 설정은 다른 PC(노트북)에서도 동작하지 않는다.
+
 ### 2026-09-30 — 셰이더 표면 쪽 정리와 Specular, 재질값 (로드맵 10-1 완료) ✅
 
 - 완료한 작업:
@@ -911,7 +945,7 @@ LoadTexture(path, TextureType)
 - 확인한 결과:
   - 단계마다 코드 리뷰 후 사용자가 빌드·실행과 RenderDoc 캡처로 확인했고, 셰이더는 에이전트가 `fxc.exe`로 컴파일을 확인했다.
   - 확인한 것: 로그로 HDR 타깃 크기와 리사이즈 후 index 유지, ①② 중간 단계의 의도된 검은 화면(`Draw(3)`의 `t0`가 아무도 그리지 않은 HDR 텍스처임을 추적), ③ 이후 원래와 같은 화면, 3-a에서 HDR 텍스처의 네온 픽셀이 1을 넘고 백버퍼에서는 1로 잘림, Reinhard 적용 후 네온 밝기 구분, PS `b0`의 exposure/toneMapper 값, 4-b에서 씬 `DrawIndexed`의 `t0`가 `_SRGB`, 4-c에서 `b1`/`b0` 색 값이 ImGui 값보다 작아짐.
-  - 리뷰·디버깅 중 잡은 버그: ① `BindFlags`에 `||`를 써서 값이 1(`VERTEX_BUFFER`)이 됨, ② `ResizeRenderTarget` 범위 검사 `>`(→ `>=`), ③ HDR 타깃 높이 자리에 너비를 넘겼는데 고정 문자열 로그가 이를 가림, ④ `OMSetRenderTargets` 개수 0으로 출력이 없어 ImGui까지 사라짐, ⑤ 수정 후 빌드하지 않고 RenderDoc에서 옛 exe를 실행, ⑥ `BeginFrame`의 Light 버퍼 `b0` 바인딩이 주석 처리돼 두 번째 프레임부터 조명이 사라질 상황, ⑦ 새 셰이더가 CP949로 저장됨(→ `.editorconfig`), ⑧ RenderDoc에서 ImGui 폰트/HDR 텍스처를 보고 `_SRGB`가 없다고 오인(`renderdoccmd convert`로 `_SRGB` 텍스처 4개 생성 확인), ⑨ `ACESFilm` 분모에서 `x` 누락(`2.43 * +0.59`), ⑩ 강조를 끌 때 `RimPower`를 0으로 설정(`pow(0, 0)` NaN 위험).
+  - 리뷰·디버깅 중 잡은 버그: ① `BindFlags`에 `||`를 써서 값이 1(`VERTEX_BUFFER`)이 됨, ② `ResizeRenderTarget` 범위 검사 `>`(→ `>=`), ③ HDR 타깃 높이 자리에 너비를 넘겼는데 고정 문자열 로그가 이를 가림, ④ `OMSetRenderTargets` 개수 0으로 출력이 없어 ImGui까지 사라짐, ⑤ 수정 후 빌드하지 않고 RenderDoc에서 옛 exe를 실행, ⑥ `BeginFrame`의 Light 버퍼 `b0` 바인딩이 주석 처리돼 두 번째 프레임부터 조명이 사라질 상황(2026-10-23 정정: 그 줄이 Light `b0`의 유일한 바인딩이라 실제로는 첫 프레임부터 사라진다), ⑦ 새 셰이더가 CP949로 저장됨(→ `.editorconfig`), ⑧ RenderDoc에서 ImGui 폰트/HDR 텍스처를 보고 `_SRGB`가 없다고 오인(`renderdoccmd convert`로 `_SRGB` 텍스처 4개 생성 확인), ⑨ `ACESFilm` 분모에서 `x` 누락(`2.43 * +0.59`), ⑩ 강조를 끌 때 `RimPower`를 0으로 설정(`pow(0, 0)` NaN 위험).
 - 남아 있는 문제: §5 참고. Rim 강조 책임이 AppBase에 있음(`GetGameObject` 노출, ESC 후 강조 잔존), 룩 재튜닝 전(ACES 채널별 색조 이동 포함), 데이터 텍스처용 sRGB 선택 인자 없음, 출력 감마 `1/2.2` 근사와 Reinhard 분기 `pow` 경고, `copyPixelShader` 미사용, `BeginFrame`의 옛 RTV 주석. Bloom은 아직 없다.
 - 다음에 이어서 할 작업: §6 순서대로 Rim 강조를 `PowerSwitch`로 이동 → Bloom Step 5~7 → 룩 재튜닝.
 - 중요한 설계 결정과 이유: §4 "HDR 씬 타깃, 후처리 패스와 선형 색공간"과 "PowerSwitch 컴포지션"의 재검토 항목에 정리했다. 핵심 요약:

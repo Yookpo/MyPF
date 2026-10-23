@@ -8,7 +8,7 @@ namespace My
 	struct DirectionalLight
 	{
 		// 한밤 골목의 하늘광. 골목 위 좁은 하늘에서 거의 수직으로 떨어져 젖은 바닥을 훑는다.
-		// 셰이더가 normalize하지 않으므로 여기서 단위 벡터로 넣는다.
+		// Renderer::BeginFrame과 셰이더(GetDirectionalLight)가 모두 정규화하지만, 값의 의미가 분명하도록 단위 벡터로 둔다.
 		Vector3 direction = Vector3(0.0f, -0.932f, 0.362f); // 빛의 방향
 		float	ambientStrength = 0.045f;				   // 주변광 세기
 		Vector3 color = Vector3(0.45f, 0.60f, 1.0f);	   // 빛의 RGB 색상

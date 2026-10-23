@@ -1,6 +1,6 @@
 # MyPF 작업 지침
 
-마지막 갱신: 2026-09-30
+마지막 갱신: 2026-10-23
 
 이 문서가 MyPF 프로젝트의 단일 진실 원본이다. 사용하는 도구(Claude Code, Codex 등)와 무관하게 적용된다.
 
@@ -109,7 +109,7 @@ AppBase --Resize(w, h)-----> GraphicsDevice → Renderer (HDR 씬 타깃 재생�
 PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호출
 ```
 
-`AppBase` 멤버 선언의 **역순으로 파괴**되므로 Scene/Renderer가 먼저 소멸하고 AssetManager → GraphicsResourceManager → GraphicsDevice가 뒤에 소멸한다. 참조하는 쪽이 항상 먼저 죽는다. **멤버 선언 순서를 바꾸지 않는다.**
+`AppBase` 멤버 선언의 **역순으로 파괴**되므로 Scene/Renderer가 먼저 소멸하고 AssetManager → GraphicsResourceManager → GraphicsDevice가 뒤에 소멸한다. GPU 계층과 Scene 소유 객체(`PowerSwitch`, `PointLightSequence`가 가리키는 GameObject/Material)는 **참조하는 쪽이 먼저 죽는다.** 예외는 `EditorUI`다. 자기가 가리키는 Camera·CameraController·PostProcessSettings·DirectionalLight·배경색보다 먼저 선언돼 **나중에** 파괴된다. 소멸자가 없어 포인터를 쓰지 않으므로 지금은 무해하지만, 비소유 포인터를 소멸자에서 쓰게 되면 선언 순서부터 확인한다. **멤버 선언 순서를 바꾸지 않는다.**
 
 ## 5. 시스템 책임
 
@@ -130,12 +130,12 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 
 1. Win32 메시지를 `InputSystem`과 `AppBase::MsgProc`가 처리한다. Resize는 `GraphicsDevice::Resize` → `Renderer::Resize`(HDR 씬 타깃을 같은 슬롯에서 재생성) 순서로 반영하고, focus 상실도 반영한다.
 2. `GameTimer::Tick()`으로 deltaTime을 계산한다.
-3. ImGui 프레임을 시작하고 `UpdateGui()`를 호출한다. Editor 모드는 `EditorUI::Draw`, Play 모드는 `AppBase::DrawPlayPanel`.
+3. ImGui 프레임을 시작하고 `UpdateGui()`를 호출한다. Editor 모드는 `EditorUI::Draw`, Play 모드는 `AppBase::DrawPlayPanel`. 이어서 `ImGui::Render()`가 DrawData를 **기록만** 한다. 실제 드로우는 13번(`Render` 안의 `ImGui_ImplDX11_RenderDrawData`)이다. 그래서 이번 프레임의 UI 입력으로 바뀐 값은 같은 프레임의 `Update`/`Render`에 반영된다.
 4. Scene View 크기로 Camera Aspect와 Renderer Viewport를 갱신한다.
 5. Editor 모드는 마우스 우클릭을 누르고 있는 동안만 `FirstPersonCameraController`가 WASD 이동과 MouseDelta 회전을 적용한다(`AppBase::UpdateEditorCamera`). Play 모드는 ESC 확인 후 매 프레임 항상 적용하고, `PlayerCollision::Resolve`가 `Scene::GatherBoxColliders` 결과로 카메라 위치를 보정한다.
 6. Play 모드에서 `PowerSwitch::CanInteract`(Ray-BoundingBox 교차)가 참이면 스위치 Material의 Rim을 강조하고, `WasKeyPressed('E')`까지 참이면 전원 상태와 스위치 색을 반전한다.
-7. `PointLightSequence`가 새 목표를 받고, 누적 시간에 따라 등록된 `SequenceEntry`의 Point Light와 Emissive Material을 한 단계씩 함께 켜거나 역순으로 끈다.
-8. 커서를 Scene View 중앙으로 되돌린다.
+7. 커서를 Scene View 중앙으로 되돌린다.
+8. `PointLightSequence::Update`가 누적 시간에 따라 등록된 `SequenceEntry`의 Point Light와 Emissive Material을 한 단계씩 함께 켜거나 역순으로 끈다. 새 목표는 6번의 토글 직후 `PointLightSequence::Start`로 이미 받았다.
 9. `AppBase`가 Camera, DirectionalLight, `Scene::GatherPointLights` 결과, `PostProcessSettings`(Exposure, ToneMapper)로 `FrameRenderData`를 만든다.
 10. `Renderer::BeginFrame`이 HDR 씬 타깃(`R16G16B16A16_FLOAT`)과 DSV를 Clear·바인딩하고, 색 상수를 선형으로 바꿔 Camera/Light/PostProcess Constant Buffer를 갱신한다. Light 버퍼는 매 프레임 PS `b0`에 다시 건다.
 11. `AppBase`가 Scene을 순회해 `ModelPart` 또는 `MeshComponent`를 `RenderItem`으로 변환하고, `Renderer::DrawRenderItem`이 Object/Material Buffer와 Mesh/Texture를 바인딩해 `DrawIndexed`한다. 씬 셰이더는 1을 넘는 선형 HDR 값을 그대로 기록한다.
@@ -157,9 +157,9 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **`SequenceEntry` 수명**: Material을 비소유 포인터로 참조한다. 현재는 `AssetManager`가 수명을 보장한다는 전제를 쓴다.
 - **`GraphicsResourceManager`**: append-only다. 개별 삭제, 슬롯 재사용, generation이 없다. 삭제를 도입하는 날 핸들에 generation을 같이 넣어야 한다.
 - **렌더 타깃 raw pointer**: `GetRTV`/`GetSRV`가 돌려준 포인터는 `Renderer::Resize` 후 무효다. 멤버에 저장하지 말고 바인딩 직전에 핸들로 조회한다. 렌더 타깃은 리사이즈 시 append가 아니라 같은 슬롯에서 재생성된다.
-- **바인딩 규칙**: 같은 텍스처를 RTV와 SRV로 동시에 걸 수 없으므로 패스는 출력 교체 → 입력 바인딩 → Draw → 입력 해제 순서를 지킨다. 파이프라인은 상태 기계라 각 패스는 자기가 쓰는 샘플러·Input Layout·상수 버퍼를 직접 설정한다. 후처리가 PS `b0`를 쓰므로 `BeginFrame`의 Light 버퍼 `b0` 재바인딩을 지우면 두 번째 프레임부터 조명이 사라진다.
+- **바인딩 규칙**: 같은 텍스처를 RTV와 SRV로 동시에 걸 수 없으므로 패스는 출력 교체 → 입력 바인딩 → Draw → 입력 해제 순서를 지킨다. 파이프라인은 상태 기계라 각 패스는 자기가 쓰는 샘플러·Input Layout·상수 버퍼를 직접 설정한다. 후처리가 PS `b0`를 쓰므로 `BeginFrame`이 매 프레임 Light 버퍼를 `b0`에 다시 건다. Light 버퍼를 PS `b0`에 거는 곳은 이 줄(`Renderer.cpp`의 `BeginFrame` 끝) **하나뿐**이라, 지우면 **첫 프레임부터** 조명이 없다.
 - **Rim Power 0 금지**: `pow(1 - N·V, rimPower)`에서 지수가 0이면 정면 픽셀이 `pow(0, 0)`(NaN)이 된다. Rim을 끌 때는 Intensity만 0으로 한다.
-- **Directional Light의 `direction`은 빛이 나아가는 방향이다.** 셰이더의 `GetDirectionalLight()`(`Lighting.hlsli`)가 부호를 뒤집고 `normalize`해서 표면 → 빛 방향으로 바꾼다. 이 변환은 **그 함수 한 곳에서만** 한다. 예전에는 셰이더가 정규화하지 않아 벡터 길이가 세기 배율이 됐다. 방향을 수직에 가깝게 두면 법선이 수평인 옆벽은 `N·L`이 0이 돼 하늘광을 전혀 받지 않는다 — 현재 룩이 이 성질에 의존한다.
+- **Directional Light의 `direction`은 빛이 나아가는 방향이다.** 셰이더의 `GetDirectionalLight()`(`Lighting.hlsli`)가 부호를 뒤집어 표면 → 빛 방향으로 바꾼다. **부호 반전은 그 함수 한 곳에서만** 한다. 정규화는 CPU(`Renderer::BeginFrame`의 `direction.Normalize()`)와 GPU(`GetDirectionalLight`의 `normalize`) **양쪽**에서 한다. 예전에는 둘 다 없어서 벡터 길이가 세기 배율이 됐다. 방향을 수직에 가깝게 두면 법선이 수평인 옆벽은 `N·L`이 0이 돼 하늘광을 전혀 받지 않는다 — 현재 룩이 이 성질에 의존한다.
 - **셰이더 공통 파일과 슬롯 규칙.** `Common.hlsli`에는 include하는 **모든** 셰이더가 쓰는 것만 둔다(정점 구조체, `PI`, 카메라 cbuffer). 빛 데이터와 빛 함수는 `Lighting.hlsli`, Material cbuffer는 그것을 쓰는 PS 파일에 둔다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**이며 HLSL `register`와 `Renderer::DrawRenderItem`의 바인딩 배열 순서가 짝이다. 한쪽만 바꾸면 컴파일은 통과하고 화면만 틀린다.
 - **cbuffer 멤버 이름은 셰이더 전역이다.** C++ 구조체와 달리 cbuffer는 이름공간을 만들지 않아서, 공유 include의 cbuffer에 `pad`·`color` 같은 일반 이름을 쓰면 include하는 다른 셰이더와 `redefinition`이 난다. 고유하게 짓는다(`cameraPad`, `lightPad`, `dirLight*`). `struct` 멤버는 범위가 구조체 안이라 괜찮다. C++과는 이름이 아니라 순서·크기로 매칭된다.
 - **조명 함수가 돌려주는 방향은 조기 반환에서도 단위 벡터여야 한다.** `NaN * 0 = NaN`이라 radiance가 0이어도 0벡터 방향이 뒤의 `normalize`/`pow`에서 NaN 픽셀을 만들고 Bloom이 번지게 한다. 하프 벡터도 `L = −V`이면 0이 되고, `CullMode`가 `NONE`이라 뒷면을 볼 때 N·L > 0이어도 이런 경우가 생기므로 `ComputeDirectLighting`이 `L + V`의 제곱 길이를 따로 검사한다.
@@ -172,7 +172,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **바인딩한 슬롯 수만큼 해제한다.** 합성 패스가 `t0`·`t1` 두 장을 걸므로 해제도 두 슬롯이어야 한다. `t1`이 걸린 채 다음 프레임이 시작되면 그 텍스처를 출력으로 걸 때 충돌한다.
 - **RenderDoc은 빌드하지 않는다**: RenderDoc Launch는 지정한 exe를 그대로 실행하므로 C++ 수정 후 빌드를 잊으면 옛 코드가 캡처된다. 셰이더만 바꿨다면 앱 재실행으로 충분하다.
 - **단위 혼용**: `Camera`는 Yaw/Pitch를 도(degree)로 다루는데 `Transform`의 회전과 Inspector 라벨은 라디안이다.
-- **`invTranspose` 계산**: `Renderer::DrawRenderItem`의 `Translation(Vector3(0))` 호출은 이미 전치된 행렬에서 아무 효과가 없다. 결과는 우연히 맞지만 의도와 코드가 다르다.
+- **`invTranspose` 계산**: `Renderer::DrawRenderItem`의 `Translation(Vector3(0))` 호출은 이미 전치된 행렬(이동이 4열에 있음)의 4행을 지우므로 아무 효과가 없다. 그래도 결과가 맞는 이유는 우연이 아니다. `model`을 전치한 뒤 다시 전치해 `Invert()`하므로 결과는 `M⁻¹`이고, 이것을 전치 없이 올리면 HLSL이 `(M⁻¹)ᵀ`로 읽는다. 남아 있는 이동 성분은 법선의 `w = 0`이 지운다. 코드의 의도(이동 제거)와 실제 동작(전치 두 번 + `w = 0`)이 다르다는 점만 기억한다.
 - **Vertex Color**: `Vertex`에 존재하고 VS가 PS로 넘기지만 최종 색에 사용되지 않는다.
 - **테스트 없음**: 이 프로젝트에는 테스트 프레임워크가 없다. 검증은 `Debug | x64` 빌드 후 실행해 화면으로 확인하는 것뿐이다. "테스트를 써서 통과시켜라" 방식은 적용되지 않는다.
 
@@ -188,6 +188,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - Assimp는 양쪽 PC의 사용자 vcpkg 환경에 설치돼 있다
 - `imgui.ini`, `.vs`, `x64` 등 로컬 산출물은 commit에서 제외한다
 - 그래픽스 디버거는 RenderDoc을 쓴다. Launch 설정은 Executable `MyPF/x64/Debug/MyPF.exe`, Working Directory `MyPF/`이다
+- 학습용 정적 사이트가 저장소 루트 `study-site/`에 있다(`index.html`을 브라우저로 바로 연다). 생성·갱신 규칙은 `.claude/skills/study-site/SKILL.md` — 소스는 수정하지 않고 `study-site/` 아래에서만 작업한다
 
 ## 9. 코드 스타일
 
