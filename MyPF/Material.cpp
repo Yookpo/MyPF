@@ -55,4 +55,14 @@ namespace My
 		m_specular = std::clamp(newSpecular, 0.0f, 1.0f);
 	}
 
+	void Material::SetUvScale(const Vector2& newUvScale)
+	{
+		if (newUvScale.x <= 0.0f || newUvScale.y <= 0.0f)
+		{
+			return;
+		}
+
+		m_uvScale = newUvScale;
+	}
+
 } // namespace My

@@ -122,10 +122,10 @@ namespace My
 		normals.push_back(Vector3(0.0f, 0.0f, 1.0f));
 		normals.push_back(Vector3(0.0f, 0.0f, 1.0f));
 		normals.push_back(Vector3(0.0f, 0.0f, 1.0f));
+		coords.push_back(Vector2(1.0f, 1.0f));
 		coords.push_back(Vector2(0.0f, 1.0f));
 		coords.push_back(Vector2(0.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 0.0f));
-		coords.push_back(Vector2(1.0f, 1.0f));
 
 		// 왼쪽
 		positions.push_back(Vector3(-0.5f, -0.5f, 0.5f) * scale);
@@ -158,10 +158,10 @@ namespace My
 		normals.push_back(Vector3(1.0f, 0.0f, 0.0f));
 		normals.push_back(Vector3(1.0f, 0.0f, 0.0f));
 		normals.push_back(Vector3(1.0f, 0.0f, 0.0f));
+		coords.push_back(Vector2(1.0f, 1.0f));
 		coords.push_back(Vector2(0.0f, 1.0f));
 		coords.push_back(Vector2(0.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 0.0f));
-		coords.push_back(Vector2(1.0f, 1.0f));
 
 		MeshData meshData;
 

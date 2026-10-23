@@ -3,6 +3,7 @@
 
 namespace My
 {
+	using DirectX::SimpleMath::Vector2;
 	using DirectX::SimpleMath::Vector3;
 
 	class Texture;
@@ -21,6 +22,7 @@ namespace My
 			, m_rimPower{ 3.0f }
 			, m_roughness{ 0.5f }
 			, m_specular{ 0.5f }
+			, m_uvScale{ 1.0f, 1.0f }
 		{
 		}
 		Material(const Material&) = delete;
@@ -59,6 +61,9 @@ namespace My
 		void  SetSpecular(float);
 		float GetSpecular() const { return m_specular; }
 
+		void		   SetUvScale(const Vector2&);
+		const Vector2& GetUvScale() const { return m_uvScale; }
+
 	private:
 		const Texture* m_albedoTexture;
 		Vector3		   m_baseColor;
@@ -70,6 +75,7 @@ namespace My
 		float		   m_rimPower;
 		float		   m_roughness;
 		float		   m_specular;
+		Vector2		   m_uvScale; // 텍스처 반복 횟수 (가로 x 세로)
 	};
 
 } // namespace My

@@ -40,7 +40,8 @@ namespace My
 		}
 
 		const float				   initialHeight = screenHeight > 32.0f ? screenHeight - 32.0f : 688.0f;
-		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_None;
+		// 패널 전체를 한 문서처럼 스크롤한다. Inspector가 내용만큼 늘어나므로 넘치면 여기서 스크롤된다.
+		constexpr ImGuiWindowFlags panelFlags = ImGuiWindowFlags_AlwaysVerticalScrollbar;
 
 		ImGui::SetNextWindowPos(ImVec2(16.0f, 16.0f), ImGuiCond_FirstUseEver);
 		ImGui::SetNextWindowSize(ImVec2(kEditorPanelWidth, initialHeight), ImGuiCond_FirstUseEver);
@@ -227,7 +228,8 @@ namespace My
 	void EditorUI::DrawSelectedObjectInspector()
 	{
 		ImGui::TextUnformatted("Inspector");
-		ImGui::BeginChild("Inspector Content", ImVec2(0.0f, 0.0f), true);
+		// 높이 0 + AutoResizeY: 남은 공간에 갇히지 않고 내용만큼 늘어난다(스크롤은 바깥 패널이 맡는다).
+		ImGui::BeginChild("Inspector Content", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY);
 
 		if (m_selectedObject == nullptr)
 		{
@@ -336,6 +338,12 @@ namespace My
 		if (ImGui::SliderFloat("Specular", &specular, 0.0f, 1.0f))
 		{
 			material->SetSpecular(specular);
+		}
+
+		Vector2 uvScale = material->GetUvScale();
+		if (ImGui::DragFloat2("UV Scale", &uvScale.x, 0.05f, 0.1f, 50.0f, "%.2f"))
+		{
+			material->SetUvScale(uvScale);
 		}
 
 		Vector3 rimColor = material->GetRimColor();

@@ -14,7 +14,7 @@ cbuffer MaterialConstantBuffer : register(b2)
     float rimIntensity;
     float rimPower;
     float specular;
-    float2 pad3;
+    float2 uvScale;
 }
 
 float4 main(PS_INPUT input) : SV_TARGET
@@ -22,7 +22,8 @@ float4 main(PS_INPUT input) : SV_TARGET
     IncidentLight dirLight = GetDirectionalLight();
     
     float3 normal = normalize(input.normal);
-    float3 texColor = albedoTexture.Sample(linearSampler, input.uv).rgb;
+    float2 tiledUV = input.uv * uvScale;
+    float3 texColor = albedoTexture.Sample(linearSampler, tiledUV).rgb;
     float3 surfaceColor = texColor * baseColor;
     float3 viewDir = normalize(cameraPos - input.posWorld);
     

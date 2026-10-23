@@ -310,7 +310,6 @@ namespace My
 
 		const Texture* wallAlbedoTex = m_assetManager.LoadTexture(
 			"Assets\\Textures\\CyberpunkAlley\\cyberpunk_wall_albedo_v1.png", TextureType::Albedo);
-
 		if (!wallAlbedoTex)
 		{
 			return false;
@@ -318,7 +317,6 @@ namespace My
 
 		const Texture* floorAlbedoTex = m_assetManager.LoadTexture(
 			"Assets\\Textures\\CyberpunkAlley\\wet_asphalt_floor_albedo_v1.png", TextureType::Albedo);
-
 		if (!floorAlbedoTex)
 		{
 			return false;
@@ -326,7 +324,6 @@ namespace My
 
 		const Texture* neonTex = m_assetManager.LoadTexture(
 			"Assets\\Textures\\CyberpunkAlley\\neon_diffuser_albedo_v1.png", TextureType::Albedo);
-
 		if (!neonTex)
 		{
 			return false;
@@ -334,14 +331,12 @@ namespace My
 
 		const Texture* powerSwitchTex = m_assetManager.LoadTexture(
 			"Assets\\Textures\\CyberpunkAlley\\power_switch_panel_albedo_v1.png", TextureType::Albedo);
-
 		if (!powerSwitchTex)
 		{
 			return false;
 		}
 
 		auto wallMat = m_assetManager.CreateMaterial("wallMat");
-
 		if (!wallMat)
 		{
 			return false;
@@ -352,9 +347,9 @@ namespace My
 		// 마른 콘크리트: 거칠고 무광, 하이라이트가 넓게 퍼져 거의 보이지 않는다
 		wallMat->SetRoughness(0.85f);
 		wallMat->SetSpecular(0.5f);
+		wallMat->SetUvScale(Vector2(10.0f, 2.0f));
 
 		auto floorMat = m_assetManager.CreateMaterial("floorMat");
-
 		if (!floorMat)
 		{
 			return false;
@@ -367,6 +362,18 @@ namespace My
 		floorMat->SetBaseColor(Vector3(0.75f));
 		floorMat->SetRoughness(0.3f);
 		floorMat->SetSpecular(0.25f);
+		floorMat->SetUvScale(Vector2(2.0f, 10.0f));
+
+		auto endWallMat = m_assetManager.CreateMaterial("endWallMat");
+		if (!endWallMat)
+		{
+			return false;
+		}
+		endWallMat->SetAlbedoTexture(wallAlbedoTex);
+		endWallMat->SetBaseColor(Vector3(1.0f));
+		endWallMat->SetRoughness(0.85f);
+		endWallMat->SetSpecular(0.5f);
+		endWallMat->SetUvScale(Vector2(2.0f));
 
 		// Neon test
 		NeonSignDesc desc1{};
@@ -457,7 +464,7 @@ namespace My
 
 		leftWall->GetMeshComponent().SetMaterial(wallMat);
 		rightWall->GetMeshComponent().SetMaterial(wallMat);
-		endWall->GetMeshComponent().SetMaterial(wallMat);
+		endWall->GetMeshComponent().SetMaterial(endWallMat);
 
 		leftWall->AddBoxCollisionComponent();
 		rightWall->AddBoxCollisionComponent();

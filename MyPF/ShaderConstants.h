@@ -56,7 +56,7 @@ namespace My
 		float	rimIntensity;	   // 4
 		float	rimPower;		   // 4
 		float	specular;		   // 4
-		Vector2 pad2;			   // 8	-> 64
+		Vector2 uvScale;		   // 8	-> 64
 	};
 
 	struct PostProcessConstantData

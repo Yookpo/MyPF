@@ -75,6 +75,7 @@ namespace My
 		m_materialConstantData.rimIntensity = 0.0f;
 		m_materialConstantData.rimPower = 3.0f;
 		m_materialConstantData.specular = 0.5f;
+		m_materialConstantData.uvScale = Vector2(1.0f);
 		m_materialBufferHandle = m_resourceManager->CreateConstantBuffer(m_materialConstantData);
 
 		if (!m_materialBufferHandle.IsValid())
@@ -614,6 +615,7 @@ namespace My
 		m_materialConstantData.rimPower = drawMat.GetRimPower();
 		m_materialConstantData.roughness = drawMat.GetRoughness();
 		m_materialConstantData.specular = drawMat.GetSpecular();
+		m_materialConstantData.uvScale = drawMat.GetUvScale();
 		if (!m_resourceManager->UpdateBuffer(m_materialBufferHandle, m_materialConstantData))
 		{
 			return false;
