@@ -18,7 +18,7 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 현재 전체 진행률은 약 78%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅, 셰이더 빛/표면 분리, 정규화된 Blinn-Phong Specular와 Schlick Fresnel(젖은 바닥 재질값 포함)까지 완료했다. **로드맵 11번이 닫혔고 10번의 10-1(Specular)·10-2(Fresnel)가 끝났다.**
 
-**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 셰이더는 빛 쪽(`IncidentLight`, `Get…Light`)과 표면 쪽(`SurfaceData`, `ComputeDirectLighting`)으로 나뉘어 있고 모든 빛이 `ComputeDirectLighting` 한 곳을 지난다. 10-1(Specular)과 10-2(Fresnel)가 끝났고 **다음은 10-W 젖은 바닥 디테일**이다. W-1 UV 타일링과 W-2 roughness 맵(ambientCG `Asphalt023S`, 기본 흰색 텍스처)이 끝났고 W-3 웅덩이 마스크가 남았다. 균일한 바닥으로는 반사 기능을 평가할 수 없어서 GGX보다 앞당겼다. 10번 다음이 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 셰이더는 빛 쪽(`IncidentLight`, `Get…Light`)과 표면 쪽(`SurfaceData`, `ComputeDirectLighting`)으로 나뉘어 있고 모든 빛이 `ComputeDirectLighting` 한 곳을 지난다. 10-1(Specular)과 10-2(Fresnel)가 끝났고 **다음은 10-W 젖은 바닥 디테일**이다. W-1 UV 타일링과 W-2 roughness 맵(ambientCG `Asphalt023S`, 기본 흰색 텍스처)이 끝났고, 이어서 10-6 탄젠트·노멀 맵을 W-3보다 앞당겨 끝냈다(웅덩이가 노멀을 평평하게 덮어야 하므로). **다음은 W-3 웅덩이 마스크**다. 균일한 바닥으로는 반사 기능을 평가할 수 없어서 GGX보다 앞당겼다. 10번 다음이 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
 
 작업 브랜치는 `main` 하나다. 로드맵 11번은 `5794467`로 `main`에 머지됐고 기능 브랜치는 정리됐다.
 
@@ -86,7 +86,7 @@ AppBase
 ├─ AssetManager --비소유--> GraphicsResourceManager
 │  └─ unique_ptr<Mesh / Texture / Material / Model> + 이름 캐시 (텍스처만 (경로, TextureType) 키)
 ├─ Renderer --비소유--> GraphicsDevice / GraphicsResourceManager
-│  └─ 렌더 타깃 TextureHandle 4개(HDR 씬 + Bloom Bright/BlurX/BlurY), 기본 흰색 텍스처 Handle, Constant Buffer Handle 5개,
+│  └─ 렌더 타깃 TextureHandle 4개(HDR 씬 + Bloom Bright/BlurX/BlurY), 기본 텍스처 Handle 2개(흰색·평평한 노멀), Constant Buffer Handle 5개,
 │     셰이더(씬·전체 화면 VS·복사·톤 매핑·밝은 부분 추출·BlurX·BlurY), 샘플러 2개(WRAP/CLAMP)
 ├─ Scene
 │  └─ vector<unique_ptr<GameObject>>
@@ -117,7 +117,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 |---|---|---|
 | `GraphicsDevice` | Device, Context, SwapChain, 기본 RTV/Depth Texture/DSV. Resize와 Present | 그 위 전부 |
 | `GraphicsResourceManager` | 실제 Buffer/Texture2D/SRV/RTV ComPtr. 생성·조회·업데이트, 렌더 타깃 생성과 같은 슬롯 재생성 | Camera/Light/Material의 의미, Draw 순서, 렌더 타깃의 용도 |
-| `Renderer` | Shader/InputLayout, Rasterizer/DepthStencil/Sampler State(WRAP·CLAMP), 5개 Constant Buffer Handle, 렌더 타깃 Handle 4개(포맷·크기 결정, Bloom은 화면 절반), 맵이 없는 슬롯에 거는 1×1 기본 흰색 텍스처, 후처리 패스 체인(`EndScene`, `DrawFullScreenPass`), 색 상수 sRGB→선형 변환 | Scene, GameObject, Camera 클래스, ImGui |
+| `Renderer` | Shader/InputLayout, Rasterizer/DepthStencil/Sampler State(WRAP·CLAMP), 5개 Constant Buffer Handle, 렌더 타깃 Handle 4개(포맷·크기 결정, Bloom은 화면 절반), 맵이 없는 슬롯에 거는 1×1 기본 텍스처(흰색·평평한 노멀, `ResolveTextureSRV`), 후처리 패스 체인(`EndScene`, `DrawFullScreenPass`), 색 상수 sRGB→선형 변환 | Scene, GameObject, Camera 클래스, ImGui |
 | `AssetManager` | Mesh/Texture/Material/Model의 `unique_ptr`와 이름 캐시. 텍스처 캐시는 `(경로, TextureType)`이 키라 같은 파일도 용도가 다르면 별개 리소스다 | Scene, Renderer |
 | `Scene` | `vector<unique_ptr<GameObject>>` | DX11, ImGui |
 | `InputSystem` | key state, 단발 입력(`WasKeyPressed`), 누적 MouseDelta | Camera, Scene |
@@ -152,7 +152,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **HDR 규칙**: 씬 셰이더는 1을 넘는 선형 값을 float HDR 씬 타깃에 그대로 쓴다. 씬 셰이더에 `saturate`를 다시 넣거나, 셰이더에서 텍스처·색 상수에 `pow(2.2)`를 추가하면 안 된다(이중 처리). 모니터용 감마 인코드는 톤 매핑 셰이더에서만 한다.
 - **텍스처 색공간은 용도로 고른다**: `AssetManager::LoadTexture`가 `TextureType`(`Albedo`/`NormalMap`/`Data`)을 **필수 인자**로 받고, `Texture.cpp`의 `ToDxgiFormat`이 유일한 변환 지점이다(`Albedo`만 `_SRGB`). 기본값이 없으므로 새 텍스처를 추가할 때 반드시 용도를 명시한다. **색공간을 직접 지정하려 들지 말 것** — 용도가 원본이고 색공간은 파생값이다. 데이터 텍스처를 `Albedo`로 읽으면 GPU가 디코드해 값이 왜곡되며(평평한 노멀이 약 39° 기울어진다), 필터링보다 디코드가 먼저라 셰이더에서 되돌릴 수 없다. 색 상수는 `Renderer::SrgbToLinear`를 거치고, 세기·거리·Exposure 같은 배율은 변환하지 않는다.
 - **파일 텍스처는 전부 밉 체인을 갖는다**: `D3D11Utils::CreateTexture`가 `USAGE_DEFAULT` + `BIND_RENDER_TARGET` + `MISC_GENERATE_MIPS`로 빈 텍스처를 만들고 레벨 0을 `UpdateSubresource`로 채운 뒤 `GenerateMips`를 부른다. 그래서 이 함수는 **Device와 Context를 둘 다** 받는다. 초기 데이터 방식(`CreateTexture2D(desc, &initData)`)으로 되돌리면 `MipLevels = 0`과 함께 쓸 수 없다. 밉에서 법선을 평균하면 길이가 짧아지므로 **노멀 맵을 샘플한 뒤 셰이더에서 반드시 `normalize`**한다.
-- **에러 정책**: `Renderer::DrawRenderItem`은 Albedo Texture가 없으면 `false`를 반환하고, `AppBase::Render`가 이를 받아 `PostQuitMessage(-1)`로 앱을 종료한다(앱 종료 코드 −1. 접근 위반 `0xC0000005`와 구분된다). **선택 입력(roughness 맵 등)은 없으면 `Renderer`의 1×1 기본 흰색 텍스처로 대신한다** — 곱해도 변하지 않는 값이라 셰이더 분기가 필요 없다. 다만 지정했는데 핸들·SRV가 무효면 오류로 `false`다. 기본 Material 정책은 없다.
+- **에러 정책**: `Renderer::DrawRenderItem`은 Albedo Texture가 없으면 `false`를 반환하고, `AppBase::Render`가 이를 받아 `PostQuitMessage(-1)`로 앱을 종료한다(앱 종료 코드 −1. 접근 위반 `0xC0000005`와 구분된다). **선택 입력(roughness·노멀 맵 등)은 없으면 `Renderer`의 1×1 기본 텍스처로 대신한다** — 기본값은 그 맵이 섞이는 방식이 정한다(곱셈은 흰색, 방향은 평평한 노멀 (128, 128, 255), 보간 마스크는 검정). 결과가 맵이 없을 때와 같아서 셰이더 분기가 필요 없다. 어떤 기본값을 쓸지는 호출부가 `Renderer::ResolveTextureSRV(texture, fallback)`에 넘긴다. 다만 지정했는데 핸들·SRV가 무효면 오류로 `false`다. 기본 Material 정책은 없다.
 - **`PointLightSequence` 전제**: 자신만 조명 활성 상태를 바꾼다고 가정한다. 다른 코드가 직접 `SetEnabled`를 호출하면 내부 개수와 실제 상태가 어긋난다.
 - **`SequenceEntry` 수명**: Material을 비소유 포인터로 참조한다. 현재는 `AssetManager`가 수명을 보장한다는 전제를 쓴다.
 - **`GraphicsResourceManager`**: append-only다. 개별 삭제, 슬롯 재사용, generation이 없다. 삭제를 도입하는 날 핸들에 generation을 같이 넣어야 한다.
@@ -160,7 +160,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **바인딩 규칙**: 같은 텍스처를 RTV와 SRV로 동시에 걸 수 없으므로 패스는 출력 교체 → 입력 바인딩 → Draw → 입력 해제 순서를 지킨다. 파이프라인은 상태 기계라 각 패스는 자기가 쓰는 샘플러·Input Layout·상수 버퍼를 직접 설정한다. 후처리가 PS `b0`를 쓰므로 `BeginFrame`이 매 프레임 Light 버퍼를 `b0`에 다시 건다. Light 버퍼를 PS `b0`에 거는 곳은 이 줄(`Renderer.cpp`의 `BeginFrame` 끝) **하나뿐**이라, 지우면 **첫 프레임부터** 조명이 없다.
 - **Rim Power 0 금지**: `pow(1 - N·V, rimPower)`에서 지수가 0이면 정면 픽셀이 `pow(0, 0)`(NaN)이 된다. Rim을 끌 때는 Intensity만 0으로 한다.
 - **Directional Light의 `direction`은 빛이 나아가는 방향이다.** 셰이더의 `GetDirectionalLight()`(`Lighting.hlsli`)가 부호를 뒤집어 표면 → 빛 방향으로 바꾼다. **부호 반전은 그 함수 한 곳에서만** 한다. 정규화는 CPU(`Renderer::BeginFrame`의 `direction.Normalize()`)와 GPU(`GetDirectionalLight`의 `normalize`) **양쪽**에서 한다. 예전에는 둘 다 없어서 벡터 길이가 세기 배율이 됐다. 방향을 수직에 가깝게 두면 법선이 수평인 옆벽은 `N·L`이 0이 돼 하늘광을 전혀 받지 않는다 — 현재 룩이 이 성질에 의존한다.
-- **셰이더 공통 파일과 슬롯 규칙.** `Common.hlsli`에는 include하는 **모든** 셰이더가 쓰는 것만 둔다(정점 구조체, `PI`, 카메라 cbuffer). 빛 데이터와 빛 함수는 `Lighting.hlsli`, Material cbuffer는 그것을 쓰는 PS 파일에 둔다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**, 텍스처 슬롯은 **PS: t0=Albedo, t1=Roughness**이며 HLSL `register`와 `Renderer::DrawRenderItem`의 바인딩 배열 순서가 짝이다. 한쪽만 바꾸면 컴파일은 통과하고 화면만 틀린다.
+- **셰이더 공통 파일과 슬롯 규칙.** `Common.hlsli`에는 include하는 **모든** 셰이더가 쓰는 것만 둔다(정점 구조체, `PI`, 카메라 cbuffer). 빛 데이터와 빛 함수는 `Lighting.hlsli`, Material cbuffer는 그것을 쓰는 PS 파일에 둔다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**, 텍스처 슬롯은 **PS: t0=Albedo, t1=Roughness, t2=Normal**이며 HLSL `register`와 `Renderer::DrawRenderItem`의 바인딩 배열 순서가 짝이다. 한쪽만 바꾸면 컴파일은 통과하고 화면만 틀린다.
 - **cbuffer 멤버 이름은 셰이더 전역이다.** C++ 구조체와 달리 cbuffer는 이름공간을 만들지 않아서, 공유 include의 cbuffer에 `pad`·`color` 같은 일반 이름을 쓰면 include하는 다른 셰이더와 `redefinition`이 난다. 고유하게 짓는다(`cameraPad`, `lightPad`, `dirLight*`). `struct` 멤버는 범위가 구조체 안이라 괜찮다. C++과는 이름이 아니라 순서·크기로 매칭된다.
 - **조명 함수가 돌려주는 방향은 조기 반환에서도 단위 벡터여야 한다.** `NaN * 0 = NaN`이라 radiance가 0이어도 0벡터 방향이 뒤의 `normalize`/`pow`에서 NaN 픽셀을 만들고 Bloom이 번지게 한다. 하프 벡터도 `L = −V`이면 0이 되고, `CullMode`가 `NONE`이라 뒷면을 볼 때 N·L > 0이어도 이런 경우가 생기므로 `ComputeDirectLighting`이 `L + V`의 제곱 길이를 따로 검사한다.
 - **Specular 정규화 계수는 `(n + 8) / 8`이다. `/ PI`를 넣지 않는다.** 교과서의 `(n+8)/(8π)`는 diffuse를 `albedo / π`로 두는 규약이고, 이 프로젝트의 diffuse는 `albedo`(π 없음)이며 조명 세기도 그 기준으로 튜닝했다. specular에만 π를 넣으면 diffuse 대비 3.14배 어두워진다. 공식을 가져올 때는 그 공식이 전제하는 규약이 우리 코드와 같은지 먼저 확인한다. **강의 12~13장 코드도 섞여 있다**(`NdfGGX`는 `/π`, diffuse는 `kd * albedo`). GGX를 가져올 때 `/π`를 뺀다.
@@ -174,6 +174,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **단위 혼용**: `Camera`는 Yaw/Pitch를 도(degree)로 다루는데 `Transform`의 회전과 Inspector 라벨은 라디안이다.
 - **`invTranspose` 계산**: `Renderer::DrawRenderItem`의 `Translation(Vector3(0))` 호출은 이미 전치된 행렬(이동이 4열에 있음)의 4행을 지우므로 아무 효과가 없다. 그래도 결과가 맞는 이유는 우연이 아니다. `model`을 전치한 뒤 다시 전치해 `Invert()`하므로 결과는 `M⁻¹`이고, 이것을 전치 없이 올리면 HLSL이 `(M⁻¹)ᵀ`로 읽는다. 남아 있는 이동 성분은 법선의 `w = 0`이 지운다. 코드의 의도(이동 제거)와 실제 동작(전치 두 번 + `w = 0`)이 다르다는 점만 기억한다.
 - **큐브 옆면 UV 규칙**: `GeometryGenerator::MakeCube`의 옆면은 u = 그 면을 바라보는 사람의 오른쪽(`cross(+Y, 시선)`), v = 아래다. 새 면이나 도형을 만들 때 이 규칙을 지킨다. 어기면 같은 크기의 면이 다른 UV Scale을 요구하고, 10-6 노멀 맵의 탄젠트 방향이 면마다 어긋난다. UV 타일링 값은 **텍셀 밀도 0.5회/m**(면 크기 × 0.5)로 맞춘다.
+- **탄젠트와 노멀 맵 (10-6)**: `Vertex.tangent`는 그 면의 +u 방향(Input Layout 오프셋 44)이고 기본값이 (1, 0, 0)이다 — 탄젠트를 채우지 않는 `ModelLoader` 정점이 0이면 `normalize(0)`이 NaN이 된다. 탄젠트는 `model`로, 노멀은 `invTranspose`로 변환한다. PS는 T를 **정규화된** N에 대해 그람-슈미트로 수직화하고 `B = cross(N, T)`(= +v, 아래)로 둔다. 그래서 **DirectX 규약 노멀 맵(NormalDX)을 G 반전 없이** 쓰며, OpenGL 규약(`_NormalGL`)을 쓰면 요철이 뒤집힌다. 노멀 맵은 `Sample`(밉맵)로 읽는다 — 강의 Ch13의 `SampleLevel(…, lod)`은 실험용 UI 값이라 그대로 가져오면 먼 바닥이 지글거린다. 노멀 맵 텍스처는 `TextureType::NormalMap`으로 읽는다.
 - **ImGui `Drag` 계열은 3번째 인자가 속도, 그다음이 최소·최대다.** `Slider`는 `min, max`가 바로 온다. 순서를 섞으면 `min >= max`가 되어 ImGui가 경고 없이 범위를 적용하지 않는다.
 - **HLSL은 벡터 → 스칼라 대입을 경고(X3206 implicit truncation)로만 알린다.** `float x = albedo * w;`처럼 `float3`를 `float`로 받으면 R 채널만 남고 에러가 나지 않는다(2026-10-23 `diffuseTerm`에서 실제로 발생). 셰이더 컴파일 경고 중 X3206은 거의 항상 버그로 본다. 색(albedo·radiance)은 `float3`, 비금속 반사율(F)처럼 회색 세기는 `float`다.
 - **Vertex Color**: `Vertex`에 존재하고 VS가 PS로 넘기지만 최종 색에 사용되지 않는다.

@@ -34,7 +34,7 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: 이 문서 커밋. 그 앞이 `71feced`(바닥 BaseColor)·`b0d253f`(W-2 에셋)·`9f5a1fa`(W-2 코드). `origin/main`(`42f7698`)보다 앞서 있다(push 전 — 노트북에서 이어가려면 push 필요).
+- 문서 갱신 기준 HEAD: 이 문서 커밋. 그 앞이 `5014670`(10-6 에셋)·`88a0eb9`(10-6 코드)·`bd38a3c`(W-2 문서). `origin/main`보다 앞서 있다(push 전 — 노트북에서 이어가려면 push 필요).
 - 현재 작업 트리: 브랜치 **`main`**, 이 문서 커밋 후 clean. commit/push는 사용자가 요청할 때만 한다.
 - 10-2 Fresnel은 두 커밋이다 — `6fd8742`(사용자: `FresnelSchlick`과 `ComputeDirectLighting` 조립 + 확장 예약 목록 문서), `04fab3c`(바닥 specular 0.5 → 0.25).
 - `a431f1f`는 렌더러와 무관한 학습용 정적 사이트(`study-site/`), 그 생성 규칙 스킬(`.claude/skills/study-site/SKILL.md`), 프리뷰 서버 설정(`.claude/launch.json`)을 추가했다(13개 파일). 상세는 §3 "학습 사이트".
@@ -48,6 +48,8 @@
 최근 기능 commit:
 
 ```text
+5014670 에셋: Asphalt023S NormalDX, 기본 평평한 노멀 텍스처
+88a0eb9 탄젠트 + 노멀 맵 (10-6), 텍스처 슬롯 헬퍼
 71feced 바닥 BaseColor 0.75 -> 0.55 (W-2 마무리)
 b0d253f 에셋: ambientCG Asphalt023S(Color·Roughness), 기본 흰색 텍스처
 9f5a1fa roughness 맵 + 기본 흰색 텍스처 (W-2), 바닥을 ambientCG 아스팔트로
@@ -147,7 +149,9 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 벽 UV Scale은 **0.5회/m(2m 타일)**로 텍셀 밀도를 맞췄다: 옆벽 20m × 4m → (10, 2), 끝벽 4m × 4m → (2, 2). 새 그레이박스 조각의 값은 `면 크기(m) × 0.5`다. **실제 크기를 아는 텍스처(ambientCG)는 그 크기를 따른다** — 바닥은 1.25m라 4 ÷ 1.25, 20 ÷ 1.25 = (3.2, 16).
 
 - **roughness 맵** (W-2, `9f5a1fa`): `Material::m_roughnessTexture`(없으면 `nullptr`) → `Renderer`가 PS `t1`에 바인딩 → PS가 `tiledUV`로 샘플해 `.r` × `roughnessFactor` → `SurfaceData.roughness`. 최종 roughness = **배율 × 맵**(glTF·Unreal 방식). cbuffer 상수는 `roughness` → **`roughnessFactor`**로 이름을 바꿨다(C++·HLSL, 자리·크기 그대로 — 예약 항목 처리). `Material::SetRoughness`는 이름을 유지하되 의미가 배율이 됐다. `SpecularBlinnPhong` 입구에서 `MIN_PERCEPTUAL_ROUGHNESS = 0.05`(Filament 이름)로 막는다
-- **기본 흰색 텍스처** (W-2): `Renderer`가 `Assets/Textures/Default/white_1x1.png`를 `R8G8B8A8_UNORM`으로 만들어 `m_defaultWhiteTextureHandle`로 소유한다. 재질에 roughness 맵이 없으면 이것을 `t1`에 건다(곱해도 변하지 않는 1). 포인터는 있는데 핸들·SRV가 무효면 albedo처럼 `false`. 텍스처 슬롯은 **PS: t0 = Albedo, t1 = Roughness**. 바인딩은 `DrawRenderItem`에서 "핸들 고르기(삼항) → 핸들 검사 → `GetSRV` 한 번 → `nullptr` 검사" 순서이고, 실패 로그가 `No Albedo SRV` / `No Roughness SRV`로 구분된다
+- **기본 흰색 텍스처** (W-2): `Renderer`가 `Assets/Textures/Default/white_1x1.png`를 `R8G8B8A8_UNORM`으로 만들어 `m_defaultWhiteTextureHandle`로 소유한다. 재질에 roughness 맵이 없으면 이것을 `t1`에 건다(곱해도 변하지 않는 1). 포인터는 있는데 핸들·SRV가 무효면 albedo처럼 `false`. 텍스처 슬롯은 **PS: t0 = Albedo, t1 = Roughness**. 바인딩은 `DrawRenderItem`에서 "핸들 고르기(삼항) → 핸들 검사 → `GetSRV` 한 번 → `nullptr` 검사" 순서이고, 실패 로그가 `No Albedo SRV` / `No Roughness SRV`로 구분된다. 10-6에서 이 순서를 **`Renderer::ResolveTextureSRV(texture, fallback)`** 헬퍼로 뺐다
+- **탄젠트 + 노멀 맵** (10-6, `88a0eb9`): `Vertex.tangent`(모델 공간, 기본 (1, 0, 0)) → Input Layout `TANGENT`(오프셋 44) → VS가 `model`로 변환·정규화(노멀은 `invTranspose`) → `PS_INPUT.tangentWorld` → PS가 노멀 맵을 `tiledUV`로 `Sample` → `× 2 − 1`(`normalTS`) → 그람-슈미트로 T를 정규화된 N에 수직화, `B = cross(N, T)` → `normalize(mul(normalTS, float3x3(T, B, N)))` → `SurfaceData.normal`. Rim도 같은 법선을 쓴다. `MakeCube`의 면별 탄젠트는 그 면의 u 방향(윗면·앞면 +X, 뒷면 −X, 왼쪽 면 −Z, 오른쪽 면·아랫면 +Z)
+- **기본 평평한 노멀 텍스처** (10-6): `Assets/Textures/Default/flat_normal_1x1.png`(128, 128, 255) → `m_defaultFlatNormalTextureHandle`(UNORM). 텍스처 슬롯은 **PS: t0 = Albedo, t1 = Roughness, t2 = Normal**. 바닥만 `Asphalt023S` NormalDX(`TextureType::NormalMap`)를 쓰고, 나머지 재질은 평평한 기본값이다
 
 - **UV 타일링** (`ff34261`, W-1): `Material::m_uvScale`(기본 (1, 1), 0 이하는 무시) → `MaterialConstantData`의 마지막 패딩 자리 `uvScale`(C++ `pad2`, HLSL `pad3`이던 자리, 64바이트 유지 — **이제 꽉 찼다**) → PS가 `tiledUV = input.uv * uvScale`로 albedo를 샘플한다. 원본 `input.uv`는 반복되면 안 되는 마스크(W-3)용으로 남겨 둔다. Inspector에 `UV Scale`(`DragFloat2`, 0.1~50). 설계 이유는 §4 "UV 타일링"
 - **큐브 옆면 UV 규칙** (`ff34261`): `GeometryGenerator::MakeCube`의 옆면은 **u = 그 면을 바라보는 사람의 오른쪽(`cross(+Y, 시선)`), v = 아래**다. 오른쪽 면(+X)과 뒷면(+Z)이 90° 돌아가 있던 것을 고쳤다(UV 네 줄을 한 칸 회전)
@@ -413,6 +417,21 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - **`TextureType`이 가장 틀리기 쉬운 곳이다.** roughness 맵을 `Albedo`로 읽으면 평균 0.65가 0.39로 디코드되어 바닥 전체가 매끈해지고, 경고도 없다.
 - **리뷰에서 잡은 문제**: ① `float3 roughnessSample = ….r` → `float`에 대입하며 X3206(값은 우연히 맞음 — "무해한 X3206"도 없앤다) ② 기본 흰색 경로에 SRV `nullptr` 검사 누락 → "핸들 고르기와 SRV 얻기"를 나눠 공통 검사로 해결 ③ 리팩터링 중 남은 옛 줄이 **`nullptr` 검사 전에 `->`로 역참조**(맵이 없는 모든 재질에서 크래시) → 선언과 동시에 삼항으로 초기화 ④ 사용자가 본 "크래시"는 **마지막 저장보다 45초 전에 빌드된 exe**였다. 종료 코드 −1(의도된 `false` 경로)과 `0xC0000005`(접근 위반)를 구분하고, `OutputDebugString`을 직접 받아 최신 빌드가 정상임을 확인했다.
 
+### 탄젠트와 노멀 맵 (10-6, 2026-10-26)
+
+- **W-3 웅덩이보다 먼저 했다(사용자 결정).** NormalDX가 W-2에서 이미 로컬에 있었고, 고인 물은 표면 요철을 덮어 **평평한 거울**이 되므로 노멀 맵이 먼저 있어야 W-3에서 "웅덩이에서는 노멀을 평평하게"를 함께 넣을 수 있다.
+- **텍스처 슬롯 헬퍼를 새 슬롯보다 먼저 뺐다(N-1).** 예약 항목의 트리거(세 번째 슬롯)가 걸렸고, 복사한 뒤 정리하면 W-2b처럼 한쪽만 검사가 빠질 수 있어서다. `fallback`을 인자로 받아 **메커니즘(없으면 대신 쓰기)은 함수, 정책(무엇으로)은 호출부**가 맡는다. 리뷰에서 헬퍼가 `fallback`을 무시하고 항상 흰색을 쓰던 버그를 잡았다 — 유일한 호출부(roughness)가 흰색이라 결과가 같아 보였지만, 노멀 슬롯에서 모든 재질의 법선이 (1, 1, 1)로 꺾였을 것이다. "다른 값을 넘기면 다르게 동작하는가"가 헬퍼의 검사 기준이다. `Renderer.h`에는 `class Texture;` 전방 선언이 필요했다(포인터만 쓰므로 include 불필요).
+- **W-1c의 UV 규칙이 탄젠트를 정했다.** 탄젠트 = u가 커지는 방향 = W-1c의 "보는 사람의 오른쪽"이라 면별 값이 표에서 바로 나오고, `cross(N, T)`가 모든 옆면에서 +v(아래)가 된다. 그래서 **DirectX 규약 노멀 맵(G = 아래)과 그대로 맞아 G 채널을 뒤집지 않는다.**
+- **기본 탄젠트 (1, 0, 0)**: 탄젠트를 채우지 않는 생성기(`ModelLoader`)의 정점이 0이면 셰이더 `normalize(0)`이 NaN이 된다. 아무 단위 벡터라도 있으면 최악이 "방향이 틀린 노멀 맵"으로 끝난다(`IncidentLight` 조기 반환의 안전값과 같은 원칙).
+- **탄젠트는 `model`, 노멀은 `invTranspose`.** 탄젠트는 표면 위의 방향이라 위치처럼 늘어나고, 노멀은 수직 방향이라 비균등 스케일(바닥 4 × 0.2 × 20)에서 따로 처리한다.
+- **기본 노멀은 평평한 파랑(128, 128, 255).** 기본 텍스처 원칙("그 맵이 섞이는 방식이 정한다")의 세 번째 사례 — 곱셈은 흰색, 보간은 검정, 방향은 평평한 노멀(Unreal `DefaultNormal`). 128/255는 0.004 기울어지지만(0.2°) 최종 `normalize`가 맞춘다.
+- **노멀 맵도 `Sample`(밉맵)로 읽는다.** 처음에 강의 Ch13 `GetNormal`의 `SampleLevel(…, lodBias)`를 따라 레벨 0만 읽었는데, 강의의 그 값은 ImGui 실험용이다. UV (3.2, 16) 반복에서 레벨 0만 읽으면 먼 바닥 법선이 튀어 specular가 지글거린다. 강의 코드를 가져올 때 "이 줄이 **기능** 때문인가 **시연** 때문인가"를 묻는다.
+- **그람-슈미트에는 정규화된 N을 쓴다.** `T − (T·N)N`은 |N| = 1일 때만 N 성분을 정확히 지운다. 보간된 `input.normal`은 길이가 1이 아니다.
+- **Rim도 노멀 맵 법선을 쓴다.** 같은 픽셀에서 조명과 Rim이 다른 법선을 쓰면 일관성이 깨진다.
+- **경고로 잡은 버그**: VS에서 탄젠트를 계산만 하고 출력에 넣지 않음(X3578 "출력이 완전히 초기화되지 않음" — 채우지 않은 VS 출력은 GPU 레지스터의 쓰레기 값이 보간된다), `float4` → `float3` 대입은 `.xyz`로 명시해 X3206을 피함.
+- **"배선 먼저, 데이터 나중"**: N-1~N-3 모두 화면이 그대로였고 탄젠트 색(바닥·끝벽 분홍빛 빨강, 왼쪽 벽 연한 파랑, 오른쪽 벽 올리브)과 법선 색(바닥 연두) 디버그 뷰로 배선을 확인했다. 그래서 N-4에서 화면이 바뀐 원인은 노멀 맵 데이터와 `TextureType`뿐이었다.
+- **결과**: 채움광과 네온의 바닥 반사가 매끈한 타원에서 **자갈 결을 따라 부서지는 질감**이 됐다. specular는 `N·H`에 민감해(지수가 수십~수백) 노멀 맵의 몇 도 기울기가 diffuse보다 반사에서 훨씬 뚜렷하게 드러난다.
+
 ### HDR 씬 타깃, 후처리 패스와 선형 색공간
 
 로드맵 11번(HDR + Tone Mapping + Bloom)의 Step 1~4와 3-d에서 내린 결정이다.
@@ -538,7 +557,10 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 | 파생 BRDF 값 묶음(`BRDFData`) | `ComputeDirectLighting` 안에서 빛마다 α·n·F0 계산 | 파생 값이 셋 이상 늘거나(GGX·metallic 이후) 빛 수가 늘어 비용이 보일 때 | Unity URP `InitializeBRDFData`처럼 픽셀당 한 번 계산해 구조체로 넘김 |
 | `ComputeIndirectLighting` | `main`의 ambient 한 줄 | 10-5 IBL | 간접광 함수로 분리, IBL Fresnel은 N·V |
 | 셰이더 디버그 뷰 | 임시 코드(주석 처리 후 복구) | 항이 더 늘 때(Fresnel·IBL) | ImGui 드롭다운 + cbuffer 플래그로 Final / Diffuse / Specular / F 선택 |
-| **텍스처 슬롯 해석 헬퍼** | `DrawRenderItem`에서 albedo·roughness 각각 "핸들 고르기 → 검사 → `GetSRV` → 검사"를 직접 쓴다 | 세 번째 텍스처 슬롯(W-3 웅덩이 마스크 `t2`)에서 같은 모양이 반복될 때 | "텍스처 하나 → SRV(없으면 기본값, 무효면 실패)" 함수 하나로 뺀다 |
+| **`ModelLoader` 탄젠트·바이탄젠트 부호** | 모델 정점은 기본 탄젠트 (1, 0, 0)을 받는다(NaN 방지만 됨). `B = cross(N, T)` 고정 | 임포트 모델에 노멀 맵을 쓸 때, 또는 거울 대칭 UV를 가진 모델 | Assimp `aiProcess_CalcTangentSpace`로 `mTangents`를 채우고, `Vertex.tangent`를 `float4`로 늘려 w에 바이탄젠트 부호(handedness)를 담아 `B = cross(N, T) × w` |
+| **기본 텍스처 생성 묶기** | `Initialize`에서 흰색·평평한 노멀을 각각 만든다(두 번) | 세 번째 기본 텍스처(W-3 검정)를 만들 때 | 경로·포맷 목록을 돌며 만드는 작은 함수로 묶을지 판단한다 |
+| **노멀 강도 배율** | 노멀 맵을 그대로 쓴다 | 요철이 너무 세거나 약하다고 판단될 때 | `normalTS.xy *= strength` 후 재정규화(Unreal `FlattenNormal`). 상수 버퍼가 꽉 차 있어 cbuffer 확장이 필요하다 |
+| **법선 시각화 도구(기하 셰이더)** | 법선·탄젠트는 PS 색 디버그 뷰로 확인 | 모델의 탄젠트나 노멀 맵 방향을 디버깅해야 할 때 | 강의 연계 B(`NormalGS.hlsl`) — 정점마다 법선·탄젠트를 선분으로 그린다 |
 | **roughness 리맵** | 최종 = 배율 × 맵 | 맵의 대비가 작아 반사 얼룩이 부족하다고 판단될 때 | 맵 값을 최소·최대 범위로 늘려 쓴다(Unreal 머티리얼의 RoughnessMin/Max 관례) |
 | 옛 바닥 텍스처 파일 | `Assets/Textures/CyberpunkAlley/wet_asphalt_floor_albedo_v1.png`가 남아 있지만 아무 코드도 읽지 않는다(W-2) | 에셋 정리를 할 때 | 지우거나 다른 용도로 쓴다 |
 | Directional 이중 정규화 | CPU·GPU 양쪽 | 셰이더 비용을 줄일 때 | 한쪽으로 통일 |
@@ -586,7 +608,8 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
    - **10-W 젖은 바닥 디테일 ← 진행 중 (2026-10-23 앞당김).** 균일한 바닥으로는 젖은 느낌과 반사 기능을 평가할 수 없어서(§5), 탄젠트 없이 할 수 있는 디테일을 GGX보다 먼저 한다.
      - ✅ **W-1 UV 타일링** (`ff34261`) — W-1a 데이터 경로 → W-1b PS `tiledUV` → W-1c `MakeCube` 옆면 UV 통일 → W-1d 재질별 값(0.5회/m)과 `endWallMat`. 화면 확인 완료. 설계 이유는 §4 "UV 타일링"
      - ✅ **W-2 ambientCG 아스팔트 + roughness 맵** (`9f5a1fa` 코드, `b0d253f` 에셋) — W-2a 에셋(`Asphalt023S` 2K, `CREDITS.md`, `PBR/.gitignore`, `white_1x1.png`) → W-2b `t1` 배선(기본 흰색, `roughnessFactor`, `MIN_PERCEPTUAL_ROUGHNESS`, 화면 그대로) → W-2c 바닥 연결(배율 0.45, UV (3.2, 16)). 화면 확인 완료. 바닥 BaseColor는 사용자가 ImGui로 맞춰 0.75 → **0.55**로 확정했다(`71feced` — ambientCG 아스팔트가 이전 텍스처보다 밝아 바닥이 벽보다 떠 보였다). 설계 이유는 §4 "roughness 맵과 기본 텍스처"
-     - **W-3 웅덩이 마스크 ← 바로 다음** — 시작할 때 §5 예약 목록의 "텍스처 슬롯 해석 헬퍼"(트리거: 세 번째 슬롯)를 먼저 확인한다. 마스크는 **반복되면 안 되므로** `tiledUV`가 아니라 원본 `input.uv`(또는 별도 스케일)로 읽는다. — 흑백 마스크(`Data`)로 roughness를 0.05 쪽으로, albedo를 어둡게 보간한다. Lagarde 젖은 표면 모델, Unreal Wet Material과 같은 방식. **젖은 느낌의 핵심**이고, 웅덩이 위에서 Fresnel의 먼 거울 반사가 선명해진다
+     - ✅ **10-6 탄젠트 + 노멀 맵 (W-3보다 앞당김, 2026-10-26)** (`88a0eb9` 코드, `5014670` 에셋) — N-1 텍스처 슬롯 헬퍼(`ResolveTextureSRV`) → N-2 정점 탄젠트 → N-3 노멀 맵 슬롯(`t2`, 기본 평평한 노멀) → N-4 바닥 NormalDX. 화면 확인 완료. 설계 이유는 §4 "탄젠트와 노멀 맵"
+     - **W-3 웅덩이 마스크 ← 바로 다음** — 텍스처 슬롯은 `t3`가 되고 `ResolveTextureSRV(…, 기본 검정)` 한 줄이면 된다. **웅덩이에서는 노멀을 평평하게**(`lerp(노멀 맵 법선, 기하 법선, wetness)`) — 고인 물이 요철을 덮는다. 시작할 때 예약 목록의 "기본 텍스처 생성 묶기"(트리거: 세 번째 기본 텍스처)를 확인한다. 마스크는 **반복되면 안 되므로** `tiledUV`가 아니라 원본 `input.uv`(또는 별도 스케일)로 읽는다. — 흑백 마스크(`Data`)로 roughness를 0.05 쪽으로, albedo를 어둡게 보간한다. Lagarde 젖은 표면 모델, Unreal Wet Material과 같은 방식. **젖은 느낌의 핵심**이고, 웅덩이 위에서 Fresnel의 먼 거울 반사가 선명해진다
      - W-4 노멀 맵은 탄젠트가 필요해 10-6으로 합친다. 병행: 반사에 비칠 Greybox 소품(쓰레기통·상자·배관) 몇 개
      - **에셋·소품 배치를 시작할 때 §5 "확장 예약 목록"의 월드 정렬 UV, 반복 깨기, `uvOffset`을 먼저 검토한다**(2026-10-23 사용자 결정). 상용 엔진의 타일링 관례(재질 단위 Tiling → 크기가 제각각이면 월드 정렬 → 반복이 보이면 데칼·매크로 변화)를 따른다.
    - **10번 나머지 순서 (2026-10-23 보강, 강의 11~13장 분석 반영 — 근거는 §7 "강의 PBR 자료 지도")**: GGX는 10-W 뒤로 간다. GGX의 장점(하이라이트의 긴 꼬리)은 매끈한 웅덩이 위에서 가장 잘 보이기 때문이다.
@@ -594,7 +617,7 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
      - **10-3** DDS 로더 + Skybox(HDRI) — 11 Step4 `CreateDDSTextureFromFileEx`, Ch13 `SkyboxVS/PS`. 카메라가 `Common`의 b1이라 스카이박스 VS는 `Common`만 include하면 된다
      - **10-4** 환경 매핑(`reflect(-V, N)`)
      - **10-5** IBL(split-sum) — `main`의 ambient 한 줄을 `ComputeIndirectLighting`으로, `PI` 사용. IBL용 Fresnel은 N·V
-     - 법선 시각화 도구(§7 강의 연계 B) → **10-6** 탄젠트 + Normal/Roughness/AO 맵 — **에셋 도입 시점**(§7 "에셋 정책")
+     - ~~10-6 탄젠트 + 노멀 맵~~ → W-3 앞으로 당겨 완료. AO 맵은 IBL(10-5)에서 간접광에 곱할 때 들인다
      - **10-7 ★ 평면 반사** — 13 Step1 Mirror(반사 행렬). 강의는 스텐실로 선명한 거울을 그리지만, 우리는 **반사 씬을 렌더 타깃에 그리고 roughness만큼 블러**(기존 Bloom 블러 재사용)해서 젖은 바닥에 쓴다. 골목 안 네온과 벽이 **실제로** 비치는 유일한 방법이라 효과가 가장 크다
      - **10-8** (선택) metallic — 금속 소품이 생길 때. `FresnelSchlick`을 `float3`로 바꾼다
      - **10-9** (선택) 높이 맵 — 평평한 큐브라 VS 변위는 안 맞는다. POM(PS) 또는 테셀레이션(11 Step3 HS/DS)
@@ -651,7 +674,7 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
-10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular(2026-09-30)·10-2 Fresnel(2026-10-23) 완료, 10-W 젖은 바닥 디테일 진행 중(W-1 UV 타일링, W-2 roughness 맵 완료, 다음 W-3 웅덩이 마스크) — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
+10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular(2026-09-30)·10-2 Fresnel(2026-10-23) 완료, 10-W 젖은 바닥 디테일 진행 중(W-1 UV 타일링, W-2 roughness 맵, 10-6 탄젠트·노멀 맵(앞당김) 완료, 다음 W-3 웅덩이 마스크) — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
 11. ✅ HDR Scene Target, Bloom과 Tone Mapping (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 2026-09-15, Bloom Step 5~7과 블러 반복·룩 재튜닝 2026-09-17에 완료)
 12. 안개, 비와 색조 보정 (기하 파이프라인 챕터의 기하 셰이더·빌보드가 여기 본체다 — 아래 "강의 연계 아이디어" 참고)
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류. 디버그 UI는 아래 "강의 연계 아이디어" A그룹으로 상당 부분 해결된다)
@@ -856,6 +879,20 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
+### 2026-10-26 — 탄젠트 + 노멀 맵 (10-6, W-3보다 앞당김) ✅
+
+- 완료한 작업 (`88a0eb9` 코드, `5014670` 에셋):
+  - N-1 `Renderer::ResolveTextureSRV(texture, fallback)` — 예약 항목 "텍스처 슬롯 해석 헬퍼" 처리
+  - N-2 `Vertex.tangent`(기본 1, 0, 0), `MakeCube` 면별 탄젠트, Input Layout `TANGENT`(44), `VS_INPUT.tangent`·`PS_INPUT.tangentWorld`, VS `model` 변환
+  - N-3 `Material.m_normalTexture`, 기본 평평한 노멀(`flat_normal_1x1.png`, 에이전트 생성), PS `t2`, TBN(그람-슈미트), Rim도 노멀 맵 법선
+  - N-4 바닥 NormalDX(`TextureType::NormalMap`), `PBR/.gitignore`에서 NormalDX 제외 해제, `CREDITS.md` 갱신(에이전트)
+- 확인한 결과: `fxc` 경고 없음. 사용자 화면 확인 — N-1~N-3 화면 그대로, 탄젠트·법선 디버그 색 일치, N-4 바닥 반사가 자갈 결을 따라 부서짐, 먼 바닥 지글거림 없음.
+  - 리뷰 중 잡은 문제: ① `Renderer.h`에 `Texture` 미선언(C4430 연쇄 에러) ② 헬퍼가 `fallback`을 덮어써 항상 흰색 ③ VS 탄젠트를 출력에 안 넣음(X3578) ④ 노멀 맵 `SampleLevel(…, 0)`(밉맵 미사용) ⑤ 그람-슈미트에 정규화 안 된 N ⑥ 기본 노멀 생성 후 `IsValid` 검사 누락
+- 남아 있는 문제: §5 예약 — `ModelLoader` 탄젠트·바이탄젠트 부호, 기본 텍스처 생성 묶기, 노멀 강도, 기하 셰이더 법선 시각화. 시작 벽 통과 여부 수동 확인은 여전히 남아 있다.
+- 다음에 이어서 할 작업: **W-3 웅덩이 마스크**(`t3`, 기본 검정, 웅덩이에서 노멀 평평하게).
+- 작업 규칙 (2026-10-26 사용자 정정): **에이전트는 사용자가 요청하지 않으면 빌드·실행·스크린샷 캡처를 하지 않는다.** N-1 리뷰와 N-4 검증에서 에이전트가 먼저 빌드·실행했던 것을 정정받았다. 리뷰 검증은 코드 읽기와 `fxc`까지만 하고, 빌드·화면 확인은 사용자에게 요청한다(AGENTS §2).
+- 중요한 설계 결정과 이유: §4 "탄젠트와 노멀 맵".
 
 ### 2026-10-23 ~ 10-26 — W-2 ambientCG 아스팔트 + roughness 맵 ✅
 
