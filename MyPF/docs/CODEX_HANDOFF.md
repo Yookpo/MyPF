@@ -34,8 +34,8 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: 이 문서 커밋. 그 앞이 `69c87a6`(W-1 문서)·`ff34261`(W-1 코드). `origin/main`(`42f7698`)보다 앞서 있다(push 전).
-- 현재 작업 트리: 브랜치 **`main`**. **W-2 코드와 에셋은 미커밋이다**(2026-10-26 사용자가 문서만 커밋 요청). 코드 8개 파일(`Material.h/.cpp`, `ShaderConstants.h`, `Renderer.h/.cpp`, `Shaders/Lighting.hlsli`, `Shaders/simplePixelShader.hlsl`, `AppBase.cpp`)과 에셋 6개(`Assets/Textures/PBR/` 아래 Color·Roughness·미리보기·`CREDITS.md`·`.gitignore`, `Assets/Textures/Default/white_1x1.png`). 커밋할 때 코드와 에셋을 나눈다. `AppBase.cpp`의 바닥 주석(배율 0.45와 UV (3.2, 16)의 근거)은 디스크에 아직 반영되지 않았다. commit/push는 사용자가 요청할 때만 한다.
+- 문서 갱신 기준 HEAD: 이 문서 커밋. 그 앞이 `b0d253f`(W-2 에셋)·`9f5a1fa`(W-2 코드)·`bff48ab`(W-2 문서). `origin/main`(`42f7698`)보다 앞서 있다(push 전).
+- 현재 작업 트리: 브랜치 **`main`**. 미커밋은 `AppBase.cpp`의 바닥 주석 다듬기(사용자)뿐이다 — 바닥 BaseColor를 사용자가 직접 재조정한 뒤 함께 커밋할 예정. commit/push는 사용자가 요청할 때만 한다.
 - 10-2 Fresnel은 두 커밋이다 — `6fd8742`(사용자: `FresnelSchlick`과 `ComputeDirectLighting` 조립 + 확장 예약 목록 문서), `04fab3c`(바닥 specular 0.5 → 0.25).
 - `a431f1f`는 렌더러와 무관한 학습용 정적 사이트(`study-site/`), 그 생성 규칙 스킬(`.claude/skills/study-site/SKILL.md`), 프리뷰 서버 설정(`.claude/launch.json`)을 추가했다(13개 파일). 상세는 §3 "학습 사이트".
 - `e9ab696`은 10-1 E~G를 한 번에 담고 있다 — 셰이더 E-1(`viewDir` 전달)·E-2(`SurfaceData`에 roughness/specular)·E-3(Blinn-Phong)·F(정규화)와 G(`AppBase.cpp`·`NeonSign.cpp`의 재질값). 4개 파일.
@@ -143,7 +143,7 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 
 벽 UV Scale은 **0.5회/m(2m 타일)**로 텍셀 밀도를 맞췄다: 옆벽 20m × 4m → (10, 2), 끝벽 4m × 4m → (2, 2). 새 그레이박스 조각의 값은 `면 크기(m) × 0.5`다. **실제 크기를 아는 텍스처(ambientCG)는 그 크기를 따른다** — 바닥은 1.25m라 4 ÷ 1.25, 20 ÷ 1.25 = (3.2, 16).
 
-- **roughness 맵** (W-2, 미커밋): `Material::m_roughnessTexture`(없으면 `nullptr`) → `Renderer`가 PS `t1`에 바인딩 → PS가 `tiledUV`로 샘플해 `.r` × `roughnessFactor` → `SurfaceData.roughness`. 최종 roughness = **배율 × 맵**(glTF·Unreal 방식). cbuffer 상수는 `roughness` → **`roughnessFactor`**로 이름을 바꿨다(C++·HLSL, 자리·크기 그대로 — 예약 항목 처리). `Material::SetRoughness`는 이름을 유지하되 의미가 배율이 됐다. `SpecularBlinnPhong` 입구에서 `MIN_PERCEPTUAL_ROUGHNESS = 0.05`(Filament 이름)로 막는다
+- **roughness 맵** (W-2, `9f5a1fa`): `Material::m_roughnessTexture`(없으면 `nullptr`) → `Renderer`가 PS `t1`에 바인딩 → PS가 `tiledUV`로 샘플해 `.r` × `roughnessFactor` → `SurfaceData.roughness`. 최종 roughness = **배율 × 맵**(glTF·Unreal 방식). cbuffer 상수는 `roughness` → **`roughnessFactor`**로 이름을 바꿨다(C++·HLSL, 자리·크기 그대로 — 예약 항목 처리). `Material::SetRoughness`는 이름을 유지하되 의미가 배율이 됐다. `SpecularBlinnPhong` 입구에서 `MIN_PERCEPTUAL_ROUGHNESS = 0.05`(Filament 이름)로 막는다
 - **기본 흰색 텍스처** (W-2): `Renderer`가 `Assets/Textures/Default/white_1x1.png`를 `R8G8B8A8_UNORM`으로 만들어 `m_defaultWhiteTextureHandle`로 소유한다. 재질에 roughness 맵이 없으면 이것을 `t1`에 건다(곱해도 변하지 않는 1). 포인터는 있는데 핸들·SRV가 무효면 albedo처럼 `false`. 텍스처 슬롯은 **PS: t0 = Albedo, t1 = Roughness**. 바인딩은 `DrawRenderItem`에서 "핸들 고르기(삼항) → 핸들 검사 → `GetSRV` 한 번 → `nullptr` 검사" 순서이고, 실패 로그가 `No Albedo SRV` / `No Roughness SRV`로 구분된다
 
 - **UV 타일링** (`ff34261`, W-1): `Material::m_uvScale`(기본 (1, 1), 0 이하는 무시) → `MaterialConstantData`의 마지막 패딩 자리 `uvScale`(C++ `pad2`, HLSL `pad3`이던 자리, 64바이트 유지 — **이제 꽉 찼다**) → PS가 `tiledUV = input.uv * uvScale`로 albedo를 샘플한다. 원본 `input.uv`는 반복되면 안 되는 마스크(W-3)용으로 남겨 둔다. Inspector에 `UV Scale`(`DragFloat2`, 0.1~50). 설계 이유는 §4 "UV 타일링"
@@ -582,7 +582,7 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
    - ✅ **10-2 Fresnel** — 10-2a `FresnelSchlick`, 10-2b `ComputeDirectLighting` 조립(V·H, `F`, `1 − F`) (`6fd8742`), 10-2c 바닥 specular 0.5 → 0.25 (`04fab3c`). 화면 확인 완료. 설계 이유는 §4 "Fresnel — Schlick 근사".
    - **10-W 젖은 바닥 디테일 ← 진행 중 (2026-10-23 앞당김).** 균일한 바닥으로는 젖은 느낌과 반사 기능을 평가할 수 없어서(§5), 탄젠트 없이 할 수 있는 디테일을 GGX보다 먼저 한다.
      - ✅ **W-1 UV 타일링** (`ff34261`) — W-1a 데이터 경로 → W-1b PS `tiledUV` → W-1c `MakeCube` 옆면 UV 통일 → W-1d 재질별 값(0.5회/m)과 `endWallMat`. 화면 확인 완료. 설계 이유는 §4 "UV 타일링"
-     - ✅ **W-2 ambientCG 아스팔트 + roughness 맵** (코드·에셋 미커밋) — W-2a 에셋(`Asphalt023S` 2K, `CREDITS.md`, `PBR/.gitignore`, `white_1x1.png`) → W-2b `t1` 배선(기본 흰색, `roughnessFactor`, `MIN_PERCEPTUAL_ROUGHNESS`, 화면 그대로) → W-2c 바닥 연결(배율 0.45, UV (3.2, 16)). 화면 확인 완료. 남은 것: 바닥 BaseColor를 ImGui로 재조정해 코드에 옮기기, `AppBase.cpp` 바닥 주석 저장. 설계 이유는 §4 "roughness 맵과 기본 텍스처"
+     - ✅ **W-2 ambientCG 아스팔트 + roughness 맵** (`9f5a1fa` 코드, `b0d253f` 에셋) — W-2a 에셋(`Asphalt023S` 2K, `CREDITS.md`, `PBR/.gitignore`, `white_1x1.png`) → W-2b `t1` 배선(기본 흰색, `roughnessFactor`, `MIN_PERCEPTUAL_ROUGHNESS`, 화면 그대로) → W-2c 바닥 연결(배율 0.45, UV (3.2, 16)). 화면 확인 완료. 남은 것: 바닥 BaseColor 재조정(사용자가 직접 — ambientCG 아스팔트가 이전 텍스처보다 밝아 에디터 화면에서 바닥이 벽보다 떠 보인다). 설계 이유는 §4 "roughness 맵과 기본 텍스처"
      - **W-3 웅덩이 마스크 ← 바로 다음** — 시작할 때 §5 예약 목록의 "텍스처 슬롯 해석 헬퍼"(트리거: 세 번째 슬롯)를 먼저 확인한다. 마스크는 **반복되면 안 되므로** `tiledUV`가 아니라 원본 `input.uv`(또는 별도 스케일)로 읽는다. — 흑백 마스크(`Data`)로 roughness를 0.05 쪽으로, albedo를 어둡게 보간한다. Lagarde 젖은 표면 모델, Unreal Wet Material과 같은 방식. **젖은 느낌의 핵심**이고, 웅덩이 위에서 Fresnel의 먼 거울 반사가 선명해진다
      - W-4 노멀 맵은 탄젠트가 필요해 10-6으로 합친다. 병행: 반사에 비칠 Greybox 소품(쓰레기통·상자·배관) 몇 개
      - **에셋·소품 배치를 시작할 때 §5 "확장 예약 목록"의 월드 정렬 UV, 반복 깨기, `uvOffset`을 먼저 검토한다**(2026-10-23 사용자 결정). 상용 엔진의 타일링 관례(재질 단위 Tiling → 크기가 제각각이면 월드 정렬 → 반복이 보이면 데칼·매크로 변화)를 따른다.
@@ -854,15 +854,15 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
 
-### 2026-10-23 ~ 10-26 — W-2 ambientCG 아스팔트 + roughness 맵 ✅ (코드·에셋 미커밋)
+### 2026-10-23 ~ 10-26 — W-2 ambientCG 아스팔트 + roughness 맵 ✅
 
 - 완료한 작업:
   - W-2a: 사용자가 ambientCG `Asphalt023S`(2K-JPG, CC0, 125 × 125cm)를 받았다. 에이전트가 `PBR/.gitignore`(지금 안 쓰는 NormalDX·AO·Displacement는 로컬 유지·커밋 제외, NormalGL과 `.blend`·`.mtlx`·`.tres`·`.usdc` 제외 — 사용자 파일은 지우지 않음), `PBR/CREDITS.md`, `Default/white_1x1.png`(70바이트, Node로 생성)를 만들었다
   - W-2b: `Material::m_roughnessTexture`, cbuffer `roughness` → `roughnessFactor`, `Renderer::m_defaultWhiteTextureHandle` 생성과 `t0`·`t1` 바인딩, PS `roughnessTexture`(`t1`) 샘플, `MIN_PERCEPTUAL_ROUGHNESS`
   - W-2c: 바닥 텍스처를 ambientCG Color(`Albedo`)·Roughness(`Data`)로 교체, 배율 0.45, UV (3.2, 16)
 - 확인한 결과: `fxc` 경고 없음. 최신 빌드를 실행해 `OutputDebugString`을 받아 실패 로그가 없음을 확인. 사용자 화면 확인(W-2b 그대로, W-2c 바닥 교체·은은한 반사 얼룩·먼 거울 반사 유지).
-- 남아 있는 문제: W-2 코드·에셋 미커밋. `AppBase.cpp` 바닥 주석이 디스크에 저장되지 않음. 바닥 BaseColor 재조정 전. 핸들 검사 실패(albedo·roughness)에는 아직 로그가 없다(선택).
-- 다음에 이어서 할 작업: W-2 마무리(주석 저장, BaseColor, 코드·에셋 커밋) → **W-3 웅덩이 마스크**.
+- 남아 있는 문제: 바닥 BaseColor 재조정 전(사용자 담당). 핸들 검사 실패(albedo·roughness)에는 아직 로그가 없다(선택). 2026-10-26 에이전트의 자동 입력 캡처에서 Play 중 뒷걸음질(S) 뒤 카메라가 시작 벽 뒤(골목 밖)에 있는 장면이 한 번 찍혔다 — 재현 조건이 불확실해 사용자가 직접 S로 시작 벽을 밀어 보고 확인할 것(시작 위치 z = 0이 `startWall` 앞면 z = 0과 정확히 맞닿아 있어 `PushOutOfBox`의 최근접점 거리가 0이 되는 경우일 가능성).
+- 다음에 이어서 할 작업: 바닥 BaseColor(사용자) → 주석과 함께 커밋 → **W-3 웅덩이 마스크**. 커밋 기록: 코드 `9f5a1fa`, 에셋 `b0d253f`(코드와 분리해 에셋 교체·되돌리기가 서로 섞이지 않게), 바닥 주석은 사용자 요청으로 에이전트가 근거(출처·sRGB·평균 보존·물의 F0·실제 크기)를 보강했고 사용자가 다시 다듬었다.
 - 중요한 설계 결정과 이유: §4 "roughness 맵과 기본 텍스처". 핵심은 **기본 흰색 텍스처로 분기 없이 선택 입력을 처리**, **평균 보존**, **실제 크기 기반 UV**, **안전장치를 먼저 깔고 배선**.
 
 ### 2026-10-23 — W-1 UV 타일링, Editor 패널 스크롤 ✅
