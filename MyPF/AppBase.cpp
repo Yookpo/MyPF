@@ -366,13 +366,12 @@ namespace My
 		floorMat->SetAlbedoTexture(floorAlbedoTex);
 		floorMat->SetRoughnessTexture(floorRoughnessTex);
 
-		// 젖은 아스팔트: 물이 틈을 채워 어두워지고(albedo↓), 물막이 매끈하다(roughness↓).
-		// BaseColor는 sRGB 값이라 0.75는 선형으로 약 0.53배다.
-		floorMat->SetBaseColor(Vector3(0.75f));
+		// 젖은 아스팔트: 물이 틈을 채워 어두워지고(albedo↓), 물막이 매끈하다(roughness↓)
+		floorMat->SetBaseColor(Vector3(0.55f));
 		// 맵에 곱하는 배율, 맵 평균(약 0.65) × 0.45 ≈ 0.3
-		// 맵을 바꾸면 평균을 다시 재서 이 배율을 맞춘다 (화면 전체 광택 유지).
+		// 맵을 바꾸면 평균을 다시 재서 이 배율을 맞추기
 		floorMat->SetRoughness(0.45f);
-		// 물의 실제 F0는 약 2% = 0.08 × 0.25. 비스듬한 시선의 강한 반사는 Fresnel이 만든다.
+		// 물의 실제 F0는 약 2% = 0.08 × 0.25. 비스듬한 시선의 강한 반사는 Fresnel이 만든다
 		floorMat->SetSpecular(0.25f);
 		// 실제 크기 기준 반복: 바닥 4m × 20m ÷ 1.25m = (3.2, 16)
 		floorMat->SetUvScale(Vector2(3.2f, 16.0f));
