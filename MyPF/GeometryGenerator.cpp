@@ -52,6 +52,7 @@ namespace My
 		vector<Vector3> colors;
 		vector<Vector3> normals;
 		vector<Vector2> coords;
+		vector<Vector3> tangents;
 
 		const float scale = 1.0f;
 
@@ -72,6 +73,10 @@ namespace My
 		coords.push_back(Vector2(0.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 1.0f));
+		tangents.push_back(Vector3(1.0f, 0.0f, 0.0f));
+		tangents.push_back(Vector3(1.0f, 0.0f, 0.0f));
+		tangents.push_back(Vector3(1.0f, 0.0f, 0.0f));
+		tangents.push_back(Vector3(1.0f, 0.0f, 0.0f));
 
 		// 아랫면
 		positions.push_back(Vector3(-0.5f, -0.5f, -0.5f) * scale);
@@ -90,6 +95,10 @@ namespace My
 		coords.push_back(Vector2(0.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, 1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, 1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, 1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, 1.0f));
 
 		// 앞면
 		positions.push_back(Vector3(-0.5f, -0.5f, -0.5f) * scale);
@@ -108,6 +117,10 @@ namespace My
 		coords.push_back(Vector2(0.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 1.0f));
+		tangents.push_back(Vector3(1.0f, 0.0f, 0.0f));
+		tangents.push_back(Vector3(1.0f, 0.0f, 0.0f));
+		tangents.push_back(Vector3(1.0f, 0.0f, 0.0f));
+		tangents.push_back(Vector3(1.0f, 0.0f, 0.0f));
 
 		// 뒷면
 		positions.push_back(Vector3(-0.5f, -0.5f, 0.5f) * scale);
@@ -126,6 +139,10 @@ namespace My
 		coords.push_back(Vector2(0.0f, 1.0f));
 		coords.push_back(Vector2(0.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 0.0f));
+		tangents.push_back(Vector3(-1.0f, 0.0f, 0.0f));
+		tangents.push_back(Vector3(-1.0f, 0.0f, 0.0f));
+		tangents.push_back(Vector3(-1.0f, 0.0f, 0.0f));
+		tangents.push_back(Vector3(-1.0f, 0.0f, 0.0f));
 
 		// 왼쪽
 		positions.push_back(Vector3(-0.5f, -0.5f, 0.5f) * scale);
@@ -144,6 +161,10 @@ namespace My
 		coords.push_back(Vector2(0.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, -1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, -1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, -1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, -1.0f));
 
 		// 오른쪽
 		positions.push_back(Vector3(0.5f, -0.5f, 0.5f) * scale);
@@ -162,6 +183,10 @@ namespace My
 		coords.push_back(Vector2(0.0f, 1.0f));
 		coords.push_back(Vector2(0.0f, 0.0f));
 		coords.push_back(Vector2(1.0f, 0.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, 1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, 1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, 1.0f));
+		tangents.push_back(Vector3(0.0f, 0.0f, 1.0f));
 
 		MeshData meshData;
 
@@ -172,6 +197,7 @@ namespace My
 			v.color = colors[i];
 			v.normal = normals[i];
 			v.uv = coords[i];
+			v.tangent = tangents[i];
 			meshData.vertices.push_back(v);
 		}
 

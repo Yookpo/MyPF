@@ -134,6 +134,14 @@ namespace My
 			return false;
 		}
 
+		m_defaultFlatNormalTextureHandle = m_resourceManager->CreateTexture(
+			"Assets\\Textures\\Default\\flat_normal_1x1.png", DXGI_FORMAT_R8G8B8A8_UNORM);
+
+		if (!m_defaultFlatNormalTextureHandle.IsValid())
+		{
+			return false;
+		}
+
 		// debug
 		std::wstring msg = L"HDR Scene Target created: " + std::to_wstring(screenWidth) + L" x "
 			+ std::to_wstring(screenHeight) + L", index " + std::to_wstring(m_hdrSceneTargetHandle.GetIndex()) + L"\n";
@@ -158,9 +166,10 @@ namespace My
 
 		vector<D3D11_INPUT_ELEMENT_DESC> inputElements = { { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
 															   D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4 * 3, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 4 * 3 * 2, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 4 * 3 * 3, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
+			{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 36, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 44, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
 
 		if (!D3D11Utils::CreateVertexShaderAndInputLayout(
 				Device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader, m_inputLayout))
@@ -426,6 +435,19 @@ namespace My
 		context->PSSetShaderResources(0, 2, nullSRVs);
 	}
 
+	ID3D11ShaderResourceView* Renderer::ResolveTextureSRV(const Texture* texture, TextureHandle fallback) const
+	{
+		fallback = texture ? texture->GetTextureHandle() : fallback;
+		if (!fallback.IsValid())
+		{
+			return nullptr;
+		}
+
+		ID3D11ShaderResourceView* roughnessSRV = m_resourceManager->GetSRV(fallback);
+
+		return roughnessSRV;
+	}
+
 	bool Renderer::EndScene()
 	{
 		if (!m_graphicsDevice)
@@ -595,6 +617,7 @@ namespace My
 		const Material& drawMat = *renderItem.material;
 		const Texture*	albedoTexture = drawMat.GetAlbedoTexture();
 		const Texture*	roughnessTexture = drawMat.GetRoughnessTexture();
+		const Texture*	normalTexture = drawMat.GetNormalTexture();
 
 		if (!albedoTexture)
 		{
@@ -668,23 +691,23 @@ namespace My
 			return false;
 		}
 
-		TextureHandle roughnessHandle =
-			roughnessTexture ? roughnessTexture->GetTextureHandle() : m_defaultWhiteTextureHandle;
-		if (!roughnessHandle.IsValid())
-		{
-			return false;
-		}
-
-		ID3D11ShaderResourceView* roughnessSRV = m_resourceManager->GetSRV(roughnessHandle);
+		ID3D11ShaderResourceView* roughnessSRV = ResolveTextureSRV(roughnessTexture, m_defaultWhiteTextureHandle);
 		if (!roughnessSRV)
 		{
 			OutputDebugStringW(L"No Roughness SRV\n");
 			return false;
 		}
 
-		ID3D11ShaderResourceView* pixelSRVs[2] = { albedoSRV, roughnessSRV };
+		ID3D11ShaderResourceView* normalSRV = ResolveTextureSRV(normalTexture, m_defaultFlatNormalTextureHandle);
+		if (!normalSRV)
+		{
+			OutputDebugStringW(L"No Normal SRV\n");
+			return false;
+		}
 
-		// VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material, t0=albedo, t1=Roughness
+		ID3D11ShaderResourceView* pixelSRVs[3] = { albedoSRV, roughnessSRV, normalSRV };
+
+		// VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material, t0=albedo, t1=Roughness, t2=Normal
 		Context->IASetInputLayout(m_inputLayout.Get());
 		Context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 		Context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -694,7 +717,7 @@ namespace My
 		Context->VSSetConstantBuffers(0, 2, constantBuffers);
 		Context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
-		Context->PSSetShaderResources(0, 2, pixelSRVs);
+		Context->PSSetShaderResources(0, 3, pixelSRVs);
 		Context->PSSetConstantBuffers(1, 2, pixelConstantBuffers);
 		Context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 

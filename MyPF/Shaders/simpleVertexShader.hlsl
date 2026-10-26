@@ -25,6 +25,11 @@ PS_INPUT main(VS_INPUT input)
     output.normal = mul(normal, invTranspose).xyz;
     output.normal = normalize(output.normal);
     
+    float4 tangentWorld = float4(input.tangent, 0.0f);
+    tangentWorld = mul(tangentWorld, model);
+    tangentWorld = normalize(tangentWorld);
+    output.tangentWorld = tangentWorld.xyz;
+    
     output.uv = input.uv;
     
     return output;

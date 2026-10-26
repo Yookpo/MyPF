@@ -10,6 +10,7 @@ namespace My
 {
 	class GraphicsDevice;
 	class GraphicsResourceManager;
+	class Texture;
 
 	class Renderer
 	{
@@ -33,6 +34,9 @@ namespace My
 		void		   DrawFullScreenPass(ID3D11RenderTargetView* target, ID3D11PixelShader* pixelShader,
 					  ID3D11ShaderResourceView* sourceSRV, ID3D11SamplerState* sampler,
 					  ID3D11ShaderResourceView* sourceSRV2 = nullptr);
+		// 선택 입력 텍스처의 SRV를 얻기. texture가 nullptr이면 fallback 사용
+		// 핸들이나 SRV가 무효면 nullptr 반환
+		ID3D11ShaderResourceView* ResolveTextureSRV(const Texture* texture, TextureHandle fallback) const;
 
 	private:
 		GraphicsDevice*			 m_graphicsDevice = nullptr;
@@ -79,6 +83,7 @@ namespace My
 		TextureHandle m_bloomBlurYTargetHandle;
 
 		TextureHandle m_defaultWhiteTextureHandle;
+		TextureHandle m_defaultFlatNormalTextureHandle;
 
 		D3D11_VIEWPORT m_screenViewport;
 

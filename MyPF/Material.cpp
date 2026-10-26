@@ -14,6 +14,11 @@ namespace My
 		m_roughnessTexture = newRoughnessTexture;
 	}
 
+	void Material::SetNormalTexture(const Texture* newNormalTexture)
+	{
+		m_normalTexture = newNormalTexture;
+	}
+
 	void Material::SetBaseColor(const Vector3& newColor)
 	{
 		m_baseColor = newColor;

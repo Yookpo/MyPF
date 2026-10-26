@@ -329,6 +329,13 @@ namespace My
 			return false;
 		}
 
+		const Texture* floorNormalTex = m_assetManager.LoadTexture(
+			"Assets\\Textures\\PBR\\Asphalt023S_2K\\Asphalt023S_2K-JPG_NormalDX.jpg", TextureType::NormalMap);
+		if (!floorNormalTex)
+		{
+			return false;
+		}
+
 		const Texture* neonTex = m_assetManager.LoadTexture(
 			"Assets\\Textures\\CyberpunkAlley\\neon_diffuser_albedo_v1.png", TextureType::Albedo);
 		if (!neonTex)
@@ -365,6 +372,7 @@ namespace My
 		// 바닥: ambientCG Asphalt023S (CC0, 실제 크기 1.25m × 1.25m)
 		floorMat->SetAlbedoTexture(floorAlbedoTex);
 		floorMat->SetRoughnessTexture(floorRoughnessTex);
+		floorMat->SetNormalTexture(floorNormalTex);
 
 		// 젖은 아스팔트: 물이 틈을 채워 어두워지고(albedo↓), 물막이 매끈하다(roughness↓)
 		floorMat->SetBaseColor(Vector3(0.55f));

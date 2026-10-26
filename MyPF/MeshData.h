@@ -15,6 +15,7 @@ namespace My
 		Vector3 color;
 		Vector3 normal;
 		Vector2 uv{ 0.0f, 0.0f };
+		Vector3 tangent{ 1.0f, 0.0f, 0.0f }; // 텍스처 u가 커지는 방향(모델 공간)
 	};
 
 	struct MeshData

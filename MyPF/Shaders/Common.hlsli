@@ -9,6 +9,7 @@ struct VS_INPUT
     float3 color : COLOR0;
     float3 normal : NORMAL0;
     float2 uv : TEXCOORD0;
+    float3 tangent : TANGENT0;
 };
 
 struct PS_INPUT
@@ -18,6 +19,7 @@ struct PS_INPUT
     float3 color : COLOR0;
     float3 normal : NORMAL0;
     float2 uv : TEXCOORD1;
+    float3 tangentWorld : TANGENT0;
 };
 
 cbuffer CameraConstantBuffer : register(b1)
