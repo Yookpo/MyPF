@@ -32,6 +32,9 @@ struct SurfaceData
     float specular; // 비금속 반사량 [0, 1] , F0 = 0.08 * specular (0.5 → 0.04)
 };
 
+// roughness가 0에 가까우면 Blinn-Phong 지수가 폭발
+static const float MIN_PERCEPTUAL_ROUGHNESS = 0.05;
+
 cbuffer LightConstantBuffer : register(b0)
 {
     float3 dirLightDirection;
@@ -108,6 +111,7 @@ IncidentLight GetPointLight(uint index, float3 posWorld)
 // 정규화된 Blinn-Phong: pow(N·H, n) × (n+8)/8. roughness가 바뀌어도 총 반사량 유지
 float SpecularBlinnPhong(float NdotH, float roughness)
 {
+    roughness = max(roughness, MIN_PERCEPTUAL_ROUGHNESS);
     float alpha = pow(roughness, 2);
     float n = 2 / pow(alpha, 2) - 2;
     n = max(n, 1);

@@ -2,12 +2,14 @@
 #include "Lighting.hlsli"
 
 Texture2D albedoTexture : register(t0);
+Texture2D roughnessTexture : register(t1);
+
 SamplerState linearSampler : register(s0);
 
 cbuffer MaterialConstantBuffer : register(b2)
 {
     float3 baseColor;
-    float roughness;
+    float roughnessFactor;
     float3 emissiveColor;
     float emissiveIntensity;
     float3 rimColor;
@@ -24,13 +26,14 @@ float4 main(PS_INPUT input) : SV_TARGET
     float3 normal = normalize(input.normal);
     float2 tiledUV = input.uv * uvScale;
     float3 texColor = albedoTexture.Sample(linearSampler, tiledUV).rgb;
+    float roughnessSample = roughnessTexture.Sample(linearSampler, tiledUV).r;
     float3 surfaceColor = texColor * baseColor;
     float3 viewDir = normalize(cameraPos - input.posWorld);
     
     SurfaceData surfaceData;
     surfaceData.albedo = surfaceColor;
     surfaceData.normal = normal;
-    surfaceData.roughness = roughness;
+    surfaceData.roughness = roughnessFactor * roughnessSample;
     surfaceData.specular = specular;
     
     // 직접광 누적 변수

@@ -68,7 +68,7 @@ namespace My
 		}
 
 		m_materialConstantData.baseColor = Vector3(1.0f);
-		m_materialConstantData.roughness = 0.5f;
+		m_materialConstantData.roughnessFactor = 0.5f;
 		m_materialConstantData.emissiveColor = Vector3(1.0f);
 		m_materialConstantData.emissiveIntensity = 0.0f;
 		m_materialConstantData.rimColor = Vector3(1.0f);
@@ -122,6 +122,14 @@ namespace My
 			m_resourceManager->CreateRenderTarget(m_bloomWidth, m_bloomHeight, DXGI_FORMAT_R16G16B16A16_FLOAT);
 
 		if (!m_bloomBlurYTargetHandle.IsValid())
+		{
+			return false;
+		}
+
+		m_defaultWhiteTextureHandle =
+			m_resourceManager->CreateTexture("Assets\\Textures\\Default\\white_1x1.png", DXGI_FORMAT_R8G8B8A8_UNORM);
+
+		if (!m_defaultWhiteTextureHandle.IsValid())
 		{
 			return false;
 		}
@@ -586,10 +594,11 @@ namespace My
 		const Mesh&		drawMesh = *renderItem.mesh;
 		const Material& drawMat = *renderItem.material;
 		const Texture*	albedoTexture = drawMat.GetAlbedoTexture();
+		const Texture*	roughnessTexture = drawMat.GetRoughnessTexture();
 
 		if (!albedoTexture)
 		{
-			OutputDebugStringW(L"No Texture");
+			OutputDebugStringW(L"No Albedo Texture");
 			return false;
 		}
 
@@ -613,7 +622,7 @@ namespace My
 		m_materialConstantData.rimColor = SrgbToLinear(drawMat.GetRimColor());
 		m_materialConstantData.rimIntensity = drawMat.GetRimIntensity();
 		m_materialConstantData.rimPower = drawMat.GetRimPower();
-		m_materialConstantData.roughness = drawMat.GetRoughness();
+		m_materialConstantData.roughnessFactor = drawMat.GetRoughness();
 		m_materialConstantData.specular = drawMat.GetSpecular();
 		m_materialConstantData.uvScale = drawMat.GetUvScale();
 		if (!m_resourceManager->UpdateBuffer(m_materialBufferHandle, m_materialConstantData))
@@ -653,14 +662,29 @@ namespace My
 		}
 
 		ID3D11ShaderResourceView* albedoSRV = m_resourceManager->GetSRV(albedoHandle);
-
 		if (!albedoSRV)
 		{
-			OutputDebugStringW(L"No SRV");
+			OutputDebugStringW(L"No Albedo SRV\n");
 			return false;
 		}
 
-		// VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material
+		TextureHandle roughnessHandle =
+			roughnessTexture ? roughnessTexture->GetTextureHandle() : m_defaultWhiteTextureHandle;
+		if (!roughnessHandle.IsValid())
+		{
+			return false;
+		}
+
+		ID3D11ShaderResourceView* roughnessSRV = m_resourceManager->GetSRV(roughnessHandle);
+		if (!roughnessSRV)
+		{
+			OutputDebugStringW(L"No Roughness SRV\n");
+			return false;
+		}
+
+		ID3D11ShaderResourceView* pixelSRVs[2] = { albedoSRV, roughnessSRV };
+
+		// VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material, t0=albedo, t1=Roughness
 		Context->IASetInputLayout(m_inputLayout.Get());
 		Context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 		Context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -670,7 +694,7 @@ namespace My
 		Context->VSSetConstantBuffers(0, 2, constantBuffers);
 		Context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
-		Context->PSSetShaderResources(0, 1, &albedoSRV);
+		Context->PSSetShaderResources(0, 2, pixelSRVs);
 		Context->PSSetConstantBuffers(1, 2, pixelConstantBuffers);
 		Context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 

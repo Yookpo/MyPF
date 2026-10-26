@@ -78,6 +78,8 @@ namespace My
 		TextureHandle m_bloomBlurXTargetHandle;
 		TextureHandle m_bloomBlurYTargetHandle;
 
+		TextureHandle m_defaultWhiteTextureHandle;
+
 		D3D11_VIEWPORT m_screenViewport;
 
 		uint32_t m_bloomWidth{ 0 };

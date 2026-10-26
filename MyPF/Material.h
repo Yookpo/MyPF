@@ -13,6 +13,7 @@ namespace My
 	public:
 		Material()
 			: m_albedoTexture(nullptr)
+			, m_roughnessTexture(nullptr)
 			, m_baseColor{ 1.0f }
 			, m_emissiveColor{ 1.0f }
 			, m_emissiveIntensity{ 0.0f }
@@ -30,6 +31,9 @@ namespace My
 
 		void		   SetAlbedoTexture(const Texture*);
 		const Texture* GetAlbedoTexture() const { return m_albedoTexture; }
+
+		void		   SetRoughnessTexture(const Texture*);
+		const Texture* GetRoughnessTexture() const { return m_roughnessTexture; }
 
 		void		   SetBaseColor(const Vector3&);
 		const Vector3& GetBaseColor() const { return m_baseColor; }
@@ -53,7 +57,7 @@ namespace My
 		float GetEmissiveMultiplier() const { return m_runtimeEmissiveMultiplier; }
 		float GetEffectiveEmissiveIntensity() const { return m_emissiveIntensity * m_runtimeEmissiveMultiplier; }
 
-		// 표면 거칠기, 0 = 거울, 1 = 완전 무광
+		// roughness 맵에 곱하는 배율
 		void  SetRoughness(float);
 		float GetRoughness() const { return m_roughness; }
 
@@ -66,6 +70,7 @@ namespace My
 
 	private:
 		const Texture* m_albedoTexture;
+		const Texture* m_roughnessTexture;
 		Vector3		   m_baseColor;
 		Vector3		   m_emissiveColor;
 		float		   m_emissiveIntensity;			// Editor가 설정하는 원본 밝기

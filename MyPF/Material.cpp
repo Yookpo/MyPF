@@ -9,6 +9,11 @@ namespace My
 		m_albedoTexture = newTexture;
 	}
 
+	void Material::SetRoughnessTexture(const Texture* newRoughnessTexture)
+	{
+		m_roughnessTexture = newRoughnessTexture;
+	}
+
 	void Material::SetBaseColor(const Vector3& newColor)
 	{
 		m_baseColor = newColor;

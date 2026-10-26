@@ -49,7 +49,7 @@ namespace My
 	struct MaterialConstantData
 	{
 		Vector3 baseColor;		   // 12
-		float	roughness;		   // 4
+		float	roughnessFactor;   // 4
 		Vector3 emissiveColor;	   // 12
 		float	emissiveIntensity; // 4
 		Vector3 rimColor;		   // 12

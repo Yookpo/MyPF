@@ -316,8 +316,15 @@ namespace My
 		}
 
 		const Texture* floorAlbedoTex = m_assetManager.LoadTexture(
-			"Assets\\Textures\\CyberpunkAlley\\wet_asphalt_floor_albedo_v1.png", TextureType::Albedo);
+			"Assets\\Textures\\PBR\\Asphalt023S_2K\\Asphalt023S_2K-JPG_Color.jpg", TextureType::Albedo);
 		if (!floorAlbedoTex)
+		{
+			return false;
+		}
+
+		const Texture* floorRoughnessTex = m_assetManager.LoadTexture(
+			"Assets\\Textures\\PBR\\Asphalt023S_2K\\Asphalt023S_2K-JPG_Roughness.jpg", TextureType::Data);
+		if (!floorRoughnessTex)
 		{
 			return false;
 		}
@@ -355,14 +362,20 @@ namespace My
 			return false;
 		}
 
+		// 바닥: ambientCG Asphalt023S (CC0, 실제 크기 1.25m × 1.25m)
 		floorMat->SetAlbedoTexture(floorAlbedoTex);
+		floorMat->SetRoughnessTexture(floorRoughnessTex);
 
 		// 젖은 아스팔트: 물이 틈을 채워 어두워지고(albedo↓), 물막이 매끈하다(roughness↓).
-		// 물의 실제 F0는 약 2%(specular 0.25)
+		// BaseColor는 sRGB 값이라 0.75는 선형으로 약 0.53배다.
 		floorMat->SetBaseColor(Vector3(0.75f));
-		floorMat->SetRoughness(0.3f);
+		// 맵에 곱하는 배율, 맵 평균(약 0.65) × 0.45 ≈ 0.3
+		// 맵을 바꾸면 평균을 다시 재서 이 배율을 맞춘다 (화면 전체 광택 유지).
+		floorMat->SetRoughness(0.45f);
+		// 물의 실제 F0는 약 2% = 0.08 × 0.25. 비스듬한 시선의 강한 반사는 Fresnel이 만든다.
 		floorMat->SetSpecular(0.25f);
-		floorMat->SetUvScale(Vector2(2.0f, 10.0f));
+		// 실제 크기 기준 반복: 바닥 4m × 20m ÷ 1.25m = (3.2, 16)
+		floorMat->SetUvScale(Vector2(3.2f, 16.0f));
 
 		auto endWallMat = m_assetManager.CreateMaterial("endWallMat");
 		if (!endWallMat)
