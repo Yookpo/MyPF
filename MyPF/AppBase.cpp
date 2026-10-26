@@ -309,7 +309,7 @@ namespace My
 		}
 
 		const Texture* wallAlbedoTex = m_assetManager.LoadTexture(
-			"Assets\\Textures\\CyberpunkAlley\\cyberpunk_wall_albedo_v1.png", TextureType::Albedo);
+			"Assets\\Textures\\PBR\\Bricks096_2K\\Bricks096_2K_Color.jpg", TextureType::Albedo);
 		if (!wallAlbedoTex)
 		{
 			return false;
@@ -322,9 +322,23 @@ namespace My
 			return false;
 		}
 
+		const Texture* wallRoughnessTex = m_assetManager.LoadTexture(
+			"Assets\\Textures\\PBR\\Bricks096_2K\\Bricks096_2K_Roughness.jpg", TextureType::Data);
+		if (!wallRoughnessTex)
+		{
+			return false;
+		}
+
 		const Texture* floorRoughnessTex = m_assetManager.LoadTexture(
 			"Assets\\Textures\\PBR\\Asphalt023S_2K\\Asphalt023S_2K-JPG_Roughness.jpg", TextureType::Data);
 		if (!floorRoughnessTex)
+		{
+			return false;
+		}
+
+		const Texture* wallNormalTex = m_assetManager.LoadTexture(
+			"Assets\\Textures\\PBR\\Bricks096_2K\\Bricks096_2K_NormalDX.jpg", TextureType::NormalMap);
+		if (!wallNormalTex)
 		{
 			return false;
 		}
@@ -357,11 +371,21 @@ namespace My
 		}
 
 		wallMat->SetAlbedoTexture(wallAlbedoTex);
-		wallMat->SetBaseColor(Vector3(1.0f));
-		// 마른 콘크리트: 거칠고 무광, 하이라이트가 넓게 퍼져 거의 보이지 않는다
-		wallMat->SetRoughness(0.85f);
+		wallMat->SetRoughnessTexture(wallRoughnessTex);
+		wallMat->SetNormalTexture(wallNormalTex);
+
+		// 벽: ambientCG Bricks096 (CC0, 약 2m × 1m 추정)
+		// 원본 모르타르가 밝은 노란 베이지라 네온을 너무 많이 받아 간판보다 벽이 튄다.
+		// sRGB 배율이라 선형으로 약 0.38배로 누르고, B를 조금 남겨 네온 색과 탁하게 섞이지 않게 한다
+		// (더 어두우면 전원 OFF 화면에서 돌 무늬가 사라진다)
+		wallMat->SetBaseColor(Vector3(0.65f, 0.67f, 0.75f));
+		// 맵에 곱하는 배율. 맵 평균(약 0.58) × 1.0 ≈ 0.58, 상한이 1이라 이보다 거칠게는 못 한다
+		// 0.85(≈ 0.5)에서는 돌마다 플라스틱 같은 광택이 맺혔다
+		wallMat->SetRoughness(1.0f);
+		// 일반 비금속 F0 4% = 0.08 × 0.5
 		wallMat->SetSpecular(0.5f);
-		wallMat->SetUvScale(Vector2(10.0f, 2.0f));
+		// 실제 크기 기준 반복: 옆벽 면 20m(u, Z) × 4m(v, Y) ÷ Bricks096 2m × 1m(추정) = (10, 4)
+		wallMat->SetUvScale(Vector2(10.0f, 4.0f));
 
 		auto floorMat = m_assetManager.CreateMaterial("floorMat");
 		if (!floorMat)
@@ -390,10 +414,16 @@ namespace My
 			return false;
 		}
 		endWallMat->SetAlbedoTexture(wallAlbedoTex);
-		endWallMat->SetBaseColor(Vector3(1.0f));
-		endWallMat->SetRoughness(0.85f);
+		endWallMat->SetRoughnessTexture(wallRoughnessTex);
+		endWallMat->SetNormalTexture(wallNormalTex);
+
+
+		// 룩 값은 wallMat과 같게 유지한다(UV Scale만 다르다)
+		endWallMat->SetBaseColor(Vector3(0.65f, 0.67f, 0.75f));
+		endWallMat->SetRoughness(1.0f);
 		endWallMat->SetSpecular(0.5f);
-		endWallMat->SetUvScale(Vector2(2.0f));
+		// 실제 크기 기준 반복: 끝벽 면 4m(u, X) × 4m(v, Y) ÷ Bricks096 2m × 1m(추정) = (2, 4)
+		endWallMat->SetUvScale(Vector2(2.0f, 4.0f));
 
 		// Neon test
 		NeonSignDesc desc1{};
