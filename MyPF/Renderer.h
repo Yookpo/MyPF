@@ -83,6 +83,7 @@ namespace My
 		TextureHandle m_bloomBlurYTargetHandle;
 
 		TextureHandle m_defaultWhiteTextureHandle;
+		TextureHandle m_defaultBlackTextureHandle;
 		TextureHandle m_defaultFlatNormalTextureHandle;
 
 		D3D11_VIEWPORT m_screenViewport;

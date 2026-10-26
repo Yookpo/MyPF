@@ -4,6 +4,7 @@
 Texture2D albedoTexture : register(t0);
 Texture2D roughnessTexture : register(t1);
 Texture2D normalTexture : register(t2);
+Texture2D puddleMaskTexture : register(t3);
 
 SamplerState linearSampler : register(s0);
 
@@ -20,6 +21,14 @@ cbuffer MaterialConstantBuffer : register(b2)
     float2 uvScale;
 }
 
+// 웅덩이(puddleMask = 1)의 표면 값. Material cbuffer가 꽉 차서 셰이더 상수로 둔다
+// 물은 거의 거울(0)이지만 0.1이면 Blinn-Phong 지수가 약 2만이라 네온 반사가 점 하나로 줄어든다.
+// 0.15(n ≈ 4천)는 세로로 길쭉한 젖은 반사 줄이 보이는 가장 낮은 값이다
+static const float PUDDLE_ROUGHNESS = 0.15;
+// 선형 배율(BaseColor와 달리 sRGB 아님). 간접광 반사가 없어(10-5 전) 0.5면 물이 아니라 검은 얼룩처럼 보인다
+static const float PUDDLE_ALBEDO_SCALE = 0.75;
+
+
 float4 main(PS_INPUT input) : SV_TARGET
 {
     IncidentLight dirLight = GetDirectionalLight();
@@ -29,9 +38,11 @@ float4 main(PS_INPUT input) : SV_TARGET
     
     float3 texColor = albedoTexture.Sample(linearSampler, tiledUV).rgb;
     float roughnessSample = roughnessTexture.Sample(linearSampler, tiledUV).r;
+    float puddleMaskSample = puddleMaskTexture.Sample(linearSampler, input.uv).r;
     
     float3 normalTS = normalTexture.Sample(linearSampler, tiledUV).rgb;
     normalTS = 2.0 * normalTS - 1.0;
+    normalTS = lerp(normalTS, float3(0.0, 0.0, 1.0), puddleMaskSample);
 
     float3 N = normal;
     float3 T = normalize(input.tangentWorld - dot(input.tangentWorld, N) * N);
@@ -42,9 +53,9 @@ float4 main(PS_INPUT input) : SV_TARGET
     float3 viewDir = normalize(cameraPos - input.posWorld);
     
     SurfaceData surfaceData;
-    surfaceData.albedo = surfaceColor;
+    surfaceData.albedo = lerp(surfaceColor, surfaceColor * PUDDLE_ALBEDO_SCALE, puddleMaskSample);
     surfaceData.normal = normalize(mul(normalTS, TBN));
-    surfaceData.roughness = roughnessFactor * roughnessSample;
+    surfaceData.roughness = lerp(roughnessFactor * roughnessSample, PUDDLE_ROUGHNESS, puddleMaskSample);
     surfaceData.specular = specular;
     
     

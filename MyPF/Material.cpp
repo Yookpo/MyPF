@@ -19,6 +19,11 @@ namespace My
 		m_normalTexture = newNormalTexture;
 	}
 
+	void Material::SetPuddleMaskTexture(const Texture* newPuddleMaskTexture)
+	{
+		m_puddleMaskTexture = newPuddleMaskTexture;
+	}
+
 	void Material::SetBaseColor(const Vector3& newColor)
 	{
 		m_baseColor = newColor;

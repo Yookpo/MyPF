@@ -350,6 +350,13 @@ namespace My
 			return false;
 		}
 
+		const Texture* floorPuddleMaskTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\Masks\\alley_floor_puddle_mask.png", TextureType::Data);
+		if (!floorPuddleMaskTex)
+		{
+			return false;
+		}
+
 		const Texture* neonTex = m_assetManager.LoadTexture(
 			"Assets\\Textures\\CyberpunkAlley\\neon_diffuser_albedo_v1.png", TextureType::Albedo);
 		if (!neonTex)
@@ -363,6 +370,8 @@ namespace My
 		{
 			return false;
 		}
+
+		
 
 		auto wallMat = m_assetManager.CreateMaterial("wallMat");
 		if (!wallMat)
@@ -397,6 +406,7 @@ namespace My
 		floorMat->SetAlbedoTexture(floorAlbedoTex);
 		floorMat->SetRoughnessTexture(floorRoughnessTex);
 		floorMat->SetNormalTexture(floorNormalTex);
+		floorMat->SetPuddleMaskTexture(floorPuddleMaskTex);
 
 		// 젖은 아스팔트: 물이 틈을 채워 어두워지고(albedo↓), 물막이 매끈하다(roughness↓)
 		floorMat->SetBaseColor(Vector3(0.55f));
@@ -416,7 +426,6 @@ namespace My
 		endWallMat->SetAlbedoTexture(wallAlbedoTex);
 		endWallMat->SetRoughnessTexture(wallRoughnessTex);
 		endWallMat->SetNormalTexture(wallNormalTex);
-
 
 		// 룩 값은 wallMat과 같게 유지한다(UV Scale만 다르다)
 		endWallMat->SetBaseColor(Vector3(0.65f, 0.67f, 0.75f));

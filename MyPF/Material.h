@@ -12,9 +12,10 @@ namespace My
 	{
 	public:
 		Material()
-			: m_albedoTexture(nullptr)
-			, m_roughnessTexture(nullptr)
-			, m_normalTexture(nullptr)
+			: m_albedoTexture{ nullptr }
+			, m_roughnessTexture{ nullptr }
+			, m_normalTexture{ nullptr }
+			, m_puddleMaskTexture{ nullptr }
 			, m_baseColor{ 1.0f }
 			, m_emissiveColor{ 1.0f }
 			, m_emissiveIntensity{ 0.0f }
@@ -38,6 +39,9 @@ namespace My
 
 		void		   SetNormalTexture(const Texture*);
 		const Texture* GetNormalTexture() const { return m_normalTexture; }
+
+		void		   SetPuddleMaskTexture(const Texture*);
+		const Texture* GetPuddleMaskTexture() const { return m_puddleMaskTexture; }
 
 		void		   SetBaseColor(const Vector3&);
 		const Vector3& GetBaseColor() const { return m_baseColor; }
@@ -76,6 +80,7 @@ namespace My
 		const Texture* m_albedoTexture;
 		const Texture* m_roughnessTexture;
 		const Texture* m_normalTexture;
+		const Texture* m_puddleMaskTexture;
 		Vector3		   m_baseColor;
 		Vector3		   m_emissiveColor;
 		float		   m_emissiveIntensity;			// Editor가 설정하는 원본 밝기

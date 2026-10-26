@@ -134,6 +134,14 @@ namespace My
 			return false;
 		}
 
+		m_defaultBlackTextureHandle =
+			m_resourceManager->CreateTexture("Assets\\Textures\\Default\\black_1x1.png", DXGI_FORMAT_R8G8B8A8_UNORM);
+
+		if (!m_defaultBlackTextureHandle.IsValid())
+		{
+			return false;
+		}
+
 		m_defaultFlatNormalTextureHandle = m_resourceManager->CreateTexture(
 			"Assets\\Textures\\Default\\flat_normal_1x1.png", DXGI_FORMAT_R8G8B8A8_UNORM);
 
@@ -443,9 +451,9 @@ namespace My
 			return nullptr;
 		}
 
-		ID3D11ShaderResourceView* roughnessSRV = m_resourceManager->GetSRV(fallback);
+		ID3D11ShaderResourceView* srv = m_resourceManager->GetSRV(fallback);
 
-		return roughnessSRV;
+		return srv;
 	}
 
 	bool Renderer::EndScene()
@@ -618,6 +626,7 @@ namespace My
 		const Texture*	albedoTexture = drawMat.GetAlbedoTexture();
 		const Texture*	roughnessTexture = drawMat.GetRoughnessTexture();
 		const Texture*	normalTexture = drawMat.GetNormalTexture();
+		const Texture*	puddleMaskTexture = drawMat.GetPuddleMaskTexture();
 
 		if (!albedoTexture)
 		{
@@ -705,9 +714,18 @@ namespace My
 			return false;
 		}
 
-		ID3D11ShaderResourceView* pixelSRVs[3] = { albedoSRV, roughnessSRV, normalSRV };
+		ID3D11ShaderResourceView* puddleMaskSRV = ResolveTextureSRV(puddleMaskTexture, m_defaultBlackTextureHandle);
+		if (!puddleMaskSRV)
+		{
+			OutputDebugStringW(L"No Puddle Mask SRV\n");
+			return false;
+		}
 
-		// VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material, t0=albedo, t1=Roughness, t2=Normal
+		ID3D11ShaderResourceView* pixelSRVs[4] = { albedoSRV, roughnessSRV, normalSRV, puddleMaskSRV };
+
+		// VS: b0=Object, b1=Camera
+		// PS: b0=Light, b1=Camera, b2=Material,
+		// t0=albedo, t1=Roughness, t2=Normal, t3=PuddleMask
 		Context->IASetInputLayout(m_inputLayout.Get());
 		Context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 		Context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -717,7 +735,7 @@ namespace My
 		Context->VSSetConstantBuffers(0, 2, constantBuffers);
 		Context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
-		Context->PSSetShaderResources(0, 3, pixelSRVs);
+		Context->PSSetShaderResources(0, 4, pixelSRVs);
 		Context->PSSetConstantBuffers(1, 2, pixelConstantBuffers);
 		Context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
