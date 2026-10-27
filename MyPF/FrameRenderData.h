@@ -5,6 +5,7 @@
 #include "PostProcessSettings.h"
 #include "DirectionalLight.h"
 #include "PointLight.h"
+#include "TextureHandle.h"
 
 namespace My
 {
@@ -20,5 +21,6 @@ namespace My
 		std::size_t								   pointLightCount = 0;
 		Vector3									   cameraPosition;
 		PostProcessSettings						   postProcess;
+		TextureHandle							   environmentMap; // 하늘 큐브맵. 무효면 스카이박스 안그림
 	};
 } // namespace My

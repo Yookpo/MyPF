@@ -15,10 +15,11 @@ namespace My
 		Texture& operator=(const Texture&) = delete;
 
 		bool Initialize(GraphicsResourceManager& resourceManager, const std::string& fileName, TextureType texType);
+		bool InitializeCubeMap(GraphicsResourceManager& resourceManager, const std::string& ddsPath);
 
 		TextureHandle GetTextureHandle() const { return m_textureHandle; }
 
 	private:
-		TextureHandle	   m_textureHandle;
+		TextureHandle m_textureHandle;
 	};
 } // namespace My

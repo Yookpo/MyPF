@@ -34,6 +34,9 @@ namespace My
 		void		   DrawFullScreenPass(ID3D11RenderTargetView* target, ID3D11PixelShader* pixelShader,
 					  ID3D11ShaderResourceView* sourceSRV, ID3D11SamplerState* sampler,
 					  ID3D11ShaderResourceView* sourceSRV2 = nullptr);
+		// 불투명 물체 다음, 후처리 전. 환경맵이 없으면 아무것도 하지 않는다
+		bool DrawSkybox();
+
 		// 선택 입력 텍스처의 SRV를 얻기. texture가 nullptr이면 fallback 사용
 		// 핸들이나 SRV가 무효면 nullptr 반환
 		ID3D11ShaderResourceView* ResolveTextureSRV(const Texture* texture, TextureHandle fallback) const;
@@ -46,16 +49,19 @@ namespace My
 
 		// Depth buffer
 		ComPtr<ID3D11DepthStencilState> m_depthStencilState;
+		ComPtr<ID3D11DepthStencilState> m_skyboxDepthStencilState;
 
 		// shader
 		ComPtr<ID3D11VertexShader> m_vertexShader;
 		ComPtr<ID3D11VertexShader> m_fullscreenVertexShader;
+		ComPtr<ID3D11VertexShader> m_skyboxVertexShader;
 		ComPtr<ID3D11PixelShader>  m_pixelShader;
 		ComPtr<ID3D11PixelShader>  m_copyPixelShader;
 		ComPtr<ID3D11PixelShader>  m_toneMappingPixelShader;
 		ComPtr<ID3D11PixelShader>  m_brightPassPixelShader;
 		ComPtr<ID3D11PixelShader>  m_blurXPixelShader;
 		ComPtr<ID3D11PixelShader>  m_blurYPixelShader;
+		ComPtr<ID3D11PixelShader>  m_skyboxPixelShader;
 		ComPtr<ID3D11InputLayout>  m_inputLayout;
 
 		// sampler
@@ -75,6 +81,12 @@ namespace My
 		BufferHandle m_objectBufferHandle;
 		BufferHandle m_materialBufferHandle;
 		BufferHandle m_postProcessBufferHandle;
+
+		// 스카이박스 큐브
+		BufferHandle  m_skyboxVertexBufferHandle;
+		BufferHandle  m_skyboxIndexBufferHandle;
+		uint32_t	  m_skyboxIndexCount{ 0 };
+		TextureHandle m_environmentMapHandle;
 
 		// for Bloom
 		TextureHandle m_hdrSceneTargetHandle;

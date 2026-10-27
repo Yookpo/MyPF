@@ -1,6 +1,6 @@
 # MyPF 진행 기록 및 작업 인계
 
-마지막 갱신: 2026-10-26
+마지막 갱신: 2026-10-27
 
 노트북과 데스크톱에서 Git으로 공유하는 MyPF의 실제 구현 상태와 다음 작업을 기록한다.
 
@@ -17,7 +17,7 @@
 
 ## 1. 진행률
 
-현재 전체 진행률은 약 **80%**다(2026-10-26, 10-W 완료 기준).
+현재 전체 진행률은 약 **82%**다(2026-10-27, 10-2' 완료 기준).
 
 | 영역 | 진행 | 현재 상태 |
 |---|---:|---|
@@ -26,7 +26,7 @@
 | Model 파이프라인 | 약 65% | FBX/OBJ/glTF BaseColor 로드 완료. aiNode/PBR은 남음 |
 | Scene/ImGui 편집 | 약 72% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유, Post Process 패널(Exposure/Tone Mapper/Bloom 3종/Debug View) 완료 |
 | 1인칭 입력/카메라 | 약 90% | Editor/Play, WASD/마우스/ESC/focus와 단발 키 입력, 플레이어-벽 충돌 완료 |
-| 조명/Material | 약 90% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅, 셰이더 빛/표면 분리, 정규화된 Blinn-Phong Specular와 재질별 Roughness/Specular, Schlick Fresnel, UV 타일링, roughness·노멀 맵(탄젠트, 기본 텍스처 3종), 웅덩이 마스크 완료. GGX·IBL·metallic은 없음 |
+| 조명/Material | 약 90% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅, 셰이더 빛/표면 분리, 재질별 Roughness/Specular, **GGX + Smith(Unreal 형식) + Schlick Fresnel, π 규약(diffuse = albedo / π)**, UV 타일링, roughness·노멀 맵(탄젠트, 기본 텍스처 3종), 웅덩이 마스크 완료. IBL·metallic은 없음 |
 | 실제 골목/상호작용 | 약 85% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백·대기 표시등·호박색 Rim 강조(PowerSwitch 소유), 순차 점등 완료 |
 | 고급 렌더링/연출 | 약 58% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성), 룩 재튜닝, 젖은 바닥의 Point Light 반사(Specular·Fresnel)와 웅덩이 대비 완료. Shadow/환경 반사(간판이 비치는 반사)/Fog/Rain은 없음 |
 
@@ -34,8 +34,8 @@
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: 이 문서 커밋. 그 앞이 `f44ea8c`(W-3 에셋)·`5524d01`(W-3 코드)·`1c0ea97`(N-5 문서). `origin/main`보다 앞서 있다(push 전 — 노트북에서 이어가려면 push 필요).
-- 현재 작업 트리: 브랜치 **`main`**, 이 문서 커밋 후 clean. commit/push는 사용자가 요청할 때만 한다.
+- 문서 갱신 기준 HEAD: `fb58d71`(사용자: 10-2' G-3 — Blinn-Phong·스위치 삭제, 웅덩이 roughness 0.1, 주석). 그 앞이 `01f7d38`(사용자: G-1 — π 규약 전환 + Unreal 형식 GGX·Smith, A/B 스위치 포함)·`891c6f1`(W-3 문서). `origin/main`보다 앞서 있다(push 전 — 노트북에서 이어가려면 push 필요).
+- 현재 작업 트리 (2026-10-27): 이 문서와 `AGENTS.md` 갱신만 미커밋(사용자가 "문서만 갱신"을 요청). commit/push는 사용자가 요청할 때만 한다.
 - 10-2 Fresnel은 두 커밋이다 — `6fd8742`(사용자: `FresnelSchlick`과 `ComputeDirectLighting` 조립 + 확장 예약 목록 문서), `04fab3c`(바닥 specular 0.5 → 0.25).
 - `a431f1f`는 렌더러와 무관한 학습용 정적 사이트(`study-site/`), 그 생성 규칙 스킬(`.claude/skills/study-site/SKILL.md`), 프리뷰 서버 설정(`.claude/launch.json`)을 추가했다(13개 파일). 상세는 §3 "학습 사이트".
 - `e9ab696`은 10-1 E~G를 한 번에 담고 있다 — 셰이더 E-1(`viewDir` 전달)·E-2(`SurfaceData`에 roughness/specular)·E-3(Blinn-Phong)·F(정규화)와 G(`AppBase.cpp`·`NeonSign.cpp`의 재질값). 4개 파일.
@@ -140,8 +140,9 @@ d5d36d7 Step 3. 톤 매핑 + Exposure
 - (`8e4cadc`) `Material`에 `roughness`(기본 0.5, `[0.05, 1]`로 clamp — 0이면 Blinn-Phong 지수가 무한대)와 `specular`(기본 0.5, `[0, 1]`)를 추가했다. `MaterialConstantData`는 64바이트를 유지한 채 기존 패딩 자리(`baseColor` 뒤, `rimPower` 뒤)를 채웠다. 둘 다 배율이라 `SrgbToLinear`를 거치지 않는다. Inspector에 슬라이더가 있다.
 - **셰이더 공통 파일 구조** (`8e4cadc`, `f0273c2`, `b59242a`, `e9ab696`): `Common.hlsli` = 모든 씬 셰이더가 쓰는 선언(`PI`, `VS_INPUT`/`PS_INPUT`, 카메라 cbuffer `b1`). `Lighting.hlsli` = 빛 쪽(`PointLight`, `IncidentLight`, Light cbuffer `b0`, `CalcAttenuation`, `GetDirectionalLight()`, `GetPointLight(index, posWorld)`)과 표면 쪽(`SurfaceData`, `SpecularBlinnPhong`, `ComputeDirectLighting`). Material cbuffer(`b2`)는 `simplePixelShader.hlsl`에 남는다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**. 설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리"
 - **`main`의 흐름** (`b59242a`): 입력 준비(`normal`, 텍스처 × `baseColor`, `viewDir`, `SurfaceData`) → 직접광(`ComputeDirectLighting`을 방향광 결과로 시작해 점광원 루프에서 누적) → 간접광(ambient, 함수 밖에서 한 번) → 연출 항(emissive, rim) → 합성. 렌더링 방정식 `Le + Σ직접광 + 간접광`과 블록이 1:1로 대응한다
-- **Specular — 정규화된 Blinn-Phong** (`e9ab696`): `ComputeDirectLighting(surface, light, viewDir)` 한 곳에서 모든 빛에 적용된다. `NdotL ≤ 0`이면 조기 반환 → `L + V`의 제곱 길이가 0에 가까우면 반환(NaN 방지) → `H = normalize(L + V)` → `SpecularBlinnPhong(NdotH, roughness)` = `pow(NdotH, n) × (n + 8) / 8`(`α = roughness²`, `n = max(2/α² − 2, 1)`) → `× F`(Fresnel) → `(diffuseTerm + specularTerm) × radiance × NdotL`. specular 항에는 albedo를 곱하지 않는다. 설계 이유는 §4 "Specular — 정규화된 Blinn-Phong과 재질값"
-- **Fresnel — Schlick 근사** (`6fd8742`): `FresnelSchlick(f0, cosTheta)` = `f0 + (1 − f0) × (1 − cos)⁵`(입력 `saturate`). `ComputeDirectLighting`에서 `VdotH`로 `F`를 구해 `specularTerm = SpecularBlinnPhong(…) × F`, `diffuseTerm = albedo × (1 − F)`. `f0 = 0.08 × specular`. 비스듬한 시선일수록 반사가 강해지고 그만큼 diffuse가 줄어든다. 설계 이유는 §4 "Fresnel — Schlick 근사"
+- **직접광 BRDF — GGX + Smith + Schlick, π 규약** (10-2', `01f7d38` G-1 + `fb58d71` G-3): `ComputeDirectLighting(surface, light, viewDir)` 한 곳에서 모든 빛에 적용된다. 입구에서 `roughness = max(roughness, MIN_PERCEPTUAL_ROUGHNESS 0.05)` → `NdotL ≤ 0`이면 조기 반환 → `NdotV = saturate(abs(N·V) + 1e-5)`(Unreal, 노멀 맵·뒷면의 음수 N·V를 버리지 않음) → `L + V`의 제곱 길이가 0에 가까우면 반환 → `H`, `NdotH`, `VdotH` → `F = F_Schlick(0.08 × specular, VdotH)` → `specularTerm = SpecularGGX(roughness, NdotH, NdotV, NdotL) × F` → `diffuseTerm = albedo × (1 − F) / π` → `(diffuseTerm + specularTerm) × radiance × NdotL`. `SpecularGGX`는 `a2 = roughness⁴`(Unreal `Pow4`)를 한 번 계산해 `D_GGX(a2, NdotH)` = `a2 / (π·d²)`, `d = (NdotH·a2 − NdotH)·NdotH + 1`와 `Vis_SmithJointApprox(a2, NdotV, NdotL)` = `0.5 / (NdotL(NdotV(1−a)+a) + NdotV(NdotL(1−a)+a))`의 곱(**F 제외**)을 반환한다. 함수 이름은 Unreal `BRDF.ush`, 내적 변수는 `NdotX`. specular 항에는 albedo를 곱하지 않는다. 설계 이유는 §4 "GGX + Smith와 π 규약 전환"
+- **Fresnel — Schlick 근사** (`6fd8742`, 10-2'에서 이름만 `FresnelSchlick` → **`F_Schlick`**): `F_Schlick(f0, cosTheta)` = `f0 + (1 − f0) × (1 − cos)⁵`. `f0 = 0.08 × specular`(Unreal Specular 파라미터 규약). 인자 이름은 IBL(N·V)에서도 쓰므로 Unreal의 `VoH`가 아니라 `cosTheta`. 비스듬한 시선일수록 반사가 강해지고 그만큼 diffuse가 줄어든다. 설계 이유는 §4 "Fresnel — Schlick 근사"
+- **직접광 세기는 π 규약 값이다** (10-2'): diffuse·specular가 모두 `/π`가 되면서 Directional·네온 3개·환경 보조광의 세기를 **`이전 값 × DirectX::XM_PI`**로 바꿨다(식 그대로 코드에 남겨 앞자리가 튜닝 값으로 읽힌다). **ambient(`ambientStrength`)·Emissive·Rim은 그대로**다 — ambient는 하늘 radiance L로 보면 `(albedo / π) × πL = albedo × L`이라 식이 같고, Emissive·Rim은 BRDF를 거치지 않는 radiance다. 결과 화면은 전환 전과 같다(`USE_GGX = false`로 확인)
 - **재질별 Roughness/Specular** (`e9ab696`):
 
 | 재질 | 위치 | BaseColor | Roughness | Specular | UV Scale |
@@ -196,15 +197,15 @@ UV Scale의 일반식은 **축마다 `면 크기 ÷ 텍스처 실제 크기`**�
 | 대상 | 값 | 위치 |
 |---|---|---|
 | 하늘광 방향 | `(0, -0.932, 0.362)` 단위 벡터 | `DirectionalLight.h` |
-| 하늘광 색/세기 | `(0.45, 0.60, 1.0)` / `0.18` | 〃 |
+| 하늘광 색/세기 | `(0.45, 0.60, 1.0)` / `0.18 × π` (10-2' π 규약) | 〃 |
 | Ambient | `0.045` | 〃 |
 | Exposure / Threshold | `2.0` / `1.2` | `PostProcessSettings.h` |
 | Bloom Strength / Iterations | `0.8` / `5` | 〃 |
 | Tone Mapper | ACES | 〃 |
 | 배경(하늘) 색 | `(0.020, 0.028, 0.055)` | `AppBase` 생성자 |
-| 환경 보조광 | `(0, 3.2, 10)`, 색 `(0.28, 0.48, 0.85)`, range `24`, intensity `0.55` | `AppBase::InitGreyBoxScene` |
+| 환경 보조광 | `(0, 3.2, 10)`, 색 `(0.28, 0.48, 0.85)`, range `24`, intensity `0.55 × π` | `AppBase::InitGreyBoxScene` |
 
-네온 세 개(`NeonSignDesc`):
+네온 세 개(`NeonSignDesc`). Point 세기는 10-2' 이후 코드에서 **표의 값 × π**다(π 규약, 화면은 같음). 아래 휘도 환산은 전환 전 값 기준이다:
 
 | | color | Emissive | Point 세기 | Point range |
 |---|---|---:|---:|---:|
@@ -380,6 +381,8 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 
 ### Specular — 정규화된 Blinn-Phong과 재질값 (로드맵 10-1, 2026-09-30)
 
+> **10-2'(2026-10-27)에서 Blinn-Phong은 GGX로 교체됐고, 아래의 "π 없는 규약"도 정석(diffuse = albedo / π)으로 바뀌었다.** 이 절은 당시 결정의 기록이다. 재질값(roughness·specular)과 "BRDF 입구에서 roughness를 막는다"는 그대로 유효하다. 현재 구조는 §4 "GGX + Smith와 π 규약 전환".
+
 - **Roughness는 지각적 값으로 저장하고 BRDF에서 `α = roughness²`로 바꾼다.** 제곱하지 않으면 슬라이더 절반 이상이 "거의 무광"에 몰린다. `n = 2/α² − 2`는 Blinn-Phong을 GGX와 같은 roughness 입력으로 움직이게 하는 대응식이라, 나중에 GGX로 바꿔도 Material 값을 다시 튜닝하지 않는다. roughness 1이면 n = 0이 되어 표면 전체가 번쩍이므로 `n ≥ 1` 하한을 둔다. 0이면 n이 무한대라 `Material::SetRoughness`가 0.05에서 clamp한다.
 - **분포 항을 `SpecularBlinnPhong`으로 뗐다.** 정규화(F)는 이 함수 안만 고쳤고, GGX로 바꿀 때도 이 함수만 교체한다(Unreal `BRDF.ush`의 `D_Blinn`). F0는 "양"이라 함수 밖에서 곱한다.
 - **정규화 계수는 `(n + 8) / (8π)`가 아니라 `(n + 8) / 8`이다.** 교과서(Real-Time Rendering)는 diffuse를 `albedo / π`로 두는 규약이다. 우리 diffuse는 처음부터 `albedo`(π 없음)이고 조명 세기도 그 기준으로 튜닝했다. specular만 π로 나누면 diffuse 대비 3.14배 어두워진다. 두 항에 같은 π를 곱한 규약(Unreal·Filament도 조명 세기에 π를 흡수)으로 `(n+8)/8`을 쓴다. **교과서 식을 보고 `/ PI`를 다시 넣지 말 것.** `Common.hlsli`의 `PI`는 IBL(적분)에서 쓰게 된다.
@@ -402,6 +405,19 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - **5제곱은 곱셈으로 풀어 써도 `pow`와 같다.** 단독 테스트 셰이더를 `fxc /Fc`로 확인하니 컴파일러가 `x² → x⁴ → x⁵` 곱셈 3번과 `mad` 하나로 줄였다. `Pow5` 공용 함수는 성능이 아니라 재사용·가독성 문제라 예약 목록(§5)에 둔다.
 - **확장은 예약만 했다.** `f90` 인자(IBL diffuse·specular 0 재질), `float3`화(metallic), `Pow5`는 §5 "확장 예약 목록"에 트리거와 함께 있다. 지금 식 `f0 + (1 − f0) × w`는 `1`을 `f90`으로 바꾸기만 하면 되는 모양이라 확장에 열려 있다.
 - **바닥 specular를 0.25로 확정했다.** F0 차이는 정면에서만 의미가 있고(0° 0.04 vs 0.02), 스치는 각에서는 둘 다 1로 수렴한다(85° 0.648 vs 0.641). 그래서 물리값으로 되돌려도 먼 거울 반사는 유지되고 발밑만 차분해진다. 기능이 들어온 뒤에도 남은 **임시 보정은 이중 보정**이 되므로 걷어낸다.
+
+### GGX + Smith와 π 규약 전환 (10-2', 2026-10-27)
+
+- **GGX로 바꾼 이유**: ① 하이라이트가 "밝은 중심 + 긴 꼬리"가 되어 젖은 아스팔트의 번지는 반사와 실측 재질에 맞는다(W-3의 매끈한 웅덩이가 가장 잘 보이는 무대) ② 10-5 IBL의 BRDF LUT가 GGX + Smith로 적분된 표라 직접광이 Blinn-Phong이면 직접광·간접광 하이라이트 모양이 어긋난다 ③ Unreal·Filament·glTF의 표준.
+- **π 규약을 정석으로 바꿨다(diffuse = albedo / π).** 10-1 때 π 없는 규약은 그 시점에 맞았다(BRDF가 하나, 외부 데이터 없음). GGX(외부 식)와 HDRI(10-3, 물리 radiance 데이터)가 들어오기 직전이라 기준이 바뀌었다 — 모든 참고 자료(Unreal·Filament·논문·강의 D항)와 식이 같아져 "π를 빼야 한다"는 함정이 사라지고, IBL에서 irradiance 맵의 π 포함 여부를 따질 필요가 없어진다. 두 규약은 **직접광 세기를 ×π 하면 화면이 같다**("BRDF가 π를 들고 있느냐, 빛 세기가 들고 있느냐"의 차이). 엔진들이 BRDF 쪽에 두는 이유는 빛 세기를 물리 단위(lux·candela)로 쓰기 위해서다.
+- **규약 전환과 BRDF 교체를 한 스위치로 분리해 확인했다.** `USE_GGX = false`에서 "화면 그대로"가 π 전환의 증거, `true`에서 "꼬리가 생김"이 GGX의 증거다. 둘을 한 번에 바꾸면 밝기 차이의 원인을 가를 수 없다. 비교가 끝난 뒤 스위치와 `SpecularBlinnPhong`은 삭제했다(G-3) — 강의 코드의 `useXXXMap` 플래그처럼 남겨 두면 "어느 쪽이 진짜인지" 모르는 분기가 쌓인다.
+- **Unreal 형식을 따르되 두 곳은 의도적으로 다르다.** ① `SpecularGGX`가 **F를 곱하지 않고 D·Vis만** 반환한다 — Unreal은 diffuse가 F를 쓰지 않아 안에서 곱하지만 우리는 `diffuse × (1 − F)`라 F가 밖에서도 필요하다(덕분에 A/B 동안 `SpecularBlinnPhong`과 반환 모양이 같아 삼항식 한 줄이었다) ② diffuse에 `(1 − F)`를 곱한다(UE4 DefaultLit은 곱하지 않음, 10-2 결정 유지). 구조를 따라 할 때도 "그 구조가 어떤 전제에서 나왔는가"를 먼저 본다.
+- **G 대신 가시성 Vis = G / (4·N·L·N·V)를 쓴다(`Vis_SmithJointApprox`, Heitz 2014 근사).** 강의 Schlick-GGX(k = (r + 1)² / 8)와 `/ (4·NdotI·NdotO)` 나눗셈 형태를 먼저 작성했는데, N·V = 0에서 **0 / 0 = NaN**이 나왔다(Bloom이 퍼뜨림). Vis 형태는 분모가 N·V = 0이어도 `N·L × a > 0`으로 남아 **0 나누기 보호가 식 자체에서 사라진다** — 엔진 BRDF 코드에 `max(…, ε)`가 거의 없는 이유다. 보호는 입구 두 줄(roughness 최솟값, N·V `abs + ε`)뿐이다.
+- **ε가 정상 값을 잡아먹은 사례**: 첫 `DistributionGGX`가 `a2 / max(d², 1e-7)`였는데, d²의 정상 최솟값은 (a2_min)² ≈ 3.9 × 10⁻¹¹이라 roughness < 0.13에서 하이라이트 중심이 10~2500배 깎였다(0.05에서 160000 → 62.5). 분모 d의 최솟값이 a2 > 0이라 보호 자체가 불필요했다. **ε를 고르기 전에 그 분모가 정상적으로 가질 수 있는 최솟값을 계산한다.**
+- **N·V 조기 반환은 diffuse까지 끈다.** `if (NdotV ≤ ε) return 0`을 넣었다가 뺐다 — 노멀 맵으로 꺾인 법선은 낮은 시선에서 N·V < 0이 흔하고(젖은 골목을 멀리 보는 핵심 각도), diffuse는 그 조건에서 아무 문제가 없다. 조기 반환은 "이 조건에서 **모든** 출력이 0이 맞나?"를 먼저 묻는다.
+- **N·V는 Unreal 그대로 `saturate(abs(N·V) + 1e-5)`.** Filament는 `max(N·V, 1e-4)`다. `abs`는 시선 반대로 꺾인 미세면도 앞면처럼 반사를 받는다(양면 재질에 유리). 이 장면에서 눈에 띄는 차이는 없었다.
+- **웅덩이 roughness 0.15 → 0.1.** 0.15는 "Blinn-Phong 지수가 4천이라 하이라이트가 아직 보이는 가장 낮은 값"이었다. GGX는 중심이 좁아져도 꼬리가 남아 0.1(N·H = 1에서 D ≈ 3200)에서도 반사 줄이 보인다(§5 "웅덩이 값 재튜닝" 트리거 ② 처리). 근거가 바뀐 값은 주석도 바꾼다.
+- **주석만 남은 리뷰**: G-3 뒤 남은 문제가 전부 주석이었다(삭제된 함수를 가리키는 `MIN_PERCEPTUAL_ROUGHNESS` 설명, 값과 반대되는 웅덩이 근거). 주석은 아무도 검증하지 않아 코드가 바뀔 때 가장 먼저 낡는다 — "왜 이 값인가"는 **그 값을 고른 근거**로 적어야 근거가 바뀔 때 고칠 신호가 된다.
 
 ### UV 타일링 (10-W W-1, 2026-10-23)
 
@@ -576,16 +592,16 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 
 | 예약 항목 | 지금 형태 | 꺼낼 트리거 | 할 일 |
 |---|---|---|---|
-| `FresnelSchlick`의 `f90` 인자 | `f0 + (1 − f0) × w` (최대 반사율 1 고정) | 10-5 IBL diffuse(Lagarde: `f90 = max(1 − roughness, f0)`) 또는 specular 0 재질의 스침 반사를 꺼야 할 때(Unreal: `f90 = saturate(50 × f0)`) | `f0 + (f90 − f0) × w`로 확장(Filament 형태). 호출부는 `ComputeDirectLighting` 한 곳 |
-| `FresnelSchlick` 등 F0 계열의 `float3`화 | `float` (비금속만) | 10-8 metallic | `F0 = lerp(0.08 × specular, albedo, metallic)`, 반환·인자 `float3`. 본문은 그대로 동작 |
-| `Pow5` 공용 수학 함수 | `FresnelSchlick` 안에서 직접 곱셈 | Schlick을 두 번째 곳(IBL, 평면 반사)에서 쓸 때 | `Common.hlsli`에 `Pow5(x)` (Unreal `Common.ush`와 같음). 순수 수학이라 모든 셰이더가 쓸 수 있는 종류 |
-| 분포 함수 교체 | `SpecularBlinnPhong` | 10-2' GGX | `NdfGGX` + Smith 가시성으로 교체, `/π` 제거(AGENTS §7). roughness 변환식은 그대로 |
-| 파생 BRDF 값 묶음(`BRDFData`) | `ComputeDirectLighting` 안에서 빛마다 α·n·F0 계산 | 파생 값이 셋 이상 늘거나(GGX·metallic 이후) 빛 수가 늘어 비용이 보일 때 | Unity URP `InitializeBRDFData`처럼 픽셀당 한 번 계산해 구조체로 넘김 |
+| `F_Schlick`의 `f90` 인자 | `f0 + (1 − f0) × w` (최대 반사율 1 고정) | 10-5 IBL diffuse(Lagarde: `f90 = max(1 − roughness, f0)`) 또는 specular 0 재질의 스침 반사를 꺼야 할 때(Unreal: `f90 = saturate(50 × f0)`) | `f0 + (f90 − f0) × w`로 확장(Filament 형태). 호출부는 `ComputeDirectLighting` 한 곳 |
+| `F_Schlick` 등 F0 계열의 `float3`화 | `float` (비금속만) | 10-8 metallic | `F0 = lerp(0.08 × specular, albedo, metallic)`, 반환·인자 `float3`. 본문은 그대로 동작 |
+| `Pow4`·`Pow5` 공용 수학 함수 | `F_Schlick` 안의 5제곱, `SpecularGGX` 안의 `roughness⁴`를 직접 곱셈 | 같은 거듭제곱을 두 번째 곳(IBL, 평면 반사)에서 쓸 때 | `Common.hlsli`에 `Pow4(x)`·`Pow5(x)` (Unreal `Common.ush`와 같음). 순수 수학이라 모든 셰이더가 쓸 수 있는 종류 |
+| 파생 BRDF 값 묶음(`BRDFData`) / 내적 묶음(`BxDFContext`) | `ComputeDirectLighting` 안에서 빛마다 a2·F0를 계산하고, 내적(`NdotL`·`NdotV`·`NdotH`·`VdotH`)을 스칼라 인자로 넘긴다 | metallic(10-8) 이후 파생 값이 늘거나, IBL·clear coat처럼 내적을 쓰는 함수가 셋 이상 늘 때, 또는 빛 수가 늘어 비용이 보일 때 | 파생 값은 Unity URP `InitializeBRDFData`처럼 픽셀당 한 번 계산해 구조체로, 내적은 Unreal `BxDFContext`처럼 구조체 하나로 넘긴다 |
+| IBL용 Smith 재매핑 | 직접광 Vis는 α를 그대로 쓴다(`Vis_SmithJointApprox`) | 10-5 IBL에서 BRDF LUT를 직접 굽거나 IBL 가시성을 계산할 때 | IBL 적분은 k = α / 2(Karis 2013)를 쓴다. 직접광 함수를 그대로 재사용하지 않는다 |
 | `ComputeIndirectLighting` | `main`의 ambient 한 줄 | 10-5 IBL | 간접광 함수로 분리, IBL Fresnel은 N·V |
 | 셰이더 디버그 뷰 | 임시 코드(주석 처리 후 복구) | 항이 더 늘 때(Fresnel·IBL) | ImGui 드롭다운 + cbuffer 플래그로 Final / Diffuse / Specular / F 선택 |
 | **`ModelLoader` 탄젠트·바이탄젠트 부호** | 모델 정점은 기본 탄젠트 (1, 0, 0)을 받는다(NaN 방지만 됨). `B = cross(N, T)` 고정 | 임포트 모델에 노멀 맵을 쓸 때, 또는 거울 대칭 UV를 가진 모델 | Assimp `aiProcess_CalcTangentSpace`로 `mTangents`를 채우고, `Vertex.tangent`를 `float4`로 늘려 w에 바이탄젠트 부호(handedness)를 담아 `B = cross(N, T) × w` |
 | **노멀 강도 배율** | 노멀 맵을 그대로 쓴다 | 요철이 너무 세거나 약하다고 판단될 때 | W-3의 `normalTS = lerp(normalTS, (0, 0, 1), t)`와 같은 연산(Unreal `FlattenNormal`) — t 자리에 강도 상수를 넣는다. 재질마다 다르면 cbuffer 확장이 필요하다 |
-| **웅덩이 값 재튜닝** | `PUDDLE_ROUGHNESS` 0.15, `PUDDLE_ALBEDO_SCALE` 0.75 — 간접광 반사가 없는 지금 "물처럼 보이게" 맞춘 임시값 | ① 10-5 IBL(웅덩이가 하늘빛을 비추게 되면 albedo를 0.5 근처로 다시 낮춰도 검은 얼룩이 되지 않는다) ② 10-2' GGX(같은 roughness에서 하이라이트 모양이 달라진다) | 같은 캡처 위치(시작·중간·끝 근처)에서 다시 비교한다 |
+| **웅덩이 값 재튜닝** | `PUDDLE_ROUGHNESS` 0.1(10-2'에서 0.15 → 0.1, 트리거 ② 처리), `PUDDLE_ALBEDO_SCALE` 0.75 — 간접광 반사가 없는 지금 "물처럼 보이게" 맞춘 임시값 | 10-5 IBL(웅덩이가 하늘빛을 비추게 되면 albedo를 0.5 근처로 다시 낮춰도 검은 얼룩이 되지 않는다) | 같은 캡처 위치(시작·중간·끝 근처)에서 다시 비교한다 |
 | **웅덩이 상수의 cbuffer화 / F0 보간** | PS `static const` 두 개, F0는 바닥 specular(0.25 = 물)를 그대로 씀 | 바닥 외 재질에 웅덩이·젖음이 필요하거나 재질마다 다른 값이 필요할 때, 또는 ImGui에서 실시간 튜닝이 필요할 때 | Material cbuffer를 16바이트 늘려 상수를 옮기고, `specular`도 물 값(0.25) 쪽으로 보간한다 |
 | **웅덩이 마스크 생성 스크립트** | 마스크 PNG만 커밋. 생성 방법은 `Masks/CREDITS.md`에 글로만 있다(스크립트는 세션 임시 폴더) | 네온·카메라 동선이 바뀌어 마스크를 다시 만들어야 할 때 | `CREDITS.md`의 배치 표대로 다시 생성한다. 자주 바뀌면 스크립트를 `Masks/`에 원본 소스로 커밋한다 |
 | **법선 시각화 도구(기하 셰이더)** | 법선·탄젠트는 PS 색 디버그 뷰로 확인 | 모델의 탄젠트나 노멀 맵 방향을 디버깅해야 할 때 | 강의 연계 B(`NormalGS.hlsl`) — 정점마다 법선·탄젠트를 선분으로 그린다 |
@@ -610,6 +626,20 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 완료한 단계: Step 1 렌더 타깃 생성(`74aebd8`) → Step 2 HDR 타깃 2-pass(`0e75485`) → Step 3 톤 매핑 + Exposure(`d5d36d7`) → Step 4 선형 색공간(`e17b870`) → 3-d ACES(`86f17a4`) → Rim 강조 이동(`765b68c`) → Step 5 밝은 부분 추출·디버그 뷰(`5ddb2ab`) → Step 6 분리형 블러(`80b825f`) → Step 7 합성(`4df455b`) → 블러 반복(`89f8d64`) → 룩 재튜닝(`050a1d9`). 설계 이유는 §4의 "HDR 씬 타깃, 후처리 패스와 선형 색공간", "Bloom 파이프라인", "룩 재튜닝", 기록은 §8 참고.
 
 진행 순서는 그래픽스 강의 연계로 정한 **11번(HDR+Bloom) → 10번(Normal/Roughness+Fresnel+Cube Mapping+IBL) → 9번(Shadow Mapping)**을 그대로 따른다.
+
+**완성 계획 — B안 (2026-10-27 사용자 결정, "되는 데까지 빠르게")**
+
+목표는 다음 주 안에 **보여 줄 수 있는 완성본**이다. 순서: **10-3 Skybox → 10-4 환경 반사 → 10-7 평면 반사(+ 시작 벽 통과 버그) → 씬 배치(로드맵 8) + 룩 재조정 → 배포 빌드·README → 영상·스크린샷**. 10-5 IBL은 시간이 남으면 한다(하면 BRDF LUT 대신 Unreal `EnvBRDFApprox`로 줄인다). 10-5보다 10-7을 앞세운 이유: 정적 큐브맵(10-4·10-5)은 골목 **밖** 하늘만 비추고, 이 데모의 주인공인 골목 **안** 네온은 평면 반사만 비춘다. 좁은 밤 골목이라 IBL 간접광 변화는 은은하다.
+
+| 완성 조건 | 상태 |
+|---|---|
+| 시작 → 탐색 → 스위치 → 순차 점등이 끊김 없이 이어지는 1~2분 플레이 | 흐름 ✅, 시작 벽 통과 버그 남음 |
+| 장면이 "골목"으로 읽히는 배치 (큐브 소품 + ambientCG 텍스처, 필요하면 Poly Haven CC0 모델) | ❌ |
+| **exe만으로 실행되는 빌드** (지금은 셰이더·에셋이 상대 경로라 작업 디렉터리 `MyPF/`가 필요) | ❌ |
+| 시연 영상·스크린샷 | ❌ |
+| README: 기술 하이라이트, 구조도, 실행 방법 | ❌ |
+
+진행 방식: 렌더링 단계(10-3·10-4·10-7)는 지금처럼 사용자가 설계·작성하고 에이전트가 리뷰한다. 씬 배치처럼 학습과 거리가 먼 반복 작업은 G-1처럼 에이전트가 참고 코드를 쓰고 사용자가 옮기는 방식으로 속도를 낸다.
 
 **다음에 이어서 할 작업 (순서)**
 
@@ -645,13 +675,13 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
      - W-4 노멀 맵은 탄젠트가 필요해 10-6으로 합친다. 병행: 반사에 비칠 Greybox 소품(쓰레기통·상자·배관) 몇 개
      - **에셋·소품 배치를 시작할 때 §5 "확장 예약 목록"의 월드 정렬 UV, 반복 깨기, `uvOffset`을 먼저 검토한다**(2026-10-23 사용자 결정). 상용 엔진의 타일링 관례(재질 단위 Tiling → 크기가 제각각이면 월드 정렬 → 반복이 보이면 데칼·매크로 변화)를 따른다.
    - **10번 나머지 순서 (2026-10-23 보강, 강의 11~13장 분석 반영 — 근거는 §7 "강의 PBR 자료 지도")**: GGX는 10-W 뒤로 간다. GGX의 장점(하이라이트의 긴 꼬리)은 매끈한 웅덩이 위에서 가장 잘 보이기 때문이다.
-     - **10-2' GGX + Smith ← 바로 다음** (그 전에 짧은 버그 수정으로 §8 N-5 항목의 **시작 벽 통과**를 먼저 처리할 수 있다) — `SpecularBlinnPhong`을 `NdfGGX`·`SchlickGGX` 계열로 교체. **IBL의 BRDF LUT가 GGX 전제라 IBL보다 먼저** 한다. 강의 `NdfGGX`의 `/π`는 우리 규약에 맞게 뺀다(AGENTS §7)
-     - **10-3** DDS 로더 + Skybox(HDRI) — 11 Step4 `CreateDDSTextureFromFileEx`, Ch13 `SkyboxVS/PS`. 카메라가 `Common`의 b1이라 스카이박스 VS는 `Common`만 include하면 된다
+     - ✅ **10-2' GGX + Smith, π 규약 전환 (2026-10-27)** (`01f7d38` G-1, `fb58d71` G-3) — G-1 π 규약 전환(diffuse·specular `/π`, 직접광 세기 × π) + Unreal 형식 `D_GGX`·`Vis_SmithJointApprox`·`F_Schlick`·`SpecularGGX`와 A/B 스위치 → G-2 비교(`false` 화면 그대로, `true` 꼬리) → G-3 Blinn-Phong·스위치 삭제, 웅덩이 roughness 0.1. 화면 확인 완료. 설계 이유는 §4 "GGX + Smith와 π 규약 전환"
+     - **10-3** DDS 로더 + Skybox(HDRI) **← 바로 다음** (시작 벽 통과 버그를 먼저 짧게 고칠 수도 있다) — 11 Step4 `CreateDDSTextureFromFileEx`, Ch13 `SkyboxVS/PS`. 카메라가 `Common`의 b1이라 스카이박스 VS는 `Common`만 include하면 된다
      - **10-4** 환경 매핑(`reflect(-V, N)`)
      - **10-5** IBL(split-sum) — `main`의 ambient 한 줄을 `ComputeIndirectLighting`으로, `PI` 사용. IBL용 Fresnel은 N·V
      - ~~10-6 탄젠트 + 노멀 맵~~ → W-3 앞으로 당겨 완료. AO 맵은 IBL(10-5)에서 간접광에 곱할 때 들인다
      - **10-7 ★ 평면 반사** — 13 Step1 Mirror(반사 행렬). 강의는 스텐실로 선명한 거울을 그리지만, 우리는 **반사 씬을 렌더 타깃에 그리고 roughness만큼 블러**(기존 Bloom 블러 재사용)해서 젖은 바닥에 쓴다. 골목 안 네온과 벽이 **실제로** 비치는 유일한 방법이라 효과가 가장 크다
-     - **10-8** (선택) metallic — 금속 소품이 생길 때. `FresnelSchlick`을 `float3`로 바꾼다
+     - **10-8** (선택) metallic — 금속 소품이 생길 때. `F_Schlick`을 `float3`로 바꾼다
      - **10-9** (선택) 높이 맵 — 평평한 큐브라 VS 변위는 안 맞는다. POM(PS) 또는 테셀레이션(11 Step3 HS/DS)
    - **10번 뒤**: 9 섀도 맵 → PCF → PCSS(13 Step4~6) → PSO/BlendState 정리(13 Step2) → 12 안개 + Halo(HDR에서, 13 Step3·7) · 비(10 Step1~2). 개선 항목: Bloom 밉 체인(Ch13 BloomDown/Up), 네온 튜브 면광원(13 Step8 대표점 — 강의도 TODO).
    - **노멀 맵 메모**: 밉에서 법선을 평균하면 길이가 1보다 짧아진다(방향이 다른 단위 벡터의 평균). 노멀 맵을 샘플한 뒤 셰이더에서 **반드시 `normalize`**한다.
@@ -706,7 +736,7 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
-10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular(2026-09-30)·10-2 Fresnel(2026-10-23) 완료, 10-W 젖은 바닥 디테일 완료(W-1 UV 타일링, W-2 roughness 맵, 10-6 탄젠트·노멀 맵(앞당김), N-5 벽 노멀 맵, W-3 웅덩이 마스크 — 2026-10-26), 다음 10-2' GGX — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
+10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular(2026-09-30)·10-2 Fresnel(2026-10-23) 완료, 10-W 젖은 바닥 디테일 완료(W-1 UV 타일링, W-2 roughness 맵, 10-6 탄젠트·노멀 맵(앞당김), N-5 벽 노멀 맵, W-3 웅덩이 마스크 — 2026-10-26), 10-2' GGX + Smith·π 규약 전환 완료(2026-10-27), 다음 10-3 DDS + Skybox — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
 11. ✅ HDR Scene Target, Bloom과 Tone Mapping (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 2026-09-15, Bloom Step 5~7과 블러 반복·룩 재튜닝 2026-09-17에 완료)
 12. 안개, 비와 색조 보정 (기하 파이프라인 챕터의 기하 셰이더·빌보드가 여기 본체다 — 아래 "강의 연계 아이디어" 참고)
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류. 디버그 UI는 아래 "강의 연계 아이디어" A그룹으로 상당 부분 해결된다)
@@ -802,7 +832,7 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 
 **가져올 때 그대로 옮기면 안 되는 곳** (코드를 직접 읽고 확인)
 
-1. **π 규약이 섞여 있다.** `NdfGGX`는 `/π`(107행)인데 diffuse는 `kd * albedo`(311행)로 π가 없다. 10-1에서 피한 바로 그 불일치라 강의 화면은 specular가 3.14배 약하다. 우리 규약(diffuse에 π 없음)에 맞춰 GGX의 `/π`를 뺀다.
+1. **π 규약이 섞여 있다.** `NdfGGX`는 `/π`(107행)인데 diffuse는 `kd * albedo`(311행)로 π가 없다. 그래서 강의 화면은 specular가 diffuse 대비 3.14배 약하다. 10-2'에서 우리 쪽을 정석(diffuse = albedo / π)으로 바꿨으므로 **강의 D항은 그대로 쓰고 diffuse만 `/π`로** 보면 된다.
 2. **후처리가 LDR에서 돈다.** `PostEffectsPS.hlsl:99`가 `clamp(0, 1)` 뒤에 Halo와 안개를 더하고, 안개 색은 흰색 하드코딩이다. 우리는 **톤 매핑 전 HDR**에서, 밤 골목 색으로 한다.
 3. **Halo가 `lights[1]` 하나만 본다.** Point Light 배열 전체로 일반화한다.
 4. **구형 면광원 대표점이 미완성(TODO)이다.** 네온 튜브를 면광원으로 보이게 하려면 Karis 2013 방식을 직접 구현한다 — 포트폴리오 차별점이 될 수 있다.
@@ -911,6 +941,18 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
+### 2026-10-27 — GGX + Smith, π 규약 전환 (10-2') ✅
+
+- 완료한 작업:
+  - G-1 (`01f7d38`, 사용자 커밋): π 규약 전환 — diffuse `albedo × (1 − F) / π`, Blinn-Phong `(n + 8) / (8π)`, 직접광 세기 5곳 `× DirectX::XM_PI`(ambient·Emissive·Rim 제외). Unreal 형식 `D_GGX(a2, NdotH)`·`Vis_SmithJointApprox(a2, NdotV, NdotL)`·`F_Schlick`(이름 변경)·`SpecularGGX`(D·Vis, F 제외), 입구 roughness 최솟값, `NdotV = saturate(abs(N·V) + 1e-5)`, 임시 `USE_GGX` 스위치. 사용자가 "에이전트가 참고 코드를 쓰고 사용자가 보고 직접 작성"하는 방식을 요청해, 에이전트가 함수별 변경 설명과 함께 참고 코드를 제시했다(소스는 사용자가 작성)
+  - G-2: `USE_GGX = false`(화면 그대로 → π 전환 확인), `true`(꼬리 → GGX 확인) 사용자 화면 확인
+  - G-3 (`fb58d71`, 사용자 커밋): `SpecularBlinnPhong`·`USE_GGX` 삭제, 웅덩이 `PUDDLE_ROUGHNESS` 0.15 → 0.1(사용자). 주석은 사용자 요청으로 에이전트가 갱신(`MIN_PERCEPTUAL_ROUGHNESS`, `D_GGX`·`Vis`·`SpecularGGX` 출처와 의도, 웅덩이 근거, `DirectionalLight.h` 블록 복원과 π 규약 설명)
+- 확인한 결과: `fxc` 경고 없음, 사용자 화면 확인.
+  - 리뷰 중 잡은 문제: ① `DistributionGGX`의 `max(d², 1e-7)`가 roughness < 0.13에서 하이라이트 중심을 깎음 ② N·V 조기 반환이 diffuse까지 꺼서 노멀 맵 바닥에 검은 점(+ `false` 화면도 바뀜) ③ G 형태 `D·F·G / (4·N·V·N·L)`의 0 / 0 = NaN ④ 삭제된 함수를 가리키는 주석, 값과 반대되는 웅덩이 근거 주석
+- 남아 있는 문제: 이 문서 갱신이 미커밋(사용자가 "문서만 갱신" 요청). §5 — `Pow4`·`Pow5`, `BRDFData`/`BxDFContext`, IBL용 Smith 재매핑(k = α / 2), 웅덩이 albedo 재튜닝(10-5). 시작 벽 통과(N-5 항목).
+- 다음에 이어서 할 작업: **10-3 DDS 로더 + Skybox(HDRI)**.
+- 중요한 설계 결정과 이유: §4 "GGX + Smith와 π 규약 전환".
 
 ### 2026-10-26 — 웅덩이 마스크 (W-3) ✅ — 10-W 완료
 

@@ -2,6 +2,7 @@
 #include "GraphicsDevice.h"
 #include "D3D11Utils.h"
 #include <utility>
+#include <directxtk/DDSTextureLoader.h>
 
 namespace My
 {
@@ -174,6 +175,43 @@ namespace My
 		slot.textureRTV = std::move(texRTV);
 
 		return true;
+	}
+
+	TextureHandle GraphicsResourceManager::CreateCubeMapTexture(const std::string& ddsPath)
+	{
+		if (!m_graphicsDevice || !m_graphicsDevice->GetDevice() || ddsPath.empty())
+		{
+			return TextureHandle{};
+		}
+
+		const std::wstring widePath(ddsPath.begin(), ddsPath.end());
+
+		ComPtr<ID3D11Resource> resource;
+		TextureResource		   tResource{};
+
+		HRESULT hr = DirectX::CreateDDSTextureFromFileEx(m_graphicsDevice->GetDevice(), widePath.c_str(), 0,
+			D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, D3D11_RESOURCE_MISC_TEXTURECUBE,
+			DirectX::DDS_LOADER_DEFAULT, resource.GetAddressOf(), tResource.textureSRV.GetAddressOf());
+		 
+		if (FAILED(hr))
+		{
+			wchar_t msg[512];
+			swprintf_s(msg, L"CreateDDSTextureFromFileEx() failed: %s (hr = 0x%08X)\n", widePath.c_str(),
+				static_cast<unsigned int>(hr));
+			OutputDebugStringW(msg);
+			return TextureHandle{};
+		}
+
+		// 로더는 ID3D11Resource로 돌려주므로 Texture2D로 바꿔 소유
+		if (FAILED(resource.As(&tResource.texture)))
+		{
+			return TextureHandle{};
+		}
+
+		uint32_t newIndex = static_cast<uint32_t>(m_textures.size());
+		m_textures.push_back(std::move(tResource));
+
+		return TextureHandle(newIndex);
 	}
 
 	BufferHandle GraphicsResourceManager::CreateIndexBuffer(const std::vector<uint32_t>& indices)

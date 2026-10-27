@@ -55,6 +55,32 @@ namespace My
 		return loadedTex;
 	}
 
+	const Texture* AssetManager::LoadCubeMap(const std::string& ddsPath)
+	{
+		if (!m_resourceManager || ddsPath.empty())
+		{
+			return nullptr;
+		}
+
+		auto iter = m_cubeMaps.find(ddsPath);
+		if (iter != m_cubeMaps.end())
+		{
+			return (iter->second).get();
+		}
+
+		auto cubeMap = std::make_unique<Texture>();
+		if (!cubeMap->InitializeCubeMap(*m_resourceManager, ddsPath))
+		{
+			OutputDebugStringW(L"AssetManager::LoadCubeMap() failed\n");
+			return nullptr;
+		}
+
+		const Texture* loadedCubeMap = cubeMap.get();
+		m_cubeMaps.emplace(ddsPath, std::move(cubeMap));
+
+		return loadedCubeMap;
+	}
+
 	const Mesh* AssetManager::CreateMesh(const std::string& meshName, const MeshData& meshData)
 	{
 		if (!m_resourceManager || meshName.empty())

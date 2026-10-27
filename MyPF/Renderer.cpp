@@ -6,6 +6,7 @@
 #include "Texture.h"
 #include "GraphicsDevice.h"
 #include "GraphicsResourceManager.h"
+#include "GeometryGenerator.h"
 
 namespace My
 {
@@ -226,6 +227,40 @@ namespace My
 			return false;
 		}
 
+		// 스카이박스 전용 쉐이더
+		if (!D3D11Utils::CreateVertexShader(Device, L"Shaders\\skyboxVertexShader.hlsl", m_skyboxVertexShader))
+		{
+			OutputDebugStringW(L"skyboxVertexShader Created Failed\n");
+			return false;
+		}
+
+		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\skyboxPixelShader.hlsl", m_skyboxPixelShader))
+		{
+			OutputDebugStringW(L"skyboxPixelShader Created Failed\n");
+			return false;
+		}
+
+		// 스카이박스 깊이 : 하늘은 깊이를 쓰지 않는다
+		D3D11_DEPTH_STENCIL_DESC skyboxDepthDesc{};
+		skyboxDepthDesc.DepthEnable = TRUE;
+		skyboxDepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+		skyboxDepthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+		if (FAILED(Device->CreateDepthStencilState(&skyboxDepthDesc, m_skyboxDepthStencilState.GetAddressOf())))
+		{
+			return false;
+		}
+
+		// 스카이박스 큐브 : 방향만 쓰기 때문에 크기 상관없음
+		MeshData skyboxCube = GeometryGenerator::MakeCube();
+		m_skyboxVertexBufferHandle = m_resourceManager->CreateVertexBuffer(skyboxCube.vertices);
+		m_skyboxIndexBufferHandle = m_resourceManager->CreateIndexBuffer(skyboxCube.indices);
+		m_skyboxIndexCount = static_cast<uint32_t>(skyboxCube.indices.size());
+
+		if (!m_skyboxVertexBufferHandle.IsValid() || !m_skyboxIndexBufferHandle.IsValid())
+		{
+			return false;
+		}
+
 		// Sampler 만들기
 		D3D11_SAMPLER_DESC sampDesc;
 		ZeroMemory(&sampDesc, sizeof(sampDesc));
@@ -405,6 +440,8 @@ namespace My
 		m_debugView = frameRenderData.postProcess.debugView;
 		m_bloomBlurIterations = frameRenderData.postProcess.bloomBlurIterations;
 
+		m_environmentMapHandle = frameRenderData.environmentMap;
+
 		ID3D11Buffer* lightconstantBuffer = m_resourceManager->GetBuffer(m_lightBufferHandle);
 		if (!lightconstantBuffer)
 		{
@@ -441,6 +478,52 @@ namespace My
 
 		// 입력 해제
 		context->PSSetShaderResources(0, 2, nullSRVs);
+	}
+
+	bool Renderer::DrawSkybox()
+	{
+		// 환경맵이 없으면 BeginFrame의 배경색 Clear가 하늘
+		if (!m_environmentMapHandle.IsValid())
+		{
+			return true;
+		}
+
+		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
+		ID3D11Buffer*			  vertexBuffer = m_resourceManager->GetBuffer(m_skyboxVertexBufferHandle);
+		ID3D11Buffer*			  indexBuffer = m_resourceManager->GetBuffer(m_skyboxIndexBufferHandle);
+		ID3D11Buffer*			  cameraBuffer = m_resourceManager->GetBuffer(m_cameraBufferHandle);
+		ID3D11ShaderResourceView* environmentSRV = m_resourceManager->GetSRV(m_environmentMapHandle);
+
+		if (!context || !vertexBuffer || !indexBuffer || !cameraBuffer || !environmentSRV)
+		{
+			OutputDebugStringW(L"Skybox resource is NULL\n");
+			return false;
+		}
+
+		UINT stride = sizeof(Vertex);
+		UINT offset = 0;
+
+		// 출력은 BeginFrame이 건 HDR 씬 타깃 + DSV 그대로. 이 패스가 쓰는 상태는 전부 직접 건다
+		context->IASetInputLayout(m_inputLayout.Get());
+		context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+		context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		context->VSSetShader(m_skyboxVertexShader.Get(), 0, 0);
+		context->VSSetConstantBuffers(1, 1, &cameraBuffer); // VS b1 = Camera
+		context->PSSetShader(m_skyboxPixelShader.Get(), 0, 0);
+		context->PSSetShaderResources(0, 1, &environmentSRV);
+		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
+		context->OMSetDepthStencilState(m_skyboxDepthStencilState.Get(), 0);
+
+		context->DrawIndexed(m_skyboxIndexCount, 0, 0);
+
+		// 입력 해제, 기본 깊이 상태 복구
+		ID3D11ShaderResourceView* nullSRV = nullptr;
+		context->PSSetShaderResources(0, 1, &nullSRV);
+		context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
+
+		return true;
 	}
 
 	ID3D11ShaderResourceView* Renderer::ResolveTextureSRV(const Texture* texture, TextureHandle fallback) const
@@ -521,6 +604,12 @@ namespace My
 		if (!m_resourceManager->GetBuffer(m_postProcessBufferHandle))
 		{
 			OutputDebugStringW(L"PostProcessBuffer is NULL\n");
+			return false;
+		}
+
+		// 불투명 물체를 다 그린 뒤, 후처리 전에 하늘. 물체가 덮은 픽셀은 깊이 테스트로 걸러진다
+		if (!DrawSkybox())
+		{
 			return false;
 		}
 

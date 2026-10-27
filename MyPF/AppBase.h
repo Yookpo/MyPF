@@ -95,6 +95,8 @@ namespace My
 		PostProcessSettings m_postProcessSettings;
 		DirectionalLight	m_directionalLight;
 
+		const Texture* m_environmentMap{ nullptr };
+
 		std::array<float, 4> m_backgroundColor;
 	};
 

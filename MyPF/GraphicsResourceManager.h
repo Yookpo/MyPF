@@ -30,6 +30,8 @@ namespace My
 		TextureHandle CreateRenderTarget(uint32_t width, uint32_t height, DXGI_FORMAT format);
 		bool		  ResizeRenderTarget(TextureHandle textureHandle, uint32_t width, uint32_t height);
 
+		TextureHandle CreateCubeMapTexture(const std::string& ddsPath);
+
 		template <typename T_VERTEX> BufferHandle CreateVertexBuffer(const std::vector<T_VERTEX>& vertices)
 		{
 			const uint32_t maxValue = (std::numeric_limits<uint32_t>::max)();

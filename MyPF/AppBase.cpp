@@ -7,6 +7,7 @@
 #include "Model.h"
 #include "NeonSign.h"
 #include "PlayerCollision.h"
+#include "Texture.h"
 #include "TextureType.h"
 
 namespace My
@@ -306,6 +307,12 @@ namespace My
 		if (!greyBoxMesh)
 		{
 			return false;
+		}
+
+		m_environmentMap = m_assetManager.LoadCubeMap("Assets\\Textures\\Cubemaps\\skybox\\cubemap_bgra.dds");
+		if (!m_environmentMap)
+		{
+			OutputDebugStringW(L"Environment map load failed. Using background color\n");
 		}
 
 		const Texture* wallAlbedoTex = m_assetManager.LoadTexture(
@@ -636,6 +643,7 @@ namespace My
 			m_scene.GatherPointLights(frameRenderData.pointLights.data(), frameRenderData.pointLights.size());
 		frameRenderData.cameraPosition = m_camera.GetPosition();
 		frameRenderData.postProcess = m_postProcessSettings;
+		frameRenderData.environmentMap = m_environmentMap ? m_environmentMap->GetTextureHandle() : TextureHandle{};
 
 		if (!m_renderer.BeginFrame(frameRenderData, m_backgroundColor))
 		{

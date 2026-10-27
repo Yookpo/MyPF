@@ -31,4 +31,17 @@ namespace My
 
 		return true;
 	}
+	bool Texture::InitializeCubeMap(GraphicsResourceManager& resourceManager, const std::string& ddsPath)
+	{
+		TextureHandle textureHandle = resourceManager.CreateCubeMapTexture(ddsPath);
+
+		if (!textureHandle.IsValid())
+		{
+			return false;
+		}
+
+		m_textureHandle = textureHandle;
+
+		return true;
+	}
 } // namespace My
