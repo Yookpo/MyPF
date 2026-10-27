@@ -111,17 +111,34 @@ IncidentLight GetPointLight(uint index, float3 posWorld)
 // 정규화된 Blinn-Phong: pow(N·H, n) × (n+8)/8. roughness가 바뀌어도 총 반사량 유지
 float SpecularBlinnPhong(float NdotH, float roughness)
 {
-    roughness = max(roughness, MIN_PERCEPTUAL_ROUGHNESS);
     float alpha = pow(roughness, 2);
     float n = 2 / pow(alpha, 2) - 2;
     n = max(n, 1);
 
-    return pow(NdotH, n) * (n + 8) / 8;
+    return pow(NdotH, n) * (n + 8) / (8 * PI);
+}
+
+// a2 = α² = roughness⁴
+float D_GGX(float a2, float NdotH)
+{
+    float denom = (NdotH * a2 - NdotH) * NdotH + 1;
+
+    return a2 / (PI * denom * denom);
+}
+
+// Smith 가시성 Vis = G / (4·N·L·N·V). 높이 상관 Smith의 근사
+float Vis_SmithJointApprox(float a2, float NdotV, float NdotL)
+{
+    float a = sqrt(a2);
+    float visSmithV = NdotL * (NdotV * (1.0 - a) + a);
+    float visSmithL = NdotV * (NdotL * (1.0 - a) + a);
+
+    return 0.5 / (visSmithV + visSmithL);
 }
 
 // Schlick 근사 Fresnel, 미세면(H)에 빛이 스치듯 들어올수록 반사율이 F0 -> 1로 커진다.
 // 직접광은 cosθ로 V·H를, 간접광/IBL은 N·V
-float FresnelSchlick(float f0, float cosTheta)
+float F_Schlick(float f0, float cosTheta)
 {
     float oneMinusCos = 1.0 - cosTheta;
     float fresnelWeight = (oneMinusCos * oneMinusCos * oneMinusCos * oneMinusCos * oneMinusCos);
@@ -130,15 +147,30 @@ float FresnelSchlick(float f0, float cosTheta)
     return reflectance;
 }
 
+// GGX specular의 D*Vis
+float SpecularGGX(float roughness, float NdotH, float NdotV, float NdotL)
+{
+    float a2 = roughness * roughness * roughness * roughness;
+    float D = D_GGX(a2, NdotH);
+    float Vis = Vis_SmithJointApprox(a2, NdotV, NdotL);
+
+    return D * Vis;
+}
+
 // 빛 하나가 표면에 만드는 직접광. 모든 빛 종류가 이 함수를 지난다
 float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light, float3 viewDir)
 {
+    static const bool USE_GGX = false;
+    surface.roughness = max(surface.roughness, MIN_PERCEPTUAL_ROUGHNESS);
+    
     float NdotL = saturate(dot(surface.normal, light.direction));
     // 빛이 표면 뒤나 수평에서 오면 계산 생략
     if (NdotL <= 1e-8)
     {
         return float3(0, 0, 0);
     }
+    
+    float NdotV = saturate(abs(dot(surface.normal, viewDir)) + 1e-5);
     
     float3 halfVec = light.direction + viewDir;
     // L + v = 0이면, normalize에러(NaN)
@@ -152,11 +184,15 @@ float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light, float3 vi
     float VdotH = saturate(dot(viewDir, halfVec));
     
     float f0 = 0.08 * surface.specular;
-    float F = FresnelSchlick(f0, VdotH);
+    float F = F_Schlick(f0, VdotH);
     
-    float specularTerm = SpecularBlinnPhong(NdotH, surface.roughness) * F;
+    float specularDV = USE_GGX ? SpecularGGX(surface.roughness, NdotH, NdotV, NdotL)
+                               : SpecularBlinnPhong(NdotH, surface.roughness);
+    
+    float specularTerm = specularDV * F;
+ 
     float diffuseWeight = 1 - F;
-    float3 diffuseTerm = surface.albedo * diffuseWeight;
+    float3 diffuseTerm = surface.albedo * diffuseWeight / PI;
 
     float3 directColor = (diffuseTerm + specularTerm) * light.radiance * NdotL;
     

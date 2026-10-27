@@ -371,8 +371,6 @@ namespace My
 			return false;
 		}
 
-		
-
 		auto wallMat = m_assetManager.CreateMaterial("wallMat");
 		if (!wallMat)
 		{
@@ -441,7 +439,7 @@ namespace My
 		desc1.glowScale = { 0.1f, 0.7f, 1.2f };
 		desc1.lightPosition = { -1.2f, 2.2f, 6.0f };
 		desc1.lightRange = 6.0f;
-		desc1.lightIntensity = 1.4f;
+		desc1.lightIntensity = 1.4f * DirectX::XM_PI;
 		desc1.color = { 1.0f, 0.08f, 0.45f };
 		desc1.emissiveIntensity = 18.0f;
 
@@ -456,7 +454,7 @@ namespace My
 		desc2.glowScale = { 0.1f, 0.7f, 1.5f };
 		desc2.lightPosition = { 1.2f, 2.7f, 15.0f };
 		desc2.lightRange = 6.5f;
-		desc2.lightIntensity = 0.7f;
+		desc2.lightIntensity = 0.7f * DirectX::XM_PI;
 		desc2.color = { 0.10f, 0.85f, 1.00f };
 		desc2.emissiveIntensity = 7.0f;
 
@@ -471,7 +469,7 @@ namespace My
 		desc3.glowScale = { 1.4f, 0.5f, 0.1f };
 		desc3.lightPosition = { 0.0f, 2.8f, 19.5f };
 		desc3.lightRange = 6.5f;
-		desc3.lightIntensity = 1.4f;
+		desc3.lightIntensity = 1.4f * DirectX::XM_PI;
 		desc3.color = { 1.0f, 0.20f, 0.05f };
 		desc3.emissiveIntensity = 15.0f;
 
@@ -487,7 +485,7 @@ namespace My
 		EnvFillLight.GetTransform().SetPosition(Vector3{ 0.0f, 3.2f, 10.0f });
 		EnvFillLight.GetPointLightComponent().SetColor(Vector3{ 0.28f, 0.48f, 0.85f });
 		EnvFillLight.GetPointLightComponent().SetRange(24.0f);
-		EnvFillLight.GetPointLightComponent().SetIntensity(0.55f);
+		EnvFillLight.GetPointLightComponent().SetIntensity(0.55f * DirectX::XM_PI);
 		EnvFillLight.GetPointLightComponent().SetEnabled(true);
 
 		// Create floor
