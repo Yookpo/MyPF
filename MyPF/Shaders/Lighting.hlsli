@@ -32,7 +32,7 @@ struct SurfaceData
     float specular; // 비금속 반사량 [0, 1] , F0 = 0.08 * specular (0.5 → 0.04)
 };
 
-// roughness가 0에 가까우면 Blinn-Phong 지수가 폭발
+// roughness가 0이면 D_GGX의 N·H = 1 값 1/(π·α²)가 무한대로 간다. BRDF 입구(ComputeDirectLighting)에서 한 번 막는다
 static const float MIN_PERCEPTUAL_ROUGHNESS = 0.05;
 
 cbuffer LightConstantBuffer : register(b0)
@@ -108,17 +108,9 @@ IncidentLight GetPointLight(uint index, float3 posWorld)
     return outPointLight;
 }
 
-// 정규화된 Blinn-Phong: pow(N·H, n) × (n+8)/8. roughness가 바뀌어도 총 반사량 유지
-float SpecularBlinnPhong(float NdotH, float roughness)
-{
-    float alpha = pow(roughness, 2);
-    float n = 2 / pow(alpha, 2) - 2;
-    n = max(n, 1);
-
-    return pow(NdotH, n) * (n + 8) / (8 * PI);
-}
-
-// a2 = α² = roughness⁴
+// GGX(Trowbridge-Reitz) 미세면 분포. a2 = α² = roughness⁴  [Walter 2007], Unreal BRDF.ush D_GGX
+// diffuse도 albedo / π라 /π는 정석 규약이다(2026-10-27 π 규약 전환)
+// 분모는 N·H ≤ 1에서 최솟값이 a2(> 0)라 0으로 나눌 일이 없다
 float D_GGX(float a2, float NdotH)
 {
     float denom = (NdotH * a2 - NdotH) * NdotH + 1;
@@ -126,7 +118,8 @@ float D_GGX(float a2, float NdotH)
     return a2 / (PI * denom * denom);
 }
 
-// Smith 가시성 Vis = G / (4·N·L·N·V). 높이 상관 Smith의 근사
+// Smith 가시성 Vis = G / (4·N·L·N·V). 높이 상관 Smith의 근사  [Heitz 2014], Unreal BRDF.ush Vis_SmithJointApprox
+// N·V = 0이어도 분모가 N·L × a(> 0)로 남아 0으로 나눌 일이 없다
 float Vis_SmithJointApprox(float a2, float NdotV, float NdotL)
 {
     float a = sqrt(a2);
@@ -147,7 +140,8 @@ float F_Schlick(float f0, float cosTheta)
     return reflectance;
 }
 
-// GGX specular의 D*Vis
+// GGX specular의 D·Vis (F 제외)
+// Unreal SpecularGGX와 달리 F를 곱하지 않는다: diffuse가 (1 − F)로 F를 함께 쓰므로 호출부에서 한 번 곱한다
 float SpecularGGX(float roughness, float NdotH, float NdotV, float NdotL)
 {
     float a2 = roughness * roughness * roughness * roughness;
@@ -160,7 +154,6 @@ float SpecularGGX(float roughness, float NdotH, float NdotV, float NdotL)
 // 빛 하나가 표면에 만드는 직접광. 모든 빛 종류가 이 함수를 지난다
 float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light, float3 viewDir)
 {
-    static const bool USE_GGX = false;
     surface.roughness = max(surface.roughness, MIN_PERCEPTUAL_ROUGHNESS);
     
     float NdotL = saturate(dot(surface.normal, light.direction));
@@ -186,8 +179,7 @@ float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light, float3 vi
     float f0 = 0.08 * surface.specular;
     float F = F_Schlick(f0, VdotH);
     
-    float specularDV = USE_GGX ? SpecularGGX(surface.roughness, NdotH, NdotV, NdotL)
-                               : SpecularBlinnPhong(NdotH, surface.roughness);
+    float specularDV = SpecularGGX(surface.roughness, NdotH, NdotV, NdotL);
     
     float specularTerm = specularDV * F;
  

@@ -22,9 +22,9 @@ cbuffer MaterialConstantBuffer : register(b2)
 }
 
 // 웅덩이(puddleMask = 1)의 표면 값. Material cbuffer가 꽉 차서 셰이더 상수로 둔다
-// 물은 거의 거울(0)이지만 0.1이면 Blinn-Phong 지수가 약 2만이라 네온 반사가 점 하나로 줄어든다.
-// 0.15(n ≈ 4천)는 세로로 길쭉한 젖은 반사 줄이 보이는 가장 낮은 값이다
-static const float PUDDLE_ROUGHNESS = 0.15;
+// 물은 거의 거울(0)이다. Blinn-Phong 때는 0.1이면 하이라이트가 점 하나로 줄어 0.15였지만,
+// GGX(10-2')는 꼬리가 길어 0.1에서도 젖은 반사 줄이 남아 0.1로 낮췄다(N·H = 1에서 D ≈ 3200)
+static const float PUDDLE_ROUGHNESS = 0.1;
 // 선형 배율(BaseColor와 달리 sRGB 아님). 간접광 반사가 없어(10-5 전) 0.5면 물이 아니라 검은 얼룩처럼 보인다
 static const float PUDDLE_ALBEDO_SCALE = 0.75;
 
