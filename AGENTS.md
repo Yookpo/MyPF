@@ -16,9 +16,9 @@ DirectX 11 기반의 1~2분 분량 실시간 사이버펑크 골목 렌더링 �
 
 남은 목표 기능: 그림자, 젖은 바닥 반사(Specular·Fresnel·GGX·Cube Map·IBL·재질 맵·평면 반사), 안개·비·색조 보정, 나머지 이동 제한. 강의(11~13장)의 PBR 자료를 최대한 활용해 렌더링 품질을 끌어올리는 것이 방향이다(CODEX_HANDOFF.md §7 "강의 PBR 자료 지도").
 
-현재 전체 진행률은 약 82%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅, 셰이더 빛/표면 분리, Specular·Fresnel(젖은 바닥 재질값 포함)과 Unreal 형식의 GGX + Smith 직접광 BRDF(정석 π 규약), 젖은 바닥 디테일(UV 타일링, ambientCG 바닥·벽 PBR 텍스처 세트의 roughness·노멀 맵, 탄젠트, 웅덩이 마스크)까지 완료했다. **로드맵 11번이 닫혔고 10번의 10-1(Specular)·10-2(Fresnel)·10-W(젖은 바닥 디테일)·10-6(노멀 맵)·10-2'(GGX + Smith)가 끝났다.**
+현재 전체 진행률은 약 83%다. 기반 렌더링, GPU Resource 소유, Asset/Model 파이프라인, Editor/Play와 1인칭 조작, Greybox 골목과 플레이어-벽 충돌, PowerSwitch, 다중 Point Light와 Emissive 순차 점등, Rim Lighting, HDR 씬 타깃·Exposure·톤 매핑(Reinhard/ACES)·선형 색공간, Bloom(밝은 부분 추출 → 분리형 블러 → 합성), 밤 골목 룩 세팅, 셰이더 빛/표면 분리, Specular·Fresnel(젖은 바닥 재질값 포함)과 Unreal 형식의 GGX + Smith 직접광 BRDF(정석 π 규약), 젖은 바닥 디테일(UV 타일링, ambientCG 바닥·벽 PBR 텍스처 세트의 roughness·노멀 맵, 탄젠트, 웅덩이 마스크), HDRI 큐브맵 Skybox까지 완료했다. **로드맵 11번이 닫혔고 10번의 10-1(Specular)·10-2(Fresnel)·10-W(젖은 바닥 디테일)·10-6(노멀 맵)·10-2'(GGX + Smith)·10-3(Skybox)이 끝났다.**
 
-**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 셰이더는 빛 쪽(`IncidentLight`, `Get…Light`)과 표면 쪽(`SurfaceData`, `ComputeDirectLighting`)으로 나뉘어 있고 모든 빛이 `ComputeDirectLighting` 한 곳을 지난다. 10-1(Specular)과 10-2(Fresnel)가 끝났고 **다음은 10-W 젖은 바닥 디테일**이다. W-1 UV 타일링과 W-2 roughness 맵(ambientCG `Asphalt023S`, 기본 흰색 텍스처)이 끝났고, 이어서 10-6 탄젠트·노멀 맵을 W-3보다 앞당겨 끝냈고(웅덩이가 노멀을 평평하게 덮어야 하므로), N-5에서 벽도 ambientCG `Bricks096` 세트로 바꿔 노멀 맵을 붙이며 옆면 탄젠트를 검증했다. 마지막으로 W-3 웅덩이 마스크(`t3`, 직접 생성한 마스크로 roughness·albedo·normal 보간)로 10-W가 닫혔다. 균일한 바닥으로는 반사 기능을 평가할 수 없어서 10-W를 GGX보다 앞당겼던 것이다. 이어서 10-2'에서 직접광 BRDF를 Unreal 형식 GGX + Smith로 바꾸고 π 규약을 정석(diffuse = albedo / π)으로 전환했다(IBL의 BRDF LUT가 GGX 전제라 IBL보다 먼저). **다음은 10-3 DDS 로더 + Skybox(HDRI)**다. 그 전에 시작 벽 통과 버그(CODEX_HANDOFF.md §8 N-5 항목)를 짧게 고칠 수 있다. 10번 다음이 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
+**바로 다음 기능 책임:** 로드맵 10번(젖은 바닥 반사 — Specular·Fresnel·Cube Map·IBL·Normal/Roughness)이다. 선행 조건인 **텍스처 색공간 선택과 밉맵은 모두 끝났다**(`ddb29c7` 경로, `0d0eac2` 캐시 키, `f91b0e6` 밉맵). 텍스처 포맷은 지금 PNG를 유지하고, 큐브맵은 로드맵 10번에서 DDS로 읽으며, 2D 텍스처의 DDS 쿠킹은 에셋이 늘어날 때 옮긴다(CODEX_HANDOFF.md §4 "텍스처 파이프라인 방향"). 셰이더는 빛 쪽(`IncidentLight`, `Get…Light`)과 표면 쪽(`SurfaceData`, `ComputeDirectLighting`)으로 나뉘어 있고 모든 빛이 `ComputeDirectLighting` 한 곳을 지난다. 10-1(Specular)과 10-2(Fresnel)가 끝났고 **다음은 10-W 젖은 바닥 디테일**이다. W-1 UV 타일링과 W-2 roughness 맵(ambientCG `Asphalt023S`, 기본 흰색 텍스처)이 끝났고, 이어서 10-6 탄젠트·노멀 맵을 W-3보다 앞당겨 끝냈고(웅덩이가 노멀을 평평하게 덮어야 하므로), N-5에서 벽도 ambientCG `Bricks096` 세트로 바꿔 노멀 맵을 붙이며 옆면 탄젠트를 검증했다. 마지막으로 W-3 웅덩이 마스크(`t3`, 직접 생성한 마스크로 roughness·albedo·normal 보간)로 10-W가 닫혔다. 균일한 바닥으로는 반사 기능을 평가할 수 없어서 10-W를 GGX보다 앞당겼던 것이다. 이어서 10-2'에서 직접광 BRDF를 Unreal 형식 GGX + Smith로 바꾸고 π 규약을 정석(diffuse = albedo / π)으로 전환했다(IBL의 BRDF LUT가 GGX 전제라 IBL보다 먼저). 10-3에서 Poly Haven HDRI를 float DDS 큐브맵으로 바꿔 Skybox를 그렸고, 그 그리기를 강의 Ch11 `CubeMapping`처럼 `SkyBox` 클래스로 분리했다. **다음은 10-4 환경 반사**(`reflect(−V, N)`으로 큐브맵 샘플)다. 완성 계획(B안: 10-4 → 10-7 평면 반사 + 시작 벽 통과 버그 → 씬 배치 → 배포 빌드·README → 영상)은 CODEX_HANDOFF.md §6. 10번 다음이 9번(Shadow Mapping)이다. 상세 진행 방향은 CODEX_HANDOFF.md 참고.
 
 작업 브랜치는 `main` 하나다. 로드맵 11번은 `5794467`로 `main`에 머지됐고 기능 브랜치는 정리됐다.
 
@@ -84,10 +84,12 @@ AppBase
 │  ├─ BufferResource[]  → ID3D11Buffer ComPtr
 │  └─ TextureResource[] → Texture2D / SRV / RTV ComPtr (+렌더 타깃 포맷)
 ├─ AssetManager --비소유--> GraphicsResourceManager
-│  └─ unique_ptr<Mesh / Texture / Material / Model> + 이름 캐시 (텍스처만 (경로, TextureType) 키)
+│  └─ unique_ptr<Mesh / Texture / Material / Model> + 이름 캐시 (텍스처만 (경로, TextureType) 키, 큐브맵은 경로 키 별도 캐시)
 ├─ Renderer --비소유--> GraphicsDevice / GraphicsResourceManager
-│  └─ 렌더 타깃 TextureHandle 4개(HDR 씬 + Bloom Bright/BlurX/BlurY), 기본 텍스처 Handle 3개(흰색·검정·평평한 노멀), Constant Buffer Handle 5개,
-│     셰이더(씬·전체 화면 VS·복사·톤 매핑·밝은 부분 추출·BlurX·BlurY), 샘플러 2개(WRAP/CLAMP)
+│  ├─ 렌더 타깃 TextureHandle 4개(HDR 씬 + Bloom Bright/BlurX/BlurY), 기본 텍스처 Handle 3개(흰색·검정·평평한 노멀), Constant Buffer Handle 5개,
+│  │  셰이더(씬·전체 화면 VS·복사·톤 매핑·밝은 부분 추출·BlurX·BlurY), 샘플러 2개(WRAP/CLAMP), 이번 프레임의 환경맵 Handle(비소유 복사)
+│  └─ SkyBox --비소유--> GraphicsResourceManager
+│     └─ 스카이박스 VS/PS/Input Layout/DepthStencil State ComPtr, 큐브 BufferHandle 2개
 ├─ Scene
 │  └─ vector<unique_ptr<GameObject>>
 │     ├─ Transform
@@ -99,7 +101,8 @@ AppBase
 ├─ Camera / EditorCameraSnapshot / FirstPersonCameraController
 ├─ PowerSwitch        --비소유--> Scene 소유 GameObject / Material
 ├─ PointLightSequence --비소유--> Scene 소유 GameObject / 등록된 Material
-├─ DirectionalLight / PostProcessSettings (Exposure, ToneMapper)
+├─ DirectionalLight (+ ambientStrength, environmentIntensity) / PostProcessSettings (Exposure, ToneMapper)
+├─ m_environmentMap --비소유--> AssetManager 소유 큐브맵 Texture (없으면 nullptr → 배경색)
 └─ EditorUI --비소유--> Scene / Camera / CameraController / DirectionalLight / BackgroundColor / PostProcessSettings
 
 AppBase --FrameRenderData--> Renderer::BeginFrame
@@ -117,8 +120,9 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 |---|---|---|
 | `GraphicsDevice` | Device, Context, SwapChain, 기본 RTV/Depth Texture/DSV. Resize와 Present | 그 위 전부 |
 | `GraphicsResourceManager` | 실제 Buffer/Texture2D/SRV/RTV ComPtr. 생성·조회·업데이트, 렌더 타깃 생성과 같은 슬롯 재생성 | Camera/Light/Material의 의미, Draw 순서, 렌더 타깃의 용도 |
-| `Renderer` | Shader/InputLayout, Rasterizer/DepthStencil/Sampler State(WRAP·CLAMP), 5개 Constant Buffer Handle, 렌더 타깃 Handle 4개(포맷·크기 결정, Bloom은 화면 절반), 맵이 없는 슬롯에 거는 1×1 기본 텍스처(흰색·검정·평평한 노멀, `ResolveTextureSRV`), 후처리 패스 체인(`EndScene`, `DrawFullScreenPass`), 색 상수 sRGB→선형 변환 | Scene, GameObject, Camera 클래스, ImGui |
-| `AssetManager` | Mesh/Texture/Material/Model의 `unique_ptr`와 이름 캐시. 텍스처 캐시는 `(경로, TextureType)`이 키라 같은 파일도 용도가 다르면 별개 리소스다 | Scene, Renderer |
+| `Renderer` | Shader/InputLayout, Rasterizer/DepthStencil/Sampler State(WRAP·CLAMP), 5개 Constant Buffer Handle, 렌더 타깃 Handle 4개(포맷·크기 결정, Bloom은 화면 절반), 맵이 없는 슬롯에 거는 1×1 기본 텍스처(흰색·검정·평평한 노멀, `ResolveTextureSRV`), 후처리 패스 체인(`EndScene`, `DrawFullScreenPass`), `SkyBox`(하늘을 언제·어떤 환경맵으로 그릴지), 색 상수 sRGB→선형 변환 | Scene, GameObject, Camera 클래스, ImGui |
+| `SkyBox` | 하늘 큐브를 그리는 방법: 자기 VS/PS/Input Layout, 깊이 상태(LESS_EQUAL + 쓰기 없음), 큐브 BufferHandle. `Renderer`가 소유하고 언제·어떤 환경맵으로 그릴지 정한다 | 환경맵 소유(매번 SRV를 받는다), Renderer의 기본 상태, Scene, Camera |
+| `AssetManager` | Mesh/Texture/Material/Model의 `unique_ptr`와 이름 캐시. 텍스처 캐시는 `(경로, TextureType)`이 키라 같은 파일도 용도가 다르면 별개 리소스다. 큐브맵(`LoadCubeMap`)은 별도 캐시 | Scene, Renderer |
 | `Scene` | `vector<unique_ptr<GameObject>>` | DX11, ImGui |
 | `InputSystem` | key state, 단발 입력(`WasKeyPressed`), 누적 MouseDelta | Camera, Scene |
 | `Camera` | Position, +Z Forward, Up, Yaw/Pitch, FOV, Aspect, View/Projection | 입력 장치, 렌더링 |
@@ -136,10 +140,10 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 6. Play 모드에서 `PowerSwitch::CanInteract`(Ray-BoundingBox 교차)가 참이면 스위치 Material의 Rim을 강조하고, `WasKeyPressed('E')`까지 참이면 전원 상태와 스위치 색을 반전한다.
 7. 커서를 Scene View 중앙으로 되돌린다.
 8. `PointLightSequence::Update`가 누적 시간에 따라 등록된 `SequenceEntry`의 Point Light와 Emissive Material을 한 단계씩 함께 켜거나 역순으로 끈다. 새 목표는 6번의 토글 직후 `PointLightSequence::Start`로 이미 받았다.
-9. `AppBase`가 Camera, DirectionalLight, `Scene::GatherPointLights` 결과, `PostProcessSettings`(Exposure, ToneMapper)로 `FrameRenderData`를 만든다.
+9. `AppBase`가 Camera, DirectionalLight, `Scene::GatherPointLights` 결과, `PostProcessSettings`(Exposure, ToneMapper), 환경맵 핸들(없으면 무효 핸들)로 `FrameRenderData`를 만든다.
 10. `Renderer::BeginFrame`이 HDR 씬 타깃(`R16G16B16A16_FLOAT`)과 DSV를 Clear·바인딩하고, 색 상수를 선형으로 바꿔 Camera/Light/PostProcess Constant Buffer를 갱신한다. Light 버퍼는 매 프레임 PS `b0`에 다시 건다.
 11. `AppBase`가 Scene을 순회해 `ModelPart` 또는 `MeshComponent`를 `RenderItem`으로 변환하고, `Renderer::DrawRenderItem`이 Object/Material Buffer와 Mesh/Texture를 바인딩해 `DrawIndexed`한다. 씬 셰이더는 1을 넘는 선형 HDR 값을 그대로 기록한다.
-12. `Renderer::EndScene`이 후처리 패스를 순서대로 실행한다. 뷰포트를 Bloom 타깃 크기(화면 절반)로 바꿔 ① 밝은 부분 추출(HDR → Bright) ② BlurX·BlurY를 반복 횟수만큼(첫 회차만 Bright에서 읽고 이후 직전 결과에서 누적)을 돌린 뒤 화면 뷰포트로 되돌리고, ③ 백버퍼를 깊이 버퍼 없이 출력으로 바꿔 톤 매핑 셰이더가 HDR(`t0`)과 Bloom(`t1`)을 `hdr * exposure + bloom * strength`로 합친 뒤 Reinhard/ACES → `1/2.2` 감마 인코드를 적용한다. 디버그 뷰가 Final이 아니면 마지막 패스만 복사 셰이더로 해당 중간 타깃을 보여준다. 각 패스는 출력 교체 → 입력 바인딩 → `Draw(3, 0)` → 입력 해제 순서를 지킨다.
+12. `Renderer::EndScene`이 먼저 `DrawSkybox`로 하늘을 그린다(환경맵 핸들이 유효할 때만. `SkyBox::Render`가 HDR 씬 타깃 + DSV에 그리고, `Renderer`가 깊이 상태를 씬 기본값으로 복구). 불투명 물체가 덮은 픽셀은 깊이 테스트로 걸러진다. 이어서 후처리 패스를 순서대로 실행한다. 뷰포트를 Bloom 타깃 크기(화면 절반)로 바꿔 ① 밝은 부분 추출(HDR → Bright) ② BlurX·BlurY를 반복 횟수만큼(첫 회차만 Bright에서 읽고 이후 직전 결과에서 누적)을 돌린 뒤 화면 뷰포트로 되돌리고, ③ 백버퍼를 깊이 버퍼 없이 출력으로 바꿔 톤 매핑 셰이더가 HDR(`t0`)과 Bloom(`t1`)을 `hdr * exposure + bloom * strength`로 합친 뒤 Reinhard/ACES → `1/2.2` 감마 인코드를 적용한다. 디버그 뷰가 Final이 아니면 마지막 패스만 복사 셰이더로 해당 중간 타깃을 보여준다. 각 패스는 출력 교체 → 입력 바인딩 → `Draw(3, 0)` → 입력 해제 순서를 지킨다.
 13. ImGui DrawData를 백버퍼에 렌더링하고 `Renderer::EndFrame`이 Present한다. `InputSystem::EndFrame`이 단발 키 상태를 초기화한다.
 
 ## 7. 코드를 읽어도 알 수 없는 함정
@@ -160,7 +164,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **바인딩 규칙**: 같은 텍스처를 RTV와 SRV로 동시에 걸 수 없으므로 패스는 출력 교체 → 입력 바인딩 → Draw → 입력 해제 순서를 지킨다. 파이프라인은 상태 기계라 각 패스는 자기가 쓰는 샘플러·Input Layout·상수 버퍼를 직접 설정한다. 후처리가 PS `b0`를 쓰므로 `BeginFrame`이 매 프레임 Light 버퍼를 `b0`에 다시 건다. Light 버퍼를 PS `b0`에 거는 곳은 이 줄(`Renderer.cpp`의 `BeginFrame` 끝) **하나뿐**이라, 지우면 **첫 프레임부터** 조명이 없다.
 - **Rim Power 0 금지**: `pow(1 - N·V, rimPower)`에서 지수가 0이면 정면 픽셀이 `pow(0, 0)`(NaN)이 된다. Rim을 끌 때는 Intensity만 0으로 한다.
 - **Directional Light의 `direction`은 빛이 나아가는 방향이다.** 셰이더의 `GetDirectionalLight()`(`Lighting.hlsli`)가 부호를 뒤집어 표면 → 빛 방향으로 바꾼다. **부호 반전은 그 함수 한 곳에서만** 한다. 정규화는 CPU(`Renderer::BeginFrame`의 `direction.Normalize()`)와 GPU(`GetDirectionalLight`의 `normalize`) **양쪽**에서 한다. 예전에는 둘 다 없어서 벡터 길이가 세기 배율이 됐다. 방향을 수직에 가깝게 두면 법선이 수평인 옆벽은 `N·L`이 0이 돼 하늘광을 전혀 받지 않는다 — 현재 룩이 이 성질에 의존한다.
-- **셰이더 공통 파일과 슬롯 규칙.** `Common.hlsli`에는 include하는 **모든** 셰이더가 쓰는 것만 둔다(정점 구조체, `PI`, 카메라 cbuffer). 빛 데이터와 빛 함수는 `Lighting.hlsli`, Material cbuffer는 그것을 쓰는 PS 파일에 둔다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**, 텍스처 슬롯은 **PS: t0=Albedo, t1=Roughness, t2=Normal, t3=PuddleMask**이며 HLSL `register`와 `Renderer::DrawRenderItem`의 바인딩 배열 순서가 짝이다. 한쪽만 바꾸면 컴파일은 통과하고 화면만 틀린다.
+- **셰이더 공통 파일과 슬롯 규칙.** `Common.hlsli`에는 include하는 **모든** 셰이더가 쓰는 것만 둔다(정점 구조체, `PI`, 카메라 cbuffer). 빛 데이터와 빛 함수는 `Lighting.hlsli`, Material cbuffer는 그것을 쓰는 PS 파일에 둔다. 상수 버퍼 슬롯은 **VS: b0=Object, b1=Camera / PS: b0=Light, b1=Camera, b2=Material**, 텍스처 슬롯은 **PS: t0=Albedo, t1=Roughness, t2=Normal, t3=PuddleMask**이며 HLSL `register`와 `Renderer::DrawRenderItem`의 바인딩 배열 순서가 짝이다. 한쪽만 바꾸면 컴파일은 통과하고 화면만 틀린다. 스카이박스 PS는 별도 셰이더라 자기 슬롯을 쓴다(t0=환경맵 `TextureCube`, s0, 카메라 VS b1, Light cbuffer의 `environmentIntensity`).
 - **cbuffer 멤버 이름은 셰이더 전역이다.** C++ 구조체와 달리 cbuffer는 이름공간을 만들지 않아서, 공유 include의 cbuffer에 `pad`·`color` 같은 일반 이름을 쓰면 include하는 다른 셰이더와 `redefinition`이 난다. 고유하게 짓는다(`cameraPad`, `lightPad`, `dirLight*`). `struct` 멤버는 범위가 구조체 안이라 괜찮다. C++과는 이름이 아니라 순서·크기로 매칭된다.
 - **조명 함수가 돌려주는 방향은 조기 반환에서도 단위 벡터여야 한다.** `NaN * 0 = NaN`이라 radiance가 0이어도 0벡터 방향이 뒤의 `normalize`/`pow`에서 NaN 픽셀을 만들고 Bloom이 번지게 한다. 하프 벡터도 `L = −V`이면 0이 되고, `CullMode`가 `NONE`이라 뒷면을 볼 때 N·L > 0이어도 이런 경우가 생기므로 `ComputeDirectLighting`이 `L + V`의 제곱 길이를 따로 검사한다.
 - **π 규약은 정석이다(2026-10-27, 10-2'에서 전환): diffuse = `albedo / π`, `D_GGX`도 `/π`.** 직접광 세기(Directional·Point)는 그 기준 값이라 코드에 `이전 값 × DirectX::XM_PI`로 적혀 있다. **ambient·Emissive·Rim은 ×π 하지 않는다** — `ambientStrength`는 하늘 radiance L이라 `(albedo / π) × πL = albedo × L`이고, Emissive·Rim은 BRDF를 거치지 않는 radiance다. 새 빛을 추가하면 같은 기준으로 세기를 잡는다. 공식을 가져올 때는 그 공식이 전제하는 규약이 우리 코드와 같은지 먼저 확인한다. **강의 12~13장 코드는 섞여 있다**(`NdfGGX`는 `/π`인데 diffuse는 `kd * albedo`) — 강의 D항은 그대로, diffuse는 `/π`로 본다.
@@ -177,6 +181,7 @@ PlayerCollision / NeonSignFactory: 상태 없는 정적 함수, AppBase가 호�
 - **큐브 옆면 UV 규칙**: `GeometryGenerator::MakeCube`의 옆면은 u = 그 면을 바라보는 사람의 오른쪽(`cross(+Y, 시선)`), v = 아래다. 새 면이나 도형을 만들 때 이 규칙을 지킨다. 어기면 같은 크기의 면이 다른 UV Scale을 요구하고, 10-6 노멀 맵의 탄젠트 방향이 면마다 어긋난다. UV 타일링 값은 **축마다 `면 크기 ÷ 텍스처 실제 크기`**다(바닥 1.25m → (3.2, 16), 벽 Bricks096 2m × 1m 추정 → (10, 4)·(2, 4)). 텍스처가 정사각이 아니면 두 축의 나누는 수가 다르다. 실제 크기 표기가 없는 에셋은 추정값과 근거를 그 폴더의 `CREDITS.md`에 적는다.
 - **탄젠트와 노멀 맵 (10-6)**: 윗면(바닥)과 옆면 세 방향(+X·−X·−Z, N-5 벽)이 실제 노멀 데이터로 검증됐다. 노멀 맵은 짝이 되는 albedo와 한 세트로만 쓴다 — 음영이 그려진 albedo에 노멀 맵을 얹으면 그림자가 두 번 생긴다. `Vertex.tangent`는 그 면의 +u 방향(Input Layout 오프셋 44)이고 기본값이 (1, 0, 0)이다 — 탄젠트를 채우지 않는 `ModelLoader` 정점이 0이면 `normalize(0)`이 NaN이 된다. 탄젠트는 `model`로, 노멀은 `invTranspose`로 변환한다. PS는 T를 **정규화된** N에 대해 그람-슈미트로 수직화하고 `B = cross(N, T)`(= +v, 아래)로 둔다. 그래서 **DirectX 규약 노멀 맵(NormalDX)을 G 반전 없이** 쓰며, OpenGL 규약(`_NormalGL`)을 쓰면 요철이 뒤집힌다. 노멀 맵은 `Sample`(밉맵)로 읽는다 — 강의 Ch13의 `SampleLevel(…, lod)`은 실험용 UI 값이라 그대로 가져오면 먼 바닥이 지글거린다. 노멀 맵 텍스처는 `TextureType::NormalMap`으로 읽는다.
 - **웅덩이 마스크 (W-3)**: 마스크(`t3`)는 반복되면 안 되므로 `tiledUV`가 아니라 원본 `input.uv`로, `TextureType::Data`로 읽는다(`Albedo`로 읽으면 회색이 디코드돼 웅덩이가 작아진다). 마스크 이미지 위쪽이 끝벽(z = 20)이고, 웅덩이 위치는 네온 반사 자리에 맞춰져 있어 **네온을 옮기면 마스크도 다시 만든다**(`Assets/Textures/Masks/CREDITS.md`). 보간은 세 줄 모두 `lerp(마른 값, 웅덩이 값, mask)` 모양이다 — `lerp`는 스칼라를 조용히 벡터로 넓혀 경고가 없으므로 **t = 0, t = 1을 대입해 확인**한다(마스크 0인 모든 표면이 흰색이 된 버그가 실제로 있었다). `PUDDLE_ROUGHNESS`·`PUDDLE_ALBEDO_SCALE`(PS `static const`)은 간접광 반사가 없는 지금에 맞춘 임시값이다. roughness는 10-2' GGX에서 0.15 → 0.1로 다시 맞췄고, albedo 배율은 10-5 IBL에서 다시 맞춘다. 바인딩하지 않은 슬롯은 0(검정)으로 읽히므로, 기본값이 0인 경로는 fallback을 잠깐 흰색으로 바꿔 바인딩을 증명한다.
+- **Skybox (10-3)**: 큐브맵은 DDS(`R16G16B16A16_FLOAT`, 선형 HDR이라 sRGB 변환 없음)를 DirectXTK `CreateDDSTextureFromFileEx` + `D3D11_RESOURCE_MISC_TEXTURECUBE`로 읽는다(`GraphicsResourceManager::CreateCubeMapTexture` ← `AssetManager::LoadCubeMap`). 경로는 `Assets\\Textures\\HDRI\\hansaplatz_cube512.dds`이고, 원본 `.hdr`는 커밋하지 않는다(`HDRI/.gitignore`, `CREDITS.md`). VS는 `mul(float4(pos, 0), view)`로 이동을 지우고 **`.xyww`**로 깊이를 1에 고정한다 — `.xyzw`로 쓰면 하늘이 씬을 덮는다(실제로 발생). 그래서 깊이 상태는 **LESS_EQUAL + 쓰기 없음**이어야 Clear 값 1을 통과한다. 하늘은 불투명 물체 **다음**, 후처리 전에 그린다. 환경맵은 선택 입력이라 **로드 실패나 경로 오타는 앱을 끝내지 않고 배경색으로 조용히 대체된다**(Albedo와 다른 정책 — 하늘이 안 보이면 출력 창과 경로부터 확인한다). `SkyBox::Render`는 바꾼 깊이 상태를 **복구하지 않는다**(`Renderer`의 기본 상태를 모르므로) — `Renderer::DrawSkybox`가 복구한다. 밉은 2 × 2 상자 필터라 GGX prefiltered가 아니다.
 - **ImGui `Drag` 계열은 3번째 인자가 속도, 그다음이 최소·최대다.** `Slider`는 `min, max`가 바로 온다. 순서를 섞으면 `min >= max`가 되어 ImGui가 경고 없이 범위를 적용하지 않는다.
 - **HLSL은 벡터 → 스칼라 대입을 경고(X3206 implicit truncation)로만 알린다.** `float x = albedo * w;`처럼 `float3`를 `float`로 받으면 R 채널만 남고 에러가 나지 않는다(2026-10-23 `diffuseTerm`에서 실제로 발생). 셰이더 컴파일 경고 중 X3206은 거의 항상 버그로 본다. 색(albedo·radiance)은 `float3`, 비금속 반사율(F)처럼 회색 세기는 `float`다.
 - **Vertex Color**: `Vertex`에 존재하고 VS가 PS로 넘기지만 최종 색에 사용되지 않는다.

@@ -17,25 +17,26 @@
 
 ## 1. 진행률
 
-현재 전체 진행률은 약 **82%**다(2026-10-27, 10-2' 완료 기준).
+현재 전체 진행률은 약 **83%**다(2026-10-27, 10-3 Skybox 완료 기준).
 
 | 영역 | 진행 | 현재 상태 |
 |---|---:|---|
-| Win32/DX11 기반 | 약 90% | 기본 렌더링, Resize와 제출 경계, HDR 씬 타깃 → 다중 후처리 패스 → 백버퍼 구조 완료 |
+| Win32/DX11 기반 | 약 90% | 기본 렌더링, Resize와 제출 경계, HDR 씬 타깃 → 다중 후처리 패스 → 백버퍼 구조, DDS 큐브맵 로드 완료 |
 | GPU Resource/Asset 구조 | 약 80% | Buffer/Texture Handle, Asset 캐시와 Model 업로드, 렌더 타깃 생성과 같은 슬롯 재생성 완료 |
 | Model 파이프라인 | 약 65% | FBX/OBJ/glTF BaseColor 로드 완료. aiNode/PBR은 남음 |
 | Scene/ImGui 편집 | 약 72% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유, Post Process 패널(Exposure/Tone Mapper/Bloom 3종/Debug View) 완료 |
 | 1인칭 입력/카메라 | 약 90% | Editor/Play, WASD/마우스/ESC/focus와 단발 키 입력, 플레이어-벽 충돌 완료 |
 | 조명/Material | 약 90% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅, 셰이더 빛/표면 분리, 재질별 Roughness/Specular, **GGX + Smith(Unreal 형식) + Schlick Fresnel, π 규약(diffuse = albedo / π)**, UV 타일링, roughness·노멀 맵(탄젠트, 기본 텍스처 3종), 웅덩이 마스크 완료. IBL·metallic은 없음 |
 | 실제 골목/상호작용 | 약 85% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백·대기 표시등·호박색 Rim 강조(PowerSwitch 소유), 순차 점등 완료 |
-| 고급 렌더링/연출 | 약 58% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성), 룩 재튜닝, 젖은 바닥의 Point Light 반사(Specular·Fresnel)와 웅덩이 대비 완료. Shadow/환경 반사(간판이 비치는 반사)/Fog/Rain은 없음 |
+| 고급 렌더링/연출 | 약 58% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성), 룩 재튜닝, 젖은 바닥의 Point Light 반사(Specular·Fresnel)와 웅덩이 대비, HDRI Skybox(`SkyBox`) 완료. Shadow/환경 반사(간판이 비치는 반사)/Fog/Rain은 없음 |
 
 ---
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `fb58d71`(사용자: 10-2' G-3 — Blinn-Phong·스위치 삭제, 웅덩이 roughness 0.1, 주석). 그 앞이 `01f7d38`(사용자: G-1 — π 규약 전환 + Unreal 형식 GGX·Smith, A/B 스위치 포함)·`891c6f1`(W-3 문서). `origin/main`보다 앞서 있다(push 전 — 노트북에서 이어가려면 push 필요).
-- 현재 작업 트리 (2026-10-27): 이 문서와 `AGENTS.md` 갱신만 미커밋(사용자가 "문서만 갱신"을 요청). commit/push는 사용자가 요청할 때만 한다.
+- 문서 갱신 기준 HEAD: `e805963`(사용자: `SkyBox` 클래스 분리). 그 앞이 `81d104c`(사용자: S-3 HDRI 큐브맵 DDS·`environmentIntensity`·`HDRI/CREDITS.md`)·`26a062a`(사용자: S-1·S-2 DDS 로더·스카이박스 셰이더·그리기 + 10-2' 문서와 B안 계획)·`fb58d71`·`01f7d38`(10-2'). `origin/main`보다 앞서 있다(push 전 — 노트북에서 이어가려면 push 필요).
+- 현재 작업 트리 (2026-10-27): 이 문서와 `AGENTS.md` 갱신만 미커밋. commit/push는 사용자가 요청할 때만 한다.
+- **`HDRI/hansaplatz_2k.hdr`(6.8MB)가 `26a062a`에 실수로 커밋돼 아직 추적 중이다.** `.gitignore`와 `CREDITS.md`는 "원본은 로컬에만"이라 적혀 있고, 사용자가 추적만 끊기로(B안) 정했다 — 다음 커밋에서 `git rm --cached MyPF/Assets/Textures/HDRI/hansaplatz_2k.hdr`(로컬 파일은 유지). 이미 히스토리에 들어간 6.8MB는 남는다(지우려면 히스토리 재작성이 필요해 하지 않는다).
 - 10-2 Fresnel은 두 커밋이다 — `6fd8742`(사용자: `FresnelSchlick`과 `ComputeDirectLighting` 조립 + 확장 예약 목록 문서), `04fab3c`(바닥 specular 0.5 → 0.25).
 - `a431f1f`는 렌더러와 무관한 학습용 정적 사이트(`study-site/`), 그 생성 규칙 스킬(`.claude/skills/study-site/SKILL.md`), 프리뷰 서버 설정(`.claude/launch.json`)을 추가했다(13개 파일). 상세는 §3 "학습 사이트".
 - `e9ab696`은 10-1 E~G를 한 번에 담고 있다 — 셰이더 E-1(`viewDir` 전달)·E-2(`SurfaceData`에 roughness/specular)·E-3(Blinn-Phong)·F(정규화)와 G(`AppBase.cpp`·`NeonSign.cpp`의 재질값). 4개 파일.
@@ -48,6 +49,12 @@
 최근 기능 commit:
 
 ```text
+e805963 스카이 박스 리팩토링
+81d104c HDR 큐브맵 로드
+26a062a 큐브맵 도입
+fb58d71 주석 수정
+01f7d38 언리얼 형식의 GGX 와 Smith 구현
+891c6f1 Update MD - W-3 웅덩이 마스크 완료(10-W 닫힘), 다음 10-2' GGX
 f44ea8c 에셋: 기본 검정 텍스처, 골목 바닥 웅덩이 마스크 (직접 생성)
 5524d01 웅덩이 마스크 (W-3): t3 슬롯, 기본 검정, roughness/albedo/normal 보간
 1c0ea97 Update MD - N-5 벽 노멀 맵 완료, 시작 벽 통과 재현, 다음 W-3
@@ -189,6 +196,17 @@ UV Scale의 일반식은 **축마다 `면 크기 ÷ 텍스처 실제 크기`**�
 - 디버그 뷰(`PostProcessDebugView`: Final / Bright / BlurX / Blur)는 GPU로 보내지 않는 CPU 전용 값이다. `EndScene`이 마지막 패스의 PS와 `t0`만 골라 바꾸고, 디버그 뷰에서는 `copyPixelShader.hlsl`이 가공 없이 복사한다
 - EditorUI "Post Process" 패널의 Bloom 그룹: Threshold(0~5), Strength(0~2), Blur Iterations(1~10), Debug View
 - 확인: Bright 뷰에 네온과 스위치 Rim만 남고, Blur X 뷰는 가로로만 늘어나며, Blur 뷰는 사방으로 번진다. Strength 0이면 합성 전 화면과 같고, 반복을 1→4로 올리면 번짐 폭이 약 2배가 된다
+
+### Skybox와 HDRI 큐브맵 (10-3, `26a062a`·`81d104c`·`e805963`)
+
+- **로드 경로**: `AppBase::InitGreyBoxScene` → `AssetManager::LoadCubeMap(경로)`(경로 키 별도 캐시 `m_cubeMaps`) → `Texture::InitializeCubeMap` → `GraphicsResourceManager::CreateCubeMapTexture`(DirectXTK `CreateDDSTextureFromFileEx`, `D3D11_RESOURCE_MISC_TEXTURECUBE`, `DDS_LOADER_DEFAULT`, 실패 시 HRESULT 로그) → `TextureHandle`. 실패하면 로그만 남기고 계속한다(`m_environmentMap = nullptr`)
+- **프레임 경로**: `AppBase::Render`가 `FrameRenderData.environmentMap`에 핸들(없으면 무효 핸들)을 넣고, `Renderer::BeginFrame`이 `m_environmentMapHandle`로 복사한다. `Renderer`는 `AssetManager`·`Texture`의 출처를 모른다
+- **그리기**: `Renderer::EndScene`의 검증 직후 `DrawSkybox()` — 핸들이 무효면 아무것도 안 함(배경색 Clear가 하늘). 유효하면 카메라 버퍼·환경맵 SRV·WRAP 샘플러를 `SkyBox::Render`에 넘기고, 끝나면 깊이 상태를 `m_depthStencilState`로 복구한다
+- **`SkyBox` 클래스** (`e805963`, `Renderer` 멤버 `m_skyBox`): `Initialize(device, resourceManager, inputElements)`가 스카이박스 VS + 자기 Input Layout(씬과 같은 `inputElements`), PS, 깊이 상태(LESS_EQUAL + 쓰기 ZERO), `GeometryGenerator::MakeCube` 버퍼를 만든다. `Render(context, cameraBuffer, environmentSRV, sampler)`가 IA·VS `b1`·PS `t0`·`s0`·깊이 상태를 걸고 `DrawIndexed` → `t0` 해제. 깊이 상태는 복구하지 않는다
+- **셰이더**: `skyboxVertexShader.hlsl`(`Common.hlsli`) — `mul(float4(pos, 0), view)`로 이동 제거 → `projection` → **`.xyww`**(깊이 1), 방향 = 큐브 로컬 위치. `skyboxPixelShader.hlsl`(`Lighting.hlsli`) — `TextureCube t0`를 방향으로 `Sample` × `environmentIntensity`
+- **`environmentIntensity`**: `DirectionalLight::environmentIntensity`(기본 **0.25**) → Light cbuffer의 `pointLightCount` 다음 자리(`float environmentIntensity; float2 lightPad;`, C++ `LightConstantData`도 같은 순서) → 스카이박스 PS. EditorUI Environment 패널에 로그 슬라이더(0.01~4). 하늘·10-4 반사 밝기 배율이며 π를 곱하지 않는다(radiance 배율)
+- **에셋**: `Assets/Textures/HDRI/hansaplatz_cube512.dds` — Poly Haven Hansaplatz(CC0, 밤 광장) 2K equirect를 에이전트의 Node.js 스크립트로 변환: `R16G16B16A16_FLOAT`, 면 512² × 6, 밉 10단계(2 × 2 상자 필터), 16MB, D3D 면 순서·방향(equirect 가운데 = +Z). 상세는 `HDRI/CREDITS.md`. 원본 `.hdr`는 `HDRI/.gitignore`로 제외(§2의 추적 해제 메모 참고)
+- 확인: 골목 위로 어두운 하늘 띠가 보이고 물체가 하늘을 가린다. `Environment Intensity` 0이면 하늘이 검정. `SkyBox` 분리 후 화면 동일(사용자 확인)
 
 ### 룩 재튜닝 (밤 골목 조명 세팅)
 
@@ -417,6 +435,26 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - **N·V 조기 반환은 diffuse까지 끈다.** `if (NdotV ≤ ε) return 0`을 넣었다가 뺐다 — 노멀 맵으로 꺾인 법선은 낮은 시선에서 N·V < 0이 흔하고(젖은 골목을 멀리 보는 핵심 각도), diffuse는 그 조건에서 아무 문제가 없다. 조기 반환은 "이 조건에서 **모든** 출력이 0이 맞나?"를 먼저 묻는다.
 - **N·V는 Unreal 그대로 `saturate(abs(N·V) + 1e-5)`.** Filament는 `max(N·V, 1e-4)`다. `abs`는 시선 반대로 꺾인 미세면도 앞면처럼 반사를 받는다(양면 재질에 유리). 이 장면에서 눈에 띄는 차이는 없었다.
 - **웅덩이 roughness 0.15 → 0.1.** 0.15는 "Blinn-Phong 지수가 4천이라 하이라이트가 아직 보이는 가장 낮은 값"이었다. GGX는 중심이 좁아져도 꼬리가 남아 0.1(N·H = 1에서 D ≈ 3200)에서도 반사 줄이 보인다(§5 "웅덩이 값 재튜닝" 트리거 ② 처리). 근거가 바뀐 값은 주석도 바꾼다.
+
+### Skybox와 환경맵 경로 (10-3, 2026-10-27)
+
+- **HDRI는 밤 광장(Poly Haven Hansaplatz)으로 골랐다.** 밤 골목 위로 보이는 하늘이 거의 검정이어야 룩이 유지되고(위 면 평균 선형 휘도 0.01), 10-4에서 웅덩이에 비칠 **수평선 근처 도시 불빛**(최대 약 13,800)이 있어야 반사가 보인다. 낮·노을 HDRI는 하늘이 골목보다 밝아 룩을 깨뜨린다.
+- **변환은 외부 도구 없이 직접 쓴 스크립트로 했다.** equirect → 큐브 6면(2 × 2 슈퍼샘플, 쌍선형) → `R16G16B16A16_FLOAT` DDS(DX10 헤더) + 상자 필터 밉. BC6H 압축과 GGX prefiltered 밉은 하지 않았다 — 압축은 16MB가 문제되지 않고, prefiltered 밉은 10-5 IBL을 할 때(cmft 등) 별도 맵으로 만든다. 10-4에서는 상자 필터 밉을 roughness로 골라 읽어 "거칠수록 흐림"만 근사한다.
+- **큐브맵은 `TextureType`을 거치지 않는다.** float HDR이라 sRGB 선택지가 없고(`DDS_LOADER_DEFAULT`), DDS 헤더가 포맷을 정한다. 그래서 `LoadTexture`의 `(경로, TextureType)` 캐시와 섞지 않고 `LoadCubeMap`·`m_cubeMaps`를 따로 뒀다. 2D 텍스처의 DDS 쿠킹(§4 "텍스처 파이프라인 방향")을 할 때 `TextureType` → `FORCE_SRGB`/`IGNORE_SRGB` 규칙을 함께 설계한다.
+- **환경맵은 `FrameRenderData`로 흐른다.** 하늘(10-3)과 씬 반사(10-4)가 같은 맵을 쓰는 **프레임 단위** 데이터이고, `Renderer`가 `AssetManager`를 알면 안 되기 때문이다(AGENTS §3). 무효 핸들 = "환경 없음"이라 Albedo와 달리 **앱을 끝내지 않는다** — 하늘·반사는 없어도 데모가 성립하는 선택 입력이다. 대가로 경로 오타가 조용히 배경색이 된다(S-3에서 실제로 `Cubemaps\\skybox\\` 경로로 발생). 눈에 띄는 경고는 §5 예약.
+- **`.xyww` + LESS_EQUAL + 깊이 쓰기 없음, 불투명 물체 다음에 그린다.** 깊이를 1로 고정하면 하늘이 무한히 먼 곳에 있고, 불투명 물체가 이미 쓴 깊이에 걸러져 **가려진 픽셀은 PS를 돌지 않는다**(Early-Z). 먼저 그리면 화면 전체에 PS를 돌린 뒤 덮어쓴다. LESS면 Clear 값 1과 같아 전부 실패한다. 강의 Ch11 `CubeMapping`도 물체 다음에 그리지만 **반지름 50인 구**를 일반 깊이 테스트로 그린다 — 카메라가 50m를 벗어나거나 far 평면보다 크면 하늘이 잘리거나 물체를 덮는다. `.xyww`는 크기와 무관하게 항상 가장 먼 곳이라 이 문제가 없다. 강의 Ch13 `SkyboxVS`도 `w = 0`으로 이동을 지우는 데까지만 하고 `.xyww`는 쓰지 않는다 — 우리 VS의 이동 제거는 Ch13, 깊이 고정은 일반적인 스카이박스 기법이다.
+- **`environmentIntensity`를 Light cbuffer에 넣었다.** 스카이박스 PS와 10-4 씬 PS가 같은 값을 읽어야 하고, Light cbuffer의 패딩 자리(`pointLightCount` 뒤 12바이트)가 비어 있어 크기가 늘지 않는다. CPU 쪽은 `DirectionalLight`에 들어가 있는데 **의미상 방향광이 아니라 하늘광**이다 — `ambientStrength`와 함께 `SkyLight`로 뺄지는 §5 예약.
+- **그리기를 `SkyBox` 클래스로 분리했다(`e805963`, 강의 Ch11 `CubeMapping` 기준).** Ch11은 기능마다 자기 셰이더·State·메시를 소유하고 `Initialize`/`Render`를 갖는 클래스로 묶는다. 스카이박스 VS/PS·깊이 상태·큐브 버퍼는 `DrawSkybox` 말고 아무도 쓰지 않아 자르는 선이 깨끗했다. 강의와 다르게 한 곳:
+
+  | 강의 `CubeMapping` | `SkyBox` | 이유 |
+  |---|---|---|
+  | `Initialize`에서 DDS를 직접 읽고 SRV를 `public`으로 노출 | 환경맵을 소유하지 않고 `Render` 때 SRV를 받는다 | 로드는 `AssetManager` 캐시를 거치고, 10-4 씬 PS와 공유하는 프레임 데이터다. 강의 `ExampleApp`이 `m_cubeMapping.m_specularResView`를 메시 그룹마다 복사해 넣는 것이 이 공유 문제의 흔적이다 |
+  | 자기 상수 버퍼(`viewProj`) | 공용 카메라 CB(VS `b1`) | 같은 데이터를 두 벌 두지 않는다 |
+  | `Mesh`의 ComPtr 버퍼 | `BufferHandle`(소유자는 `GraphicsResourceManager`) | AGENTS §4 소유 구조 |
+  | 자기 샘플러 | `Renderer`의 WRAP 샘플러를 받는다 | 같은 설정의 샘플러를 하나 더 만들 이유가 없다 |
+  | 자기 Input Layout | **같음** — 자기 IL(씬과 같은 `inputElements`) | `Renderer`의 IL에 기대지 않는다 |
+
+  **"언제·무엇으로"는 `Renderer`, "어떻게"는 `SkyBox`**다. 깊이 상태 복구를 `Renderer::DrawSkybox`가 하는 것도 이 경계 때문이다(`SkyBox`가 씬 기본 상태를 알면 하위 기능이 호출자의 사정을 안다). 함께 검토했지만 하지 않은 묶음: Ch13 `GraphicsPSO`/`GraphicsCommon`(강의를 Ch11까지로 한정하기로 함 — §5 예약), Ch11 `PostProcess`(Bloom 묶음, `ImageFilter`와 같은 전환 조건), Material 텍스처 슬롯 enum(강의 `Mesh`도 이름 있는 필드 방식이라 보류).
 - **주석만 남은 리뷰**: G-3 뒤 남은 문제가 전부 주석이었다(삭제된 함수를 가리키는 `MIN_PERCEPTUAL_ROUGHNESS` 설명, 값과 반대되는 웅덩이 근거). 주석은 아무도 검증하지 않아 코드가 바뀔 때 가장 먼저 낡는다 — "왜 이 값인가"는 **그 값을 고른 근거**로 적어야 근거가 바뀔 때 고칠 신호가 된다.
 
 ### UV 타일링 (10-W W-1, 2026-10-23)
@@ -532,7 +570,7 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - `AppBase`의 멤버가 전부 `public`이고 전역 `g_appBase`로 접근 가능하다.
 - 씬 정의가 `InitGreyBoxScene()`에 하드코딩돼 있어 변경 시 재컴파일이 필요하다.
 - `GameObject`의 컴포넌트가 선택적이지 않다. `PointLightComponent`/`BoxCollisionComponent`만 `Has` 플래그를 쓰고 나머지는 포인터 null 검사로 판단해 규칙이 일관되지 않다.
-- `Renderer`가 렌더 타깃 네 개와 셰이더 일곱 개, 샘플러 두 개를 직접 들고 있다. 후처리 패스가 더 늘면 타깃·셰이더 묶음을 다루는 구조(강의의 `ImageFilter` 상당)가 필요해진다 — 전환 조건은 §4 참고.
+- `Renderer`가 렌더 타깃 네 개와 셰이더 여덟 개(씬 VS·PS, 전체 화면 VS, 후처리 PS 다섯), 샘플러 두 개를 직접 들고 있다(스카이박스 셰이더는 `SkyBox`로 분리, `e805963`). 후처리 패스가 더 늘면 타깃·셰이더 묶음을 다루는 구조(강의 Ch11 `PostProcess`/`ImageFilter` 상당)가 필요해진다 — 전환 조건은 §4 "Bloom 파이프라인" 참고.
 
 ### 렌더링
 
@@ -552,7 +590,8 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - **`BlendState`가 아예 없다.** 현재 전부 불투명 렌더링이라 투명·가산 합성이 불가능하다. 비·연기·먼지·스파크 같은 입자 계열을 넣으려면 알파/가산 State 두 개와 투명 패스 분리(깊이 쓰기 off + 뒤→앞 정렬)가 먼저 필요하다. `D3D11Utils`에 `CreateGeometryShader`와 Hull/Domain 경로도 없다. 상세는 §7 "강의 연계 아이디어" 참고.
 - Material에 Normal / Metallic / Roughness **맵**이 없다. Roughness / Specular는 Material 단위 상수다.
 - **젖은 바닥을 평가할 디테일이 없다.** 바닥이 roughness·BaseColor 하나로 **균일**하고, 노멀 맵이 없어 완벽히 평평하다(UV 타일링은 W-1에서 해결). 사람은 젖은 표면을 "웅덩이(거울) 옆의 덜 젖은 곳(무광)" 같은 **대비**로 알아보는데 그 대비가 없어서, Fresnel·GGX 같은 반사 기능의 차이를 화면으로 판단하기 어렵다(2026-10-23 사용자 관찰). → §6의 10-W에서 해결한다.
-- **환경 반사가 없다.** 반사는 Point Light·방향광 하이라이트뿐이라 하늘이나 벽이 바닥에 비치지 않는다(로드맵 10-3~10-5).
+- **환경 반사가 없다.** 반사는 Point Light·방향광 하이라이트뿐이라 하늘이나 벽이 바닥에 비치지 않는다. 하늘 큐브맵은 10-3에서 들어왔고(Skybox), 바닥 반사는 10-4(큐브맵)·10-7(평면 반사)이다.
+- `MyPF.vcxproj`에서 `skyboxVertexShader.hlsl`/`skyboxPixelShader.hlsl`만 `ExcludedFromBuild`가 없다(다른 셰이더는 런타임 컴파일이라 빌드에서 제외). 빌드 때 FxCompile이 한 번 더 컴파일할 뿐 실행에는 영향이 없다. 맞추려면 다른 셰이더 항목처럼 네 구성에 `ExcludedFromBuild`를 넣는다.
 - Blinn-Phong은 GGX보다 하이라이트 꼬리가 짧아 젖은 표면의 "번지는 테두리"가 약하다. roughness 대응식을 GGX 기준으로 맞춰 뒀으므로 분포 함수만 교체할 수 있다.
 - 바닥 반사가 생기면서 UV 타일링 문제(아래)가 더 눈에 띌 수 있다.
 - Vertex Color가 최종 Pixel Color에 사용되지 않는다.
@@ -615,6 +654,11 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 | **반복 깨기 (anti-tiling)** | 텍스처를 그대로 반복 | **에셋 배치를 시작할 때** — 20m 골목에서 같은 무늬가 격자처럼 보이면 | 싼 순서: ① 웅덩이 마스크(W-3)와 데칼로 고유한 흔적 덧붙이기 ② 매크로 변화(큰 스케일 얼룩 텍스처를 곱함, Unreal 지형 기법) ③ 스토캐스틱 타일링(Unity Procedural Stochastic Texturing). ①부터 해 보고 부족할 때만 다음으로 |
 | `uvOffset` | `uvScale`만 있다(`float2`) | 이음매·벽 모서리 정렬, 텍스처 아틀라스, 데칼 위치를 맞춰야 할 때 | `uvScale` 옆에 `float2 uvOffset`. 상수 버퍼에 16바이트 자리가 더 필요하다(지금 64바이트가 꽉 참). glTF `KHR_texture_transform`, Unity `_ST`의 zw |
 | **비등방 필터링** | `MIN_MAG_MIP_LINEAR` | **W-1 타일링 뒤 먼 바닥이 흐려 보이면** (반복이 늘수록 비스듬한 먼 곳의 밉 레벨이 높아진다) | 씬 샘플러를 `D3D11_FILTER_ANISOTROPIC` + `MaxAnisotropy` 8~16. 한 줄 변경. 상세는 §6 "비등방 필터링" |
+| **`SkyLight` 분리** | `ambientStrength`·`environmentIntensity`가 `DirectionalLight` 안에 있다(의미상 하늘광) | 10-4/10-5에서 하늘광 값이 더 늘 때(반사 세기 분리, irradiance 맵 등) | `SkyLight { cubemap, intensity, ambient }`로 묶어 `FrameRenderData`에 따로 둔다(Unreal `DirectionalLight` / `SkyLight` 구분). `FrameRenderData.environmentMap`도 그 안으로 |
+| **환경맵 로드 실패 경고** | 실패하면 로그만 남고 배경색으로 대체(S-3 경로 오타가 조용히 지나감) | 에셋 경로가 다시 바뀌거나 배포 빌드(exe만 실행)를 만들 때 | Editor 패널에 "Environment map: none" 표시, 또는 Debug 빌드에서만 단언 |
+| **HDRI 변환 스크립트 보관** | `hdr_to_cubemap.js`는 세션 임시 폴더에만 있다. 방법은 `HDRI/CREDITS.md`에 글로 | HDRI를 바꾸거나 해상도·밉을 다시 만들 때 | 스크립트를 `tools/`에 커밋한다. prefiltered 밉이 필요해지면(10-5) cmft 등 외부 도구로 바꾼다 |
+| **`GraphicsPSO` / 공용 State 묶음** (강의 Ch13 Step2) | 패스마다 셰이더·IL·깊이 상태를 낱개로 걸고, `DrawSkybox`가 깊이 상태를 복구한다 | 강의를 Ch13까지 진행한 뒤, **같은 메시를 상태만 바꿔 여러 번 그리는 패스**가 생길 때 — 9번 그림자 깊이 패스, 10-7을 스텐실 거울로 할 때 | VS·PS·IL·Rasterizer·DepthStencil·stencilRef·Topology 구조체 + `SetPipelineState`. 변형은 복사 후 필드 변경. 강의의 수제 `operator=` 대신 기본 복사, 전역 `Graphics::` 대신 `Renderer` 멤버 |
+| Material 텍스처 슬롯 enum | 텍스처마다 이름 있는 포인터와 Resolve 블록(4개) | Material 텍스처가 6개 이상으로 늘 때(AO·metallic·emissive 맵) | `MaterialTextureSlot` enum(= HLSL register) + 슬롯별 기본값 표 + 루프. 필수 슬롯은 "기본값이 무효인 슬롯"으로 표현 |
 | Material cbuffer의 VS 바인딩 | PS `b2`에만 건다. UV 스케일은 선형이라 PS에서 곱해도 같다 | VS에서 텍스처를 읽을 때(높이 맵 VS 변위, 10-9) | `Renderer::DrawRenderItem`에서 VS에도 `b2`를 건다. 슬롯 규칙은 그대로(AGENTS §7) |
 
 ---
@@ -676,8 +720,8 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
      - **에셋·소품 배치를 시작할 때 §5 "확장 예약 목록"의 월드 정렬 UV, 반복 깨기, `uvOffset`을 먼저 검토한다**(2026-10-23 사용자 결정). 상용 엔진의 타일링 관례(재질 단위 Tiling → 크기가 제각각이면 월드 정렬 → 반복이 보이면 데칼·매크로 변화)를 따른다.
    - **10번 나머지 순서 (2026-10-23 보강, 강의 11~13장 분석 반영 — 근거는 §7 "강의 PBR 자료 지도")**: GGX는 10-W 뒤로 간다. GGX의 장점(하이라이트의 긴 꼬리)은 매끈한 웅덩이 위에서 가장 잘 보이기 때문이다.
      - ✅ **10-2' GGX + Smith, π 규약 전환 (2026-10-27)** (`01f7d38` G-1, `fb58d71` G-3) — G-1 π 규약 전환(diffuse·specular `/π`, 직접광 세기 × π) + Unreal 형식 `D_GGX`·`Vis_SmithJointApprox`·`F_Schlick`·`SpecularGGX`와 A/B 스위치 → G-2 비교(`false` 화면 그대로, `true` 꼬리) → G-3 Blinn-Phong·스위치 삭제, 웅덩이 roughness 0.1. 화면 확인 완료. 설계 이유는 §4 "GGX + Smith와 π 규약 전환"
-     - **10-3** DDS 로더 + Skybox(HDRI) **← 바로 다음** (시작 벽 통과 버그를 먼저 짧게 고칠 수도 있다) — 11 Step4 `CreateDDSTextureFromFileEx`, Ch13 `SkyboxVS/PS`. 카메라가 `Common`의 b1이라 스카이박스 VS는 `Common`만 include하면 된다
-     - **10-4** 환경 매핑(`reflect(-V, N)`)
+     - ✅ **10-3 DDS 로더 + Skybox(HDRI) (2026-10-27)** (`26a062a` S-1·S-2, `81d104c` S-3, `e805963` `SkyBox` 분리) — S-1 DDS 큐브맵 로드 경로(`CreateCubeMapTexture` → `InitializeCubeMap` → `LoadCubeMap`) → S-2 스카이박스 VS/PS·깊이 상태·`DrawSkybox`(임시 큐브맵) → S-3 Poly Haven Hansaplatz를 float DDS로 변환, `environmentIntensity` → 강의 Ch11 `CubeMapping` 기준으로 `SkyBox` 클래스 분리. 화면 확인 완료. 설계 이유는 §4 "Skybox와 환경맵 경로"
+     - **10-4** 환경 매핑(`reflect(−V, N)`) **← 바로 다음** — 씬 PS에 환경맵 `TextureCube`를 추가해 반사 방향을 샘플, roughness로 밉 선택(`GetDimensions`로 밉 수), 세기는 Unreal `EnvBRDFApprox`(LUT 없는 split-sum 근사, N·V). 한계: 정적 큐브맵이라 웅덩이에 골목 벽 대신 광장 건물이 비친다(10-7에서 바닥 해결). 강의 Ch11은 큐브맵을 메시마다 `t0`·`t1`에 거는 방식이라 우리 슬롯 규칙(t0~t3 Material)에 맞춰 조정한다
      - **10-5** IBL(split-sum) — `main`의 ambient 한 줄을 `ComputeIndirectLighting`으로, `PI` 사용. IBL용 Fresnel은 N·V
      - ~~10-6 탄젠트 + 노멀 맵~~ → W-3 앞으로 당겨 완료. AO 맵은 IBL(10-5)에서 간접광에 곱할 때 들인다
      - **10-7 ★ 평면 반사** — 13 Step1 Mirror(반사 행렬). 강의는 스텐실로 선명한 거울을 그리지만, 우리는 **반사 씬을 렌더 타깃에 그리고 roughness만큼 블러**(기존 Bloom 블러 재사용)해서 젖은 바닥에 쓴다. 골목 안 네온과 벽이 **실제로** 비치는 유일한 방법이라 효과가 가장 크다
@@ -736,7 +780,7 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
 8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
-10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular(2026-09-30)·10-2 Fresnel(2026-10-23) 완료, 10-W 젖은 바닥 디테일 완료(W-1 UV 타일링, W-2 roughness 맵, 10-6 탄젠트·노멀 맵(앞당김), N-5 벽 노멀 맵, W-3 웅덩이 마스크 — 2026-10-26), 10-2' GGX + Smith·π 규약 전환 완료(2026-10-27), 다음 10-3 DDS + Skybox — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
+10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular(2026-09-30)·10-2 Fresnel(2026-10-23) 완료, 10-W 젖은 바닥 디테일 완료(W-1 UV 타일링, W-2 roughness 맵, 10-6 탄젠트·노멀 맵(앞당김), N-5 벽 노멀 맵, W-3 웅덩이 마스크 — 2026-10-26), 10-2' GGX + Smith·π 규약 전환 완료(2026-10-27), 10-3 DDS + Skybox 완료(2026-10-27), 다음 10-4 환경 반사 — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
 11. ✅ HDR Scene Target, Bloom과 Tone Mapping (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 2026-09-15, Bloom Step 5~7과 블러 반복·룩 재튜닝 2026-09-17에 완료)
 12. 안개, 비와 색조 보정 (기하 파이프라인 챕터의 기하 셰이더·빌보드가 여기 본체다 — 아래 "강의 연계 아이디어" 참고)
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류. 디버그 UI는 아래 "강의 연계 아이디어" A그룹으로 상당 부분 해결된다)
@@ -941,6 +985,18 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
+### 2026-10-27 — DDS 큐브맵 + Skybox(HDRI), `SkyBox` 분리 (10-3) ✅
+
+- 완료한 작업 (전부 사용자 작성·커밋, 에이전트는 설계 가이드·참고 코드·리뷰):
+  - S-1·S-2 (`26a062a`): `GraphicsResourceManager::CreateCubeMapTexture`(DirectXTK DDS 로더), `Texture::InitializeCubeMap`, `AssetManager::LoadCubeMap`(별도 캐시), `FrameRenderData.environmentMap`, 스카이박스 VS/PS, 깊이 상태(LESS_EQUAL + 쓰기 없음), `Renderer::DrawSkybox`(`EndScene` 시작)
+  - S-3 (`81d104c`): Poly Haven Hansaplatz 2K → `hansaplatz_cube512.dds`(에이전트가 Node.js 스크립트로 변환), `HDRI/CREDITS.md`·`.gitignore`, `environmentIntensity`(Light cbuffer 패딩 자리, `DirectionalLight` 0.25, EditorUI 로그 슬라이더), `Cubemaps/` 임시 폴더 정리
+  - `SkyBox` 분리 (`e805963`): 사용자가 데이터 단위 묶음 후보를 물어 에이전트가 분석 — 처음 제안한 Material 슬롯 enum·Ch13 `GraphicsPSO`는 사용자가 "강의 Ch11까지 기준"으로 정해 철회, Ch11 `CubeMapping` 대응으로 `SkyBox` 클래스(자기 VS/PS/IL/깊이 상태/큐브 버퍼, 환경맵·카메라 CB·샘플러는 받음)를 선정. `Renderer`는 "언제·무엇으로"만 남김
+- 확인한 결과: 사용자 화면 확인 — 골목 위 어두운 하늘 띠, 물체가 하늘을 가림, `Environment Intensity` 0에서 검정, 분리 전후 동일.
+  - 리뷰 중 잡은 문제: ① VS `.xyzw` 오타로 하늘이 씬 전체를 덮음(에이전트가 사용자 요청으로 실행·캡처해 확인) ② 큐브맵 경로 `Cubemaps\\skybox\\` 오타 — 선택 입력이라 조용히 배경색 ③ `.gitignore`에도 불구하고 원본 `.hdr`가 커밋됨(§2) ④ `SkyBox.cpp`/`.h`가 vcxproj에 없어 링크 실패 예정 ⑤ `Renderer.h`에 옮긴 멤버 3개 잔존
+- 남아 있는 문제: `hansaplatz_2k.hdr` 추적 해제(§2). EditorUI ambient 슬라이더 위 주석이 S-3 중 지워짐(복원 권장). 스카이박스 셰이더 `ExcludedFromBuild` 누락(§5). §5 예약 — `SkyLight` 분리, 환경맵 로드 실패 경고, HDRI 변환 스크립트 보관, `GraphicsPSO`, Material 슬롯 enum. 시작 벽 통과(N-5 항목, 10-7 단계에서).
+- 다음에 이어서 할 작업: **10-4 환경 반사**.
+- 중요한 설계 결정과 이유: §4 "Skybox와 환경맵 경로".
 
 ### 2026-10-27 — GGX + Smith, π 규약 전환 (10-2') ✅
 
