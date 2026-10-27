@@ -152,6 +152,40 @@ float SpecularGGX(float roughness, float NdotH, float NdotV, float NdotL)
     return D * Vis;
 }
 
+// 비금속 Specular를 정면 반사율 F0로
+float DielectricSpecularToF0(float specular)
+{
+    return 0.08 * specular;
+}
+
+// roughness를 큐브맵 LOD로
+float ComputeEnvironmentLOD(float roughness, uint mipCount)
+{
+    return roughness * (float(mipCount) - 1.0);
+}
+
+// 빛 쪽: 반사 방향에서 들어오는 환경 radiance. 거칠 수록 흐린 밉을 읽음
+float3 SampleEnvironmentRadiance(TextureCube cubeMap, SamplerState cubeSampler, float3 direction, float roughness)
+{
+    uint width, height, mipCount;
+    cubeMap.GetDimensions(0, width, height, mipCount);
+
+    float lod = ComputeEnvironmentLOD(roughness, mipCount);
+
+    return cubeMap.SampleLevel(cubeSampler, direction, lod).rgb * environmentIntensity;
+}
+
+// 표면 쪽: 들어온 환경 radiance 중 반사되는 몫
+float3 ComputeEnvironmentSpecular(SurfaceData surface, float3 viewDir, float3 environmentRadiance)
+{
+    float NdotV = saturate(abs(dot(surface.normal, viewDir)) + 1e-5);
+    float f0 = DielectricSpecularToF0(surface.specular);
+    
+    float F = F_Schlick(f0, NdotV);
+
+    return environmentRadiance * F;
+}
+
 // 빛 하나가 표면에 만드는 직접광. 모든 빛 종류가 이 함수를 지난다
 float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light, float3 viewDir)
 {
@@ -177,7 +211,7 @@ float3 ComputeDirectLighting(SurfaceData surface, IncidentLight light, float3 vi
     float NdotH = saturate(dot(surface.normal, halfVec));
     float VdotH = saturate(dot(viewDir, halfVec));
     
-    float f0 = 0.08 * surface.specular;
+    float f0 = DielectricSpecularToF0(surface.specular);
     float F = F_Schlick(f0, VdotH);
     
     float specularDV = SpecularGGX(surface.roughness, NdotH, NdotV, NdotL);

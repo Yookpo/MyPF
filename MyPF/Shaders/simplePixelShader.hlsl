@@ -5,6 +5,7 @@ Texture2D albedoTexture : register(t0);
 Texture2D roughnessTexture : register(t1);
 Texture2D normalTexture : register(t2);
 Texture2D puddleMaskTexture : register(t3);
+TextureCube environmentMap : register(t4);
 
 SamplerState linearSampler : register(s0);
 
@@ -58,7 +59,6 @@ float4 main(PS_INPUT input) : SV_TARGET
     surfaceData.roughness = lerp(roughnessFactor * roughnessSample, PUDDLE_ROUGHNESS, puddleMaskSample);
     surfaceData.specular = specular;
     
-    
     // 직접광 누적 변수
  
     // 1. 방향광 결과로 시작
@@ -74,6 +74,10 @@ float4 main(PS_INPUT input) : SV_TARGET
     // 3. 간접광
     float3 ambientColor = surfaceData.albedo * ambientStrength;
     
+    float3 reflectDir = reflect(-viewDir, surfaceData.normal);
+    float3 environmentRadiance = SampleEnvironmentRadiance(environmentMap, linearSampler, reflectDir, surfaceData.roughness);
+    float3 environmentSpecular = ComputeEnvironmentSpecular(surfaceData, viewDir, environmentRadiance);
+   
     // 4. 연출 항 (물리 조명은 아님)
     float3 emissive = emissiveColor * emissiveIntensity;
 
@@ -81,7 +85,7 @@ float4 main(PS_INPUT input) : SV_TARGET
     float3 rim = rimColor * rimIntensity * rimFactor;
     
     // 합성
-    float3 finalColor = ambientColor + directLighting + emissive + rim;
+    float3 finalColor = ambientColor + environmentSpecular + directLighting + emissive + rim;
     
     return float4(finalColor, 1.0f);
 }

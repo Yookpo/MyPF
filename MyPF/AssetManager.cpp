@@ -61,7 +61,7 @@ namespace My
 		{
 			return nullptr;
 		}
-
+		
 		auto iter = m_cubeMaps.find(ddsPath);
 		if (iter != m_cubeMaps.end())
 		{

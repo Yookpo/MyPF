@@ -759,11 +759,18 @@ namespace My
 			return false;
 		}
 
-		ID3D11ShaderResourceView* pixelSRVs[4] = { albedoSRV, roughnessSRV, normalSRV, puddleMaskSRV };
+
+		ID3D11ShaderResourceView* environmentSRV{ nullptr };
+		if (m_environmentMapHandle.IsValid())
+		{
+			environmentSRV = m_resourceManager->GetSRV(m_environmentMapHandle);
+		}
+
+		ID3D11ShaderResourceView* pixelSRVs[5] = { albedoSRV, roughnessSRV, normalSRV, puddleMaskSRV, environmentSRV };
 
 		// VS: b0=Object, b1=Camera
 		// PS: b0=Light, b1=Camera, b2=Material,
-		// t0=albedo, t1=Roughness, t2=Normal, t3=PuddleMask
+		// t0=albedo, t1=Roughness, t2=Normal, t3=PuddleMask, t4=Environment
 		context->IASetInputLayout(m_inputLayout.Get());
 		context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 		context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -773,7 +780,7 @@ namespace My
 		context->VSSetConstantBuffers(0, 2, constantBuffers);
 		context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
-		context->PSSetShaderResources(0, 4, pixelSRVs);
+		context->PSSetShaderResources(0, 5, pixelSRVs);
 		context->PSSetConstantBuffers(1, 2, pixelConstantBuffers);
 		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
