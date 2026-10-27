@@ -41,8 +41,9 @@ namespace My
 		Vector3 color;			 // 12
 		float	ambientStrength; // 4
 		// Point Light
-		std::uint32_t		   pointLightCount; // 4
-		Vector3				   pad;				// 12
+		std::uint32_t		   pointLightCount;		 // 4
+		float				   environmentIntensity; // 4
+		Vector2				   pad;					 // 8
 		PointLightConstantData pointLights[MaxPointLightCount];
 	};
 

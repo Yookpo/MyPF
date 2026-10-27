@@ -406,6 +406,7 @@ namespace My
 		m_lightConstantData.color = SrgbToLinear(frameRenderData.directionalLight.color);
 		m_lightConstantData.intensity = frameRenderData.directionalLight.intensity;
 		m_lightConstantData.ambientStrength = frameRenderData.directionalLight.ambientStrength;
+		m_lightConstantData.environmentIntensity = frameRenderData.directionalLight.environmentIntensity;
 		// Point Light
 		m_lightConstantData.pointLightCount = static_cast<std::uint32_t>(frameRenderData.pointLightCount);
 		for (std::size_t i = 0; i < frameRenderData.pointLightCount; i++)

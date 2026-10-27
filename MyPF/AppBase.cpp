@@ -309,7 +309,7 @@ namespace My
 			return false;
 		}
 
-		m_environmentMap = m_assetManager.LoadCubeMap("Assets\\Textures\\Cubemaps\\skybox\\cubemap_bgra.dds");
+		m_environmentMap = m_assetManager.LoadCubeMap("Assets\\Textures\\HDRI\\hansaplatz_cube512.dds");
 		if (!m_environmentMap)
 		{
 			OutputDebugStringW(L"Environment map load failed. Using background color\n");

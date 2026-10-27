@@ -42,7 +42,8 @@ cbuffer LightConstantBuffer : register(b0)
     float3 dirLightColor;
     float ambientStrength;
     uint pointLightCount;
-    float3 lightPad;
+    float environmentIntensity;
+    float2 lightPad;
     PointLight pointLights[NUM_POINT_LIGHTS];
 }
 

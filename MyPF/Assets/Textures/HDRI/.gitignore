@@ -1,0 +1,3 @@
+# 원본 equirect HDRI는 커밋하지 않는다. Poly Haven에서 다시 받을 수 있고(CREDITS.md 링크), 변환한 DDS만 쓴다.
+*.hdr
+*.exr
