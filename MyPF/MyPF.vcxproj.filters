@@ -132,6 +132,9 @@
     <ClCompile Include="PlayerCollision.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
+    <ClCompile Include="SkyBox.cpp">
+      <Filter>Scene</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ImGui\imconfig.h">
@@ -274,6 +277,9 @@
     </ClInclude>
     <ClInclude Include="TextureType.h">
       <Filter>Assets</Filter>
+    </ClInclude>
+    <ClInclude Include="SkyBox.h">
+      <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

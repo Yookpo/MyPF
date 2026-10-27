@@ -5,6 +5,7 @@
 #include "FrameRenderData.h"
 #include "BufferHandle.h"
 #include "TextureHandle.h"
+#include "SkyBox.h"
 
 namespace My
 {
@@ -49,19 +50,16 @@ namespace My
 
 		// Depth buffer
 		ComPtr<ID3D11DepthStencilState> m_depthStencilState;
-		ComPtr<ID3D11DepthStencilState> m_skyboxDepthStencilState;
 
 		// shader
 		ComPtr<ID3D11VertexShader> m_vertexShader;
 		ComPtr<ID3D11VertexShader> m_fullscreenVertexShader;
-		ComPtr<ID3D11VertexShader> m_skyboxVertexShader;
 		ComPtr<ID3D11PixelShader>  m_pixelShader;
 		ComPtr<ID3D11PixelShader>  m_copyPixelShader;
 		ComPtr<ID3D11PixelShader>  m_toneMappingPixelShader;
 		ComPtr<ID3D11PixelShader>  m_brightPassPixelShader;
 		ComPtr<ID3D11PixelShader>  m_blurXPixelShader;
 		ComPtr<ID3D11PixelShader>  m_blurYPixelShader;
-		ComPtr<ID3D11PixelShader>  m_skyboxPixelShader;
 		ComPtr<ID3D11InputLayout>  m_inputLayout;
 
 		// sampler
@@ -82,10 +80,8 @@ namespace My
 		BufferHandle m_materialBufferHandle;
 		BufferHandle m_postProcessBufferHandle;
 
-		// 스카이박스 큐브
-		BufferHandle  m_skyboxVertexBufferHandle;
-		BufferHandle  m_skyboxIndexBufferHandle;
-		uint32_t	  m_skyboxIndexCount{ 0 };
+		// 스카이 박스
+		SkyBox		  m_skyBox;
 		TextureHandle m_environmentMapHandle;
 
 		// for Bloom

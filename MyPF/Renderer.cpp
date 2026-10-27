@@ -22,7 +22,7 @@ namespace My
 			return false;
 		}
 
-		ID3D11Device* Device = m_graphicsDevice->GetDevice();
+		ID3D11Device* device = m_graphicsDevice->GetDevice();
 
 		if (!CreateRasterizerState())
 		{
@@ -31,7 +31,7 @@ namespace My
 
 		SetViewPort(0, 0, static_cast<float>(screenWidth), static_cast<float>(screenHeight));
 
-		if (!D3D11Utils::CreateDepthStencilState(Device, m_depthStencilState))
+		if (!D3D11Utils::CreateDepthStencilState(device, m_depthStencilState))
 		{
 			return false;
 		}
@@ -181,82 +181,53 @@ namespace My
 			{ "TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 44, D3D11_INPUT_PER_VERTEX_DATA, 0 } };
 
 		if (!D3D11Utils::CreateVertexShaderAndInputLayout(
-				Device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader, m_inputLayout))
+				device, L"Shaders\\simpleVertexShader.hlsl", inputElements, m_vertexShader, m_inputLayout))
 		{
 			return false;
 		}
 
-		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader))
+		if (!D3D11Utils::CreatePixelShader(device, L"Shaders\\simplePixelShader.hlsl", m_pixelShader))
 		{
 			return false;
 		}
 
-		if (!D3D11Utils::CreateVertexShader(Device, L"Shaders\\fullscreenVertexShader.hlsl", m_fullscreenVertexShader))
+		if (!D3D11Utils::CreateVertexShader(device, L"Shaders\\fullscreenVertexShader.hlsl", m_fullscreenVertexShader))
 		{
 			OutputDebugStringW(L"fullscreenVertexShader Created Failed\n");
 			return false;
 		}
 
-		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\copyPixelShader.hlsl", m_copyPixelShader))
+		if (!D3D11Utils::CreatePixelShader(device, L"Shaders\\copyPixelShader.hlsl", m_copyPixelShader))
 		{
 			OutputDebugStringW(L"copyPixelShader Created Failed\n");
 			return false;
 		}
 
-		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\toneMappingPixelShader.hlsl", m_toneMappingPixelShader))
+		if (!D3D11Utils::CreatePixelShader(device, L"Shaders\\toneMappingPixelShader.hlsl", m_toneMappingPixelShader))
 		{
 			OutputDebugStringW(L"toneMappingPixelShader Created Failed\n");
 			return false;
 		}
 
-		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\brightPassPixelShader.hlsl", m_brightPassPixelShader))
+		if (!D3D11Utils::CreatePixelShader(device, L"Shaders\\brightPassPixelShader.hlsl", m_brightPassPixelShader))
 		{
 			OutputDebugStringW(L"brightPassPixelShader Created Failed\n");
 			return false;
 		}
 
-		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\blurXPixelShader.hlsl", m_blurXPixelShader))
+		if (!D3D11Utils::CreatePixelShader(device, L"Shaders\\blurXPixelShader.hlsl", m_blurXPixelShader))
 		{
 			OutputDebugStringW(L"blurXPixelShader Created Failed\n");
 			return false;
 		}
 
-		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\blurYPixelShader.hlsl", m_blurYPixelShader))
+		if (!D3D11Utils::CreatePixelShader(device, L"Shaders\\blurYPixelShader.hlsl", m_blurYPixelShader))
 		{
 			OutputDebugStringW(L"blurYPixelShader Created Failed\n");
 			return false;
 		}
 
-		// 스카이박스 전용 쉐이더
-		if (!D3D11Utils::CreateVertexShader(Device, L"Shaders\\skyboxVertexShader.hlsl", m_skyboxVertexShader))
-		{
-			OutputDebugStringW(L"skyboxVertexShader Created Failed\n");
-			return false;
-		}
-
-		if (!D3D11Utils::CreatePixelShader(Device, L"Shaders\\skyboxPixelShader.hlsl", m_skyboxPixelShader))
-		{
-			OutputDebugStringW(L"skyboxPixelShader Created Failed\n");
-			return false;
-		}
-
-		// 스카이박스 깊이 : 하늘은 깊이를 쓰지 않는다
-		D3D11_DEPTH_STENCIL_DESC skyboxDepthDesc{};
-		skyboxDepthDesc.DepthEnable = TRUE;
-		skyboxDepthDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-		skyboxDepthDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
-		if (FAILED(Device->CreateDepthStencilState(&skyboxDepthDesc, m_skyboxDepthStencilState.GetAddressOf())))
-		{
-			return false;
-		}
-
-		// 스카이박스 큐브 : 방향만 쓰기 때문에 크기 상관없음
-		MeshData skyboxCube = GeometryGenerator::MakeCube();
-		m_skyboxVertexBufferHandle = m_resourceManager->CreateVertexBuffer(skyboxCube.vertices);
-		m_skyboxIndexBufferHandle = m_resourceManager->CreateIndexBuffer(skyboxCube.indices);
-		m_skyboxIndexCount = static_cast<uint32_t>(skyboxCube.indices.size());
-
-		if (!m_skyboxVertexBufferHandle.IsValid() || !m_skyboxIndexBufferHandle.IsValid())
+		if (!m_skyBox.Initialize(device, *m_resourceManager, inputElements))
 		{
 			return false;
 		}
@@ -271,7 +242,7 @@ namespace My
 		sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
 		sampDesc.MinLOD = 0;
 		sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-		if (FAILED(Device->CreateSamplerState(&sampDesc, m_samplerState.GetAddressOf())))
+		if (FAILED(device->CreateSamplerState(&sampDesc, m_samplerState.GetAddressOf())))
 		{
 			return false;
 		}
@@ -279,7 +250,7 @@ namespace My
 		sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
 		sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
 		sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
-		if (FAILED(Device->CreateSamplerState(&sampDesc, m_clampSamplerState.GetAddressOf())))
+		if (FAILED(device->CreateSamplerState(&sampDesc, m_clampSamplerState.GetAddressOf())))
 		{
 			return false;
 		}
@@ -365,12 +336,12 @@ namespace My
 			return false;
 		}
 
-		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
+		ID3D11DeviceContext* context = m_graphicsDevice->GetContext();
 		// ID3D11RenderTargetView* RTV = m_graphicsDevice->GetRTV(); // 백버퍼에서 가져온다
 		ID3D11RenderTargetView* sceneRTV = m_resourceManager->GetRTV(m_hdrSceneTargetHandle);
 		ID3D11DepthStencilView* DSV = m_graphicsDevice->GetDSV();
 
-		if (!Context || !sceneRTV || !DSV)
+		if (!context || !sceneRTV || !DSV)
 		{
 			return false;
 		}
@@ -380,12 +351,12 @@ namespace My
 		const std::array<float, 4> clearColor = { backgroundLinear.x, backgroundLinear.y, backgroundLinear.z,
 			m_backgroundColor[3] };
 
-		Context->ClearRenderTargetView(sceneRTV, clearColor.data());
-		Context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+		context->ClearRenderTargetView(sceneRTV, clearColor.data());
+		context->ClearDepthStencilView(DSV, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 		// 비교: Depth Buffer를 사용하지 않는 경우
 		// m_context->OMSetRenderTargets(1, m_renderTargetView.GetAddressOf(), nullptr);
-		Context->OMSetRenderTargets(1, &sceneRTV, DSV);
-		Context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
+		context->OMSetRenderTargets(1, &sceneRTV, DSV);
+		context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
 		// 카메라
 		m_cameraConstantData.view = frameRenderData.view;
@@ -449,7 +420,7 @@ namespace My
 			return false;
 		}
 
-		Context->PSSetConstantBuffers(0, 1, &lightconstantBuffer);
+		context->PSSetConstantBuffers(0, 1, &lightconstantBuffer);
 
 		return true;
 	}
@@ -490,38 +461,15 @@ namespace My
 		}
 
 		ID3D11DeviceContext*	  context = m_graphicsDevice->GetContext();
-		ID3D11Buffer*			  vertexBuffer = m_resourceManager->GetBuffer(m_skyboxVertexBufferHandle);
-		ID3D11Buffer*			  indexBuffer = m_resourceManager->GetBuffer(m_skyboxIndexBufferHandle);
 		ID3D11Buffer*			  cameraBuffer = m_resourceManager->GetBuffer(m_cameraBufferHandle);
 		ID3D11ShaderResourceView* environmentSRV = m_resourceManager->GetSRV(m_environmentMapHandle);
 
-		if (!context || !vertexBuffer || !indexBuffer || !cameraBuffer || !environmentSRV)
+		if (!m_skyBox.Render(context, cameraBuffer, environmentSRV, m_samplerState.Get()))
 		{
-			OutputDebugStringW(L"Skybox resource is NULL\n");
 			return false;
 		}
 
-		UINT stride = sizeof(Vertex);
-		UINT offset = 0;
-
-		// 출력은 BeginFrame이 건 HDR 씬 타깃 + DSV 그대로. 이 패스가 쓰는 상태는 전부 직접 건다
-		context->IASetInputLayout(m_inputLayout.Get());
-		context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-		context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-		context->VSSetShader(m_skyboxVertexShader.Get(), 0, 0);
-		context->VSSetConstantBuffers(1, 1, &cameraBuffer); // VS b1 = Camera
-		context->PSSetShader(m_skyboxPixelShader.Get(), 0, 0);
-		context->PSSetShaderResources(0, 1, &environmentSRV);
-		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
-		context->OMSetDepthStencilState(m_skyboxDepthStencilState.Get(), 0);
-
-		context->DrawIndexed(m_skyboxIndexCount, 0, 0);
-
-		// 입력 해제, 기본 깊이 상태 복구
-		ID3D11ShaderResourceView* nullSRV = nullptr;
-		context->PSSetShaderResources(0, 1, &nullSRV);
+		// SkyBox가 바꾼 깊이 상태를 씬 기본값으로 복구
 		context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 
 		return true;
@@ -697,9 +645,9 @@ namespace My
 			return false;
 		}
 
-		ID3D11DeviceContext* Context = m_graphicsDevice->GetContext();
+		ID3D11DeviceContext* context = m_graphicsDevice->GetContext();
 
-		if (!Context)
+		if (!context)
 		{
 			OutputDebugStringW(L"Context is Empty");
 			return false;
@@ -816,20 +764,20 @@ namespace My
 		// VS: b0=Object, b1=Camera
 		// PS: b0=Light, b1=Camera, b2=Material,
 		// t0=albedo, t1=Roughness, t2=Normal, t3=PuddleMask
-		Context->IASetInputLayout(m_inputLayout.Get());
-		Context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-		Context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-		Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		context->IASetInputLayout(m_inputLayout.Get());
+		context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+		context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		Context->VSSetShader(m_vertexShader.Get(), 0, 0);
-		Context->VSSetConstantBuffers(0, 2, constantBuffers);
-		Context->PSSetShader(m_pixelShader.Get(), 0, 0);
+		context->VSSetShader(m_vertexShader.Get(), 0, 0);
+		context->VSSetConstantBuffers(0, 2, constantBuffers);
+		context->PSSetShader(m_pixelShader.Get(), 0, 0);
 
-		Context->PSSetShaderResources(0, 4, pixelSRVs);
-		Context->PSSetConstantBuffers(1, 2, pixelConstantBuffers);
-		Context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
+		context->PSSetShaderResources(0, 4, pixelSRVs);
+		context->PSSetConstantBuffers(1, 2, pixelConstantBuffers);
+		context->PSSetSamplers(0, 1, m_samplerState.GetAddressOf());
 
-		Context->DrawIndexed(drawMesh.GetIndexCount(), 0, 0);
+		context->DrawIndexed(drawMesh.GetIndexCount(), 0, 0);
 
 		return true;
 	}
