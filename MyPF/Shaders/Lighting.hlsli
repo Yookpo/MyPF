@@ -175,13 +175,25 @@ float3 SampleEnvironmentRadiance(TextureCube cubeMap, SamplerState cubeSampler, 
     return cubeMap.SampleLevel(cubeSampler, direction, lod).rgb * environmentIntensity;
 }
 
+// 환경광 Fresnel + 거칠기 감쇠
+float EnvBRDFApprox(float f0, float roughness, float NdotV)
+{
+    const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
+    const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
+    float4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28 * NdotV)) * r.x + r.y;
+    float2 AB = float2(-1.04, 1.04) * a004 + r.zw;
+    
+    return f0 * AB.x + AB.y;
+}
+
 // 표면 쪽: 들어온 환경 radiance 중 반사되는 몫
 float3 ComputeEnvironmentSpecular(SurfaceData surface, float3 viewDir, float3 environmentRadiance)
 {
     float NdotV = saturate(abs(dot(surface.normal, viewDir)) + 1e-5);
     float f0 = DielectricSpecularToF0(surface.specular);
     
-    float F = F_Schlick(f0, NdotV);
+    float F = EnvBRDFApprox(f0, surface.roughness, NdotV);
 
     return environmentRadiance * F;
 }

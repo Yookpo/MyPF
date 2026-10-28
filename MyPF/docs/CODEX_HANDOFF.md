@@ -1,6 +1,6 @@
 # MyPF 진행 기록 및 작업 인계
 
-마지막 갱신: 2026-10-27
+마지막 갱신: 2026-10-28
 
 노트북과 데스크톱에서 Git으로 공유하는 MyPF의 실제 구현 상태와 다음 작업을 기록한다.
 
@@ -17,7 +17,7 @@
 
 ## 1. 진행률
 
-현재 전체 진행률은 약 **83%**다(2026-10-27, 10-3 Skybox 완료 기준).
+현재 전체 진행률은 약 **84%**다(2026-10-28, 10-4 환경 반사 완료 기준).
 
 | 영역 | 진행 | 현재 상태 |
 |---|---:|---|
@@ -26,17 +26,17 @@
 | Model 파이프라인 | 약 65% | FBX/OBJ/glTF BaseColor 로드 완료. aiNode/PBR은 남음 |
 | Scene/ImGui 편집 | 약 72% | Greybox Scene, 선택과 Transform/Material 편집, Point Light 소유, Post Process 패널(Exposure/Tone Mapper/Bloom 3종/Debug View) 완료 |
 | 1인칭 입력/카메라 | 약 90% | Editor/Play, WASD/마우스/ESC/focus와 단발 키 입력, 플레이어-벽 충돌 완료 |
-| 조명/Material | 약 90% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅, 셰이더 빛/표면 분리, 재질별 Roughness/Specular, **GGX + Smith(Unreal 형식) + Schlick Fresnel, π 규약(diffuse = albedo / π)**, UV 타일링, roughness·노멀 맵(탄젠트, 기본 텍스처 3종), 웅덩이 마스크 완료. IBL·metallic은 없음 |
+| 조명/Material | 약 90% | Directional/Ambient, 최대 8 Point Light, Emissive, Rim, 선형 색공간(sRGB 텍스처와 색 상수 변환), 밤 골목 조명 세팅, 셰이더 빛/표면 분리, 재질별 Roughness/Specular, **GGX + Smith(Unreal 형식) + Schlick Fresnel, π 규약(diffuse = albedo / π)**, UV 타일링, roughness·노멀 맵(탄젠트, 기본 텍스처 3종), 웅덩이 마스크, **큐브맵 환경 반사(split-sum: roughness → 밉 LOD × `EnvBRDFApprox`)** 완료. diffuse IBL·metallic은 없음 |
 | 실제 골목/상호작용 | 약 85% | PowerSwitch와 Ray 기반 E 입력, 스위치 피드백·대기 표시등·호박색 Rim 강조(PowerSwitch 소유), 순차 점등 완료 |
-| 고급 렌더링/연출 | 약 58% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성), 룩 재튜닝, 젖은 바닥의 Point Light 반사(Specular·Fresnel)와 웅덩이 대비, HDRI Skybox(`SkyBox`) 완료. Shadow/환경 반사(간판이 비치는 반사)/Fog/Rain은 없음 |
+| 고급 렌더링/연출 | 약 60% | HDR 씬 타깃, Exposure, Reinhard/ACES 톤 매핑, 출력 감마, Bloom(추출·분리형 블러·합성), 룩 재튜닝, 젖은 바닥의 Point Light 반사(Specular·Fresnel)와 웅덩이 대비, HDRI Skybox(`SkyBox`), 하늘 큐브맵 반사(10-4) 완료. Shadow/평면 반사(간판이 비치는 반사)/Fog/Rain/MSAA는 없음 |
 
 ---
 
 ## 2. Git 체크포인트
 
-- 문서 갱신 기준 HEAD: `e805963`(사용자: `SkyBox` 클래스 분리). 그 앞이 `81d104c`(사용자: S-3 HDRI 큐브맵 DDS·`environmentIntensity`·`HDRI/CREDITS.md`)·`26a062a`(사용자: S-1·S-2 DDS 로더·스카이박스 셰이더·그리기 + 10-2' 문서와 B안 계획)·`fb58d71`·`01f7d38`(10-2'). `origin/main`보다 앞서 있다(push 전 — 노트북에서 이어가려면 push 필요).
-- 현재 작업 트리 (2026-10-27): 이 문서와 `AGENTS.md` 갱신만 미커밋. commit/push는 사용자가 요청할 때만 한다.
-- **`HDRI/hansaplatz_2k.hdr`(6.8MB)가 `26a062a`에 실수로 커밋돼 아직 추적 중이다.** `.gitignore`와 `CREDITS.md`는 "원본은 로컬에만"이라 적혀 있고, 사용자가 추적만 끊기로(B안) 정했다 — 다음 커밋에서 `git rm --cached MyPF/Assets/Textures/HDRI/hansaplatz_2k.hdr`(로컬 파일은 유지). 이미 히스토리에 들어간 6.8MB는 남는다(지우려면 히스토리 재작성이 필요해 하지 않는다).
+- 문서 갱신 기준 HEAD: `b6aee16`(사용자: 10-4 E-1·E-2 — `t4` 바인딩, 환경 반사 함수 분리, Schlick 반사). 그 앞이 `c0d5883`(10-3 문서)·`e805963`(사용자: `SkyBox` 클래스 분리)·`81d104c`(사용자: S-3 HDRI 큐브맵 DDS·`environmentIntensity`·`HDRI/CREDITS.md`)·`26a062a`(사용자: S-1·S-2 DDS 로더·스카이박스 셰이더·그리기 + 10-2' 문서와 B안 계획). `b6aee16`의 `AssetManager.cpp` 변경은 공백 한 줄뿐이다. `origin/main`보다 앞서 있다(push 전 — 노트북에서 이어가려면 push 필요).
+- 현재 작업 트리 (2026-10-28): **E-3**(`Lighting.hlsli`의 `EnvBRDFApprox`와 `ComputeEnvironmentSpecular` 한 줄 교체, 검증 완료), `Common.hlsli` 끝 빈 줄 2개 삭제(동작 무관), 이 문서와 `AGENTS.md` 갱신이 미커밋. 사용자가 직접 커밋한다. commit/push는 사용자가 요청할 때만 한다.
+- **`HDRI/hansaplatz_2k.hdr`(6.8MB)가 `26a062a`에 실수로 커밋돼 아직 추적 중이다(2026-10-28 `git ls-files`로 재확인).** `.gitignore`와 `CREDITS.md`는 "원본은 로컬에만"이라 적혀 있고, 사용자가 추적만 끊기로(B안) 정했다 — 다음 커밋에서 `git rm --cached MyPF/Assets/Textures/HDRI/hansaplatz_2k.hdr`(로컬 파일은 유지). 이미 히스토리에 들어간 6.8MB는 남는다(지우려면 히스토리 재작성이 필요해 하지 않는다).
 - 10-2 Fresnel은 두 커밋이다 — `6fd8742`(사용자: `FresnelSchlick`과 `ComputeDirectLighting` 조립 + 확장 예약 목록 문서), `04fab3c`(바닥 specular 0.5 → 0.25).
 - `a431f1f`는 렌더러와 무관한 학습용 정적 사이트(`study-site/`), 그 생성 규칙 스킬(`.claude/skills/study-site/SKILL.md`), 프리뷰 서버 설정(`.claude/launch.json`)을 추가했다(13개 파일). 상세는 §3 "학습 사이트".
 - `e9ab696`은 10-1 E~G를 한 번에 담고 있다 — 셰이더 E-1(`viewDir` 전달)·E-2(`SurfaceData`에 roughness/specular)·E-3(Blinn-Phong)·F(정규화)와 G(`AppBase.cpp`·`NeonSign.cpp`의 재질값). 4개 파일.
@@ -49,6 +49,8 @@
 최근 기능 commit:
 
 ```text
+b6aee16 환경반사 기본
+c0d5883 10_27 MDs Update
 e805963 스카이 박스 리팩토링
 81d104c HDR 큐브맵 로드
 26a062a 큐브맵 도입
@@ -207,6 +209,21 @@ UV Scale의 일반식은 **축마다 `면 크기 ÷ 텍스처 실제 크기`**�
 - **`environmentIntensity`**: `DirectionalLight::environmentIntensity`(기본 **0.25**) → Light cbuffer의 `pointLightCount` 다음 자리(`float environmentIntensity; float2 lightPad;`, C++ `LightConstantData`도 같은 순서) → 스카이박스 PS. EditorUI Environment 패널에 로그 슬라이더(0.01~4). 하늘·10-4 반사 밝기 배율이며 π를 곱하지 않는다(radiance 배율)
 - **에셋**: `Assets/Textures/HDRI/hansaplatz_cube512.dds` — Poly Haven Hansaplatz(CC0, 밤 광장) 2K equirect를 에이전트의 Node.js 스크립트로 변환: `R16G16B16A16_FLOAT`, 면 512² × 6, 밉 10단계(2 × 2 상자 필터), 16MB, D3D 면 순서·방향(equirect 가운데 = +Z). 상세는 `HDRI/CREDITS.md`. 원본 `.hdr`는 `HDRI/.gitignore`로 제외(§2의 추적 해제 메모 참고)
 - 확인: 골목 위로 어두운 하늘 띠가 보이고 물체가 하늘을 가린다. `Environment Intensity` 0이면 하늘이 검정. `SkyBox` 분리 후 화면 동일(사용자 확인)
+
+### 큐브맵 환경 반사 (10-4, `b6aee16` + E-3 미커밋)
+
+- **바인딩**: `Renderer::DrawRenderItem`이 `m_environmentMapHandle`이 유효할 때만 `GetSRV`로 환경맵 SRV를 얻어 PS `t4`에 건다(무효면 `nullptr`). `pixelSRVs[5]`, `PSSetShaderResources(0, 5, …)`. 다른 네 슬롯과 달리 `ResolveTextureSRV`·`return false`를 쓰지 않는다(§4)
+- **HLSL 선언**: `simplePixelShader.hlsl`의 `TextureCube environmentMap : register(t4)`(스카이박스 PS의 t0과 같은 이름)
+- **`Lighting.hlsli` 함수** (`ComputeDirectLighting` 위, 선언 순서가 호출 순서):
+  - `DielectricSpecularToF0(specular)` = `0.08 × specular` — 직접광·환경광이 함께 쓴다
+  - `ComputeEnvironmentLOD(roughness, mipCount)` = `roughness × (float(mipCount) − 1)` — 선형 대응
+  - `SampleEnvironmentRadiance(cubeMap, cubeSampler, direction, roughness)` — **빛 쪽**. `GetDimensions`로 밉 수 → LOD → `SampleLevel(…).rgb × environmentIntensity`
+  - `EnvBRDFApprox(f0, roughness, NdotV)` — Karis 2014(Unreal `BRDF.ush`) 그대로. `F0 × A + B`
+  - `ComputeEnvironmentSpecular(surface, viewDir, environmentRadiance)` — **표면 쪽**. N·V(`saturate(abs(…) + 1e-5)`), F0, `EnvBRDFApprox` → `radiance × F`
+- **`main`** ("3. 간접광"): `reflectDir = reflect(−viewDir, surfaceData.normal)` → `environmentRadiance` → `environmentSpecular`, `finalColor = ambientColor + environmentSpecular + directLighting + emissive + rim`. ambient는 그대로다(`(1 − F)` 감쇠는 10-5)
+- **수치** (EnvBRDFApprox, 바닥 F0 0.02, 먼 바닥 N·V 0.1): 웅덩이(roughness 0.1) 0.51 / 마른 아스팔트(약 0.4) 0.24 / 0.6에서 0.08 / 벽(1.0) 0.007. 정면은 모두 약 F0. Schlick은 각도만 봐서 전부 0.60이었다
+- **LOD 수치** (512 큐브, 밉 10): 웅덩이 0.9(약 256px) / 마른 바닥 약 3.2(64px) / 벽 7~9
+- 확인: E-1b 크롬 골목(임시 출력, 사용자 확인 후 삭제), E-2 웅덩이 반사와 벽 스침 번들거림, E-3 `fxc` 경고 0개. 2026-10-28 에이전트 캡처(사용자 요청, 빌드 없이 실행)의 평가는 §4 "환경 반사 — split-sum과 EnvBRDFApprox"
 
 ### 룩 재튜닝 (밤 골목 조명 세팅)
 
@@ -457,6 +474,16 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
   **"언제·무엇으로"는 `Renderer`, "어떻게"는 `SkyBox`**다. 깊이 상태 복구를 `Renderer::DrawSkybox`가 하는 것도 이 경계 때문이다(`SkyBox`가 씬 기본 상태를 알면 하위 기능이 호출자의 사정을 안다). 함께 검토했지만 하지 않은 묶음: Ch13 `GraphicsPSO`/`GraphicsCommon`(강의를 Ch11까지로 한정하기로 함 — §5 예약), Ch11 `PostProcess`(Bloom 묶음, `ImageFilter`와 같은 전환 조건), Material 텍스처 슬롯 enum(강의 `Mesh`도 이름 있는 필드 방식이라 보류).
 - **주석만 남은 리뷰**: G-3 뒤 남은 문제가 전부 주석이었다(삭제된 함수를 가리키는 `MIN_PERCEPTUAL_ROUGHNESS` 설명, 값과 반대되는 웅덩이 근거). 주석은 아무도 검증하지 않아 코드가 바뀔 때 가장 먼저 낡는다 — "왜 이 값인가"는 **그 값을 고른 근거**로 적어야 근거가 바뀔 때 고칠 신호가 된다.
 
+### 환경 반사 — split-sum과 EnvBRDFApprox (10-4, 2026-10-28)
+
+- **구조는 Karis 2013 split-sum을 따른다.** 환경광 적분 `∫ f · L · (n·l)`을 ① "미리 흐린 하늘"(방향·roughness의 함수)과 ② "하늘이 흰색일 때의 반사율"(roughness·N·V의 함수)의 곱으로 근사한다. ①이 `SampleEnvironmentRadiance`, ②가 `ComputeEnvironmentSpecular`다. ②의 적분 안에 BRDF(π 포함)와 `n·l`이 이미 들어 있으므로 **환경광에는 `/π`와 `N·L`이 없다** — 직접광(`ComputeDirectLighting`)과 나란히 보고 "빠뜨렸다"며 추가하면 반사가 크게 어두워지거나 비스듬한 곳에서 사라진다.
+- **빛 쪽 / 표면 쪽으로 나눈 이유는 앞으로 따로 바뀌기 때문이다.** E-3은 표면 쪽 한 줄(Fresnel 식)만, **10-7 평면 반사는 빛 쪽만**(바닥의 radiance를 큐브맵 대신 반사 텍스처에서 읽음 — 같은 Fresnel을 써야 웅덩이와 벽이 같은 재질로 보인다), 10-5는 빛 쪽(prefiltered 맵·LOD 곡선)과 diffuse 형제 함수를 바꾼다. 실제로 E-3은 `ComputeEnvironmentSpecular` 안의 한 줄로 끝났고 `main`은 그대로였다. `environmentIntensity`는 `GetDirectionalLight`가 세기를 곱하듯 빛 쪽에서 곱한다. 텍스처·샘플러를 인자로 받는 이유는 `Lighting.hlsli`를 스카이박스 PS(큐브맵 t0)도 include해서 `register(t4)`를 여기 선언하면 슬롯이 충돌하기 때문이다 — 슬롯은 PS 파일이 정한다. 인자 이름을 `cubeMap`으로 한 것은 씬 PS 전역 `environmentMap`과 헷갈리지 않게 하려는 것.
+- **환경맵은 `t4`, 무효면 `nullptr`.** Material 슬롯(t0~t3) 뒤에 붙여 기존 번호를 지켰다. 빈 슬롯은 0으로 읽혀 "반사 없음"이 정의된 결과다. 반대로 1×1 검정 fallback은 **Texture2D**라 `TextureCube` 슬롯에 걸면 차원 불일치(정의되지 않은 결과)라 쓰지 않는다. 강의 Ch11 `BasicMeshGroup::Render`도 큐브맵 SRV를 재질 텍스처와 한 배열로 메시마다 건다.
+- **roughness → 밉은 `SampleLevel`로 직접 고른다.** `Sample`은 화면 미분으로 밉을 고르는데, 반사 벡터는 노멀 맵 때문에 픽셀마다 크게 꺾여 미분이 과대해지고 흐린 밉이 들쭉날쭉 선택된다. 강의 Ch11 `BasicPS`가 `Sample` + `pow(…, shininess)`로도 괜찮은 건 예제가 매끈한 구라서다. 대응은 선형(`r × (mipCount − 1)`)이며, Unity `PerceptualRoughnessToMipmapLevel`(`r(1.7 − 0.7r)`)·Unreal `ComputeReflectionCaptureMipFromRoughness`(log)는 중간 roughness를 더 흐리게 둔다 — 그 엔진들은 GGX prefiltered 맵 전제라 우리 상자 필터 밉에 그대로 맞는지는 눈으로 판단한다(§5 예약). `float(mipCount) − 1`은 **형변환이 먼저**다 — `uint`에서 빼면 빈 슬롯(밉 0개)에서 40억이 된다(크래시 없이 조용히 마지막 밉으로 잘림).
+- **Schlick → `EnvBRDFApprox` (E-3).** `F_Schlick(f0, N·V)`은 roughness를 몰라 마른 아스팔트·벽도 스치는 각도에서 웅덩이처럼 60%를 반사했다 — 사용자가 "바닥이 금속처럼 보인다"고 관찰했다. Schlick을 `F0(1 − Fc) + Fc`로 쓰면 F0가 적분 밖으로 나와 ②가 `F0 × A + B`(A·B는 roughness·N·V만의 함수, Unreal BRDF LUT의 R·G)가 된다. `EnvBRDFApprox`는 그 LUT를 다항식으로 맞춘 것(Karis 2014, Lazarov 2013 기반)이라 상수는 유도값이 아니라 피팅값이다. 읽는 법: `exp2(−9.28·N·V)`가 `(1 − N·V)⁵` 역할, `r.x = 1 − roughness`가 스침 증가를 깎고, 같은 `a004`가 A에서 빠지고 B에 더해진다(Schlick 구조 그대로). **극한값으로 검증한다**: 매끈·정면 → F0, 매끈·수평 → 1, 거침 → 약 0.45 × F0. 이 함수를 옮겨 적을 때 `c0`·`c1`을 `float`로 선언해 X3206과 함께 모든 성분이 `1 − roughness`가 되는 버그가 실제로 났다(정면 반사율 약 1.84).
+- **F0 추출 시점.** `0.08 × specular`가 직접광·환경광 두 곳이 되자 `DielectricSpecularToF0`(Unreal `ShadingCommon.ush` 이름)로 뽑았다 — 두 곳이 어긋나면 하이라이트와 하늘 반사의 반사율이 조용히 달라진다. 0.08은 IOR 1.5 → F0 0.04가 Specular 0.5가 되도록 잡은 Unreal 관례이고, 바닥 0.25 → 0.02는 **물**(IOR 1.33)의 반사율이다. N·V 보호식도 두 곳이지만 한 줄이라 세 번째(10-5)까지 둔다(§5).
+- **에이전트 캡처 평가와 계획 변경 (2026-10-28).** 사용자 요청으로 빌드 없이 실행·캡처해 레퍼런스 사이버펑크 씬과 비교했다. 원인 셋: ① 정적 큐브맵(밤 광장 수평선 불빛)이 골목 자체 조명(ambient 0.045, 수직 방향광, 네온 셋)보다 밝아 벽에서 반사가 가장 밝은 항이 된다 — 좁은 골목은 원래 하늘을 거의 못 본다 ② 비스듬한 벽에서 노멀 맵이 반사 방향을 **기하 표면 아래**로 꺾어 큐브맵이 그 방향의 하늘을 돌려준다 → 은박지 무늬 ③ 레퍼런스 바닥의 핵심인 네온 반사는 큐브맵에 없다(10-7). ②의 해법 Horizon Occlusion(Russell 2015)은 가이드·예제 코드까지 마쳤지만, 사용자가 **"최종 결과물이 목표이니 구도와 씬을 먼저"**로 순서를 바꿔 §5 예약으로 보류했다(벽 재질이 씬 단계에서 바뀔 수 있음). 반사·안개·그림자는 "무엇을 비추고 가리느냐"로 평가되고, 웅덩이 마스크·10-7·룩 값이 네온 배치에 묶여 있어서 배치를 먼저 확정하면 재작업이 준다 — 10-W를 GGX보다 앞당긴 것과 같은 이유다.
+
 ### UV 타일링 (10-W W-1, 2026-10-23)
 
 - **재질 단위 타일링을 먼저 했다.** Unity의 Tiling/Offset(`_BaseMap_ST`), Unreal의 `TexCoord` UTiling/VTiling, glTF `KHR_texture_transform`의 `scale`, Godot `uv1_scale`과 같은 표준 방식이다. 이름은 glTF·Godot 계열 `uvScale`. offset은 쓸 곳이 없어 예약(§5)했다.
@@ -588,9 +615,10 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 - **임계값이 하드 컷이다.** 경계 근처 픽셀이 카메라가 조금만 움직여도 켜졌다 꺼졌다 할 수 있다(시간적 불안정). 소프트 니(soft knee)로 부드럽게 하거나, 다운샘플 시 Karis 평균으로 반딧불이(firefly)를 억제하는 대응이 없다.
 - Bloom 타깃 세 개를 앱 생명주기 내내 들고 있다. 상용 엔진은 프레임 내에서만 사는 일시적 리소스로 풀링·에일리어싱한다. 지금 규모(절반 해상도 float16 3장)에서는 문제가 아니다.
 - **`BlendState`가 아예 없다.** 현재 전부 불투명 렌더링이라 투명·가산 합성이 불가능하다. 비·연기·먼지·스파크 같은 입자 계열을 넣으려면 알파/가산 State 두 개와 투명 패스 분리(깊이 쓰기 off + 뒤→앞 정렬)가 먼저 필요하다. `D3D11Utils`에 `CreateGeometryShader`와 Hull/Domain 경로도 없다. 상세는 §7 "강의 연계 아이디어" 참고.
-- Material에 Normal / Metallic / Roughness **맵**이 없다. Roughness / Specular는 Material 단위 상수다.
-- **젖은 바닥을 평가할 디테일이 없다.** 바닥이 roughness·BaseColor 하나로 **균일**하고, 노멀 맵이 없어 완벽히 평평하다(UV 타일링은 W-1에서 해결). 사람은 젖은 표면을 "웅덩이(거울) 옆의 덜 젖은 곳(무광)" 같은 **대비**로 알아보는데 그 대비가 없어서, Fresnel·GGX 같은 반사 기능의 차이를 화면으로 판단하기 어렵다(2026-10-23 사용자 관찰). → §6의 10-W에서 해결한다.
-- **환경 반사가 없다.** 반사는 Point Light·방향광 하이라이트뿐이라 하늘이나 벽이 바닥에 비치지 않는다. 하늘 큐브맵은 10-3에서 들어왔고(Skybox), 바닥 반사는 10-4(큐브맵)·10-7(평면 반사)이다.
+- Material에 Metallic 맵이 없다(Roughness·Normal·웅덩이 마스크 맵은 10-W·10-6에서 들어왔다). **`ModelLoader`는 diffuse 텍스처 하나만 읽고**(`aiTextureType_DIFFUSE`) 탄젠트도 계산하지 않아, 외부 모델은 albedo만 있는 표면으로 보인다 — 씬 단계(§6 SC-3)에서 외부 모델이 필요하면 먼저 보강한다.
+- ~~젖은 바닥을 평가할 디테일이 없다~~ → **10-W에서 해결**(UV 타일링, roughness·노멀 맵, 웅덩이 마스크).
+- **환경 반사가 하늘 큐브맵뿐이다(10-4).** 정적 큐브맵은 골목 벽이 하늘을 가린다는 것을 모르고, 골목 안 네온·간판을 담지 않는다. 그래서 웅덩이에는 네온 대신 광장 수평선이 비치고, 하늘이 골목 조명보다 밝아 벽이 금속처럼 보인다(§4 "환경 반사"의 캡처 평가). 바닥은 10-7 평면 반사, 벽의 은박지 무늬는 Horizon Occlusion(예약), 전체 세기는 밤하늘 HDRI 교체(§6 SC-5)로 다룬다.
+- **MSAA가 없다.** 강의 Ch11은 float 씬 타깃을 4× MSAA(`Texture2DMS`)로 만들고 후처리 전에 `ResolveSubresource`한다. 벽·바닥 경계, 네온 가장자리, 노멀 맵 하이라이트에 계단이 보인다(예약 목록).
 - `MyPF.vcxproj`에서 `skyboxVertexShader.hlsl`/`skyboxPixelShader.hlsl`만 `ExcludedFromBuild`가 없다(다른 셰이더는 런타임 컴파일이라 빌드에서 제외). 빌드 때 FxCompile이 한 번 더 컴파일할 뿐 실행에는 영향이 없다. 맞추려면 다른 셰이더 항목처럼 네 구성에 `ExcludedFromBuild`를 넣는다.
 - Blinn-Phong은 GGX보다 하이라이트 꼬리가 짧아 젖은 표면의 "번지는 테두리"가 약하다. roughness 대응식을 GGX 기준으로 맞춰 뒀으므로 분포 함수만 교체할 수 있다.
 - 바닥 반사가 생기면서 UV 타일링 문제(아래)가 더 눈에 띌 수 있다.
@@ -632,11 +660,17 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 | 예약 항목 | 지금 형태 | 꺼낼 트리거 | 할 일 |
 |---|---|---|---|
 | `F_Schlick`의 `f90` 인자 | `f0 + (1 − f0) × w` (최대 반사율 1 고정) | 10-5 IBL diffuse(Lagarde: `f90 = max(1 − roughness, f0)`) 또는 specular 0 재질의 스침 반사를 꺼야 할 때(Unreal: `f90 = saturate(50 × f0)`) | `f0 + (f90 − f0) × w`로 확장(Filament 형태). 호출부는 `ComputeDirectLighting` 한 곳 |
-| `F_Schlick` 등 F0 계열의 `float3`화 | `float` (비금속만) | 10-8 metallic | `F0 = lerp(0.08 × specular, albedo, metallic)`, 반환·인자 `float3`. 본문은 그대로 동작 |
+| `F_Schlick` 등 F0 계열의 `float3`화 | `float` (비금속만). F0는 `DielectricSpecularToF0` 한 곳(10-4) | 10-8 metallic | Unreal처럼 형제 함수 `ComputeF0(specular, albedo, metallic)` = `lerp(DielectricSpecularToF0(specular), albedo, metallic)`을 추가하고, `F_Schlick`·`EnvBRDFApprox`의 F0 인자·반환을 `float3`로. 본문은 그대로 동작 |
 | `Pow4`·`Pow5` 공용 수학 함수 | `F_Schlick` 안의 5제곱, `SpecularGGX` 안의 `roughness⁴`를 직접 곱셈 | 같은 거듭제곱을 두 번째 곳(IBL, 평면 반사)에서 쓸 때 | `Common.hlsli`에 `Pow4(x)`·`Pow5(x)` (Unreal `Common.ush`와 같음). 순수 수학이라 모든 셰이더가 쓸 수 있는 종류 |
 | 파생 BRDF 값 묶음(`BRDFData`) / 내적 묶음(`BxDFContext`) | `ComputeDirectLighting` 안에서 빛마다 a2·F0를 계산하고, 내적(`NdotL`·`NdotV`·`NdotH`·`VdotH`)을 스칼라 인자로 넘긴다 | metallic(10-8) 이후 파생 값이 늘거나, IBL·clear coat처럼 내적을 쓰는 함수가 셋 이상 늘 때, 또는 빛 수가 늘어 비용이 보일 때 | 파생 값은 Unity URP `InitializeBRDFData`처럼 픽셀당 한 번 계산해 구조체로, 내적은 Unreal `BxDFContext`처럼 구조체 하나로 넘긴다 |
 | IBL용 Smith 재매핑 | 직접광 Vis는 α를 그대로 쓴다(`Vis_SmithJointApprox`) | 10-5 IBL에서 BRDF LUT를 직접 굽거나 IBL 가시성을 계산할 때 | IBL 적분은 k = α / 2(Karis 2013)를 쓴다. 직접광 함수를 그대로 재사용하지 않는다 |
-| `ComputeIndirectLighting` | `main`의 ambient 한 줄 | 10-5 IBL | 간접광 함수로 분리, IBL Fresnel은 N·V |
+| `ComputeIndirectLighting` | `main`의 ambient 한 줄 + 환경 반사 세 줄(`reflectDir` → `SampleEnvironmentRadiance` → `ComputeEnvironmentSpecular`, 10-4) | 10-5 IBL | 간접광 함수로 묶는다: diffuse(irradiance, `SampleEnvironmentIrradiance` 형제 함수) × `(1 − F)` + specular. 가림 계수(Horizon·AO)도 여기서 곱한다 |
+| **Horizon Occlusion** (Russell, Marmoset 2015) | 없음. 가이드·예제 코드는 2026-10-28에 제시(H-1 회색 시각화 → H-2 `environmentSpecular`에 곱하기) | **씬 배치 뒤 비스듬한 벽에 은박지 같은 반사가 보이면** | `Lighting.hlsli`에 `static const HORIZON_FADE = 1.3`, `ComputeHorizonOcclusion(reflectDir, geometricNormal)` = `saturate(1 + k · dot(R, Ng))²`. **기하 법선(PS `:37`의 `normal`)**을 넘긴다 — 노멀 맵 법선이면 `dot(reflect(−V, N), N) = dot(V, N) ≥ 0`이라 항상 1. 빛·표면 쪽이 아닌 가림이라 `main`에서 곱한다(Unreal `SpecularOcclusion`과 같은 자리) |
+| **환경 LOD 곡선** | `ComputeEnvironmentLOD` 선형 `r × (mipCount − 1)` | 씬·HDRI 교체 뒤에도 마른 바닥에 하늘 형태가 알아볼 만큼 비칠 때 | 함수 한 줄을 Unity `r × (1.7 − 0.7r)` 곡선으로(웅덩이 0.1은 거의 그대로, 0.4는 0.57로 더 흐림). 10-5 prefiltered 맵으로 가면 그 맵의 대응식에 맞춘다 |
+| N·V 보호식 공용화 | `saturate(abs(dot(N, V)) + 1e-5)`가 `ComputeDirectLighting`·`ComputeEnvironmentSpecular` 두 곳 | 세 번째 사용처(10-5 diffuse IBL 등) | 공용 함수로 뽑거나 `BxDFContext` 항목과 함께 처리 |
+| **MSAA 4×** (강의 Ch11) | 없음 | **SC-5 룩 1차 직전 또는 영상 녹화 전** — 계단 현상이 화면 품질에 바로 드러난다 | HDR 씬 타깃과 깊이 버퍼를 같은 샘플 수의 `Texture2DMS`로, `EndScene` 시작(하늘 다음, 후처리 전)에 일반 텍스처로 `ResolveSubresource`. 리사이즈 경로·`CheckMultisampleQualityLevels`도 함께 |
+| **Diffuse IBL (irradiance 큐브맵)** (강의 Ch11 `g_diffuseCube`) | 상수 `ambientStrength` | 밤하늘 HDRI로 바꾼 뒤(지금 광장 HDRI는 벽을 광장 색으로 물들인다) | 오프라인 도구로 irradiance DDS를 굽고 `SampleEnvironmentIrradiance(…, normal)`. 10-5의 절반 |
+| `F_Schlick` 주석 | "간접광/IBL은 N·V"라고 적혀 있다 | 다음에 `Lighting.hlsli`를 고칠 때 | 환경광 Fresnel은 이제 `EnvBRDFApprox`가 맡는다. `F_Schlick`은 직접광(V·H) 전용으로 주석을 고친다. `EnvBRDFApprox` 주석에도 출처·`F0 × A + B`·극한값 셋을 남긴다 |
 | 셰이더 디버그 뷰 | 임시 코드(주석 처리 후 복구) | 항이 더 늘 때(Fresnel·IBL) | ImGui 드롭다운 + cbuffer 플래그로 Final / Diffuse / Specular / F 선택 |
 | **`ModelLoader` 탄젠트·바이탄젠트 부호** | 모델 정점은 기본 탄젠트 (1, 0, 0)을 받는다(NaN 방지만 됨). `B = cross(N, T)` 고정 | 임포트 모델에 노멀 맵을 쓸 때, 또는 거울 대칭 UV를 가진 모델 | Assimp `aiProcess_CalcTangentSpace`로 `mTangents`를 채우고, `Vertex.tangent`를 `float4`로 늘려 w에 바이탄젠트 부호(handedness)를 담아 `B = cross(N, T) × w` |
 | **노멀 강도 배율** | 노멀 맵을 그대로 쓴다 | 요철이 너무 세거나 약하다고 판단될 때 | W-3의 `normalTS = lerp(normalTS, (0, 0, 1), t)`와 같은 연산(Unreal `FlattenNormal`) — t 자리에 강도 상수를 넣는다. 재질마다 다르면 cbuffer 확장이 필요하다 |
@@ -671,19 +705,33 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 
 진행 순서는 그래픽스 강의 연계로 정한 **11번(HDR+Bloom) → 10번(Normal/Roughness+Fresnel+Cube Mapping+IBL) → 9번(Shadow Mapping)**을 그대로 따른다.
 
-**완성 계획 — B안 (2026-10-27 사용자 결정, "되는 데까지 빠르게")**
+**완성 계획 — B안 수정: 씬 먼저 (2026-10-28 사용자 결정)**
 
-목표는 다음 주 안에 **보여 줄 수 있는 완성본**이다. 순서: **10-3 Skybox → 10-4 환경 반사 → 10-7 평면 반사(+ 시작 벽 통과 버그) → 씬 배치(로드맵 8) + 룩 재조정 → 배포 빌드·README → 영상·스크린샷**. 10-5 IBL은 시간이 남으면 한다(하면 BRDF LUT 대신 Unreal `EnvBRDFApprox`로 줄인다). 10-5보다 10-7을 앞세운 이유: 정적 큐브맵(10-4·10-5)은 골목 **밖** 하늘만 비추고, 이 데모의 주인공인 골목 **안** 네온은 평면 반사만 비춘다. 좁은 밤 골목이라 IBL 간접광 변화는 은은하다.
+목표는 **보여 줄 수 있는 완성본**이다. 처음 B안(2026-10-27)은 10-3 → 10-4 → 10-7 → 씬 배치 순서였는데, 10-4를 마치고 레퍼런스와 비교해 보니 부족한 것이 반사 공식이 아니라 **반사의 입력(골목 안의 네온·간판·소품)**이었다. 사용자가 "최종 결과물이 목표이니 카메라 구도와 작은 사이버펑크 씬을 먼저 만들고, 그 뒤 필요한 작업을 하나씩"으로 정했다(근거는 §4 "환경 반사"의 마지막 항목). 웅덩이 마스크·10-7·룩 값이 네온 배치에 묶여 있어서 배치를 먼저 확정하면 그것들을 한 번만 하면 된다.
+
+| 단계 | 내용 | 완료 조건 |
+|---|---|---|
+| **SC-0 정리** | E-3 커밋(사용자), Horizon Occlusion 보류 등록, 문서 갱신 | 작업 트리 깨끗함 |
+| **SC-1 구도 확정 ← 바로 다음** | 대표 카메라 샷 2~3개(시작 / 스위치 / 점등 후 마지막 샷)와 동선. 그레이박스로 골목 치수, 네온·스위치 위치만 배치 | 샷마다 카메라 위치·Yaw/Pitch 값이 정해지고(Editor 패널 Camera 표시), 그레이박스만으로 "어디를 보여 줄지"가 읽힌다 |
+| **SC-2 에셋 계획** | 샷에 필요한 요소 목록(벽 재질, 간판, 실외기, 배관, 쓰레기봉투, 바리케이드, 전선 등)을 "큐브 + CC0 텍스처 / 외부 CC0 모델 / 생략"으로 분류 | 목록과 출처 확정(에셋 정책 §7) |
+| **SC-3 파이프라인 보강** (필요 시) | 외부 모델이 필요하면 `ModelLoader`에 노멀·roughness·emissive 맵과 탄젠트(§5 예약 "탄젠트·바이탄젠트 부호") | 외부 모델이 벽과 같은 PBR 품질로 보인다 |
+| **SC-4 배치** | 에셋 로드·배치, 충돌을 새 배치에 맞추며 **시작 벽 통과 버그** 수정. §5 예약의 월드 정렬 UV·반복 깨기·`uvOffset`을 먼저 검토 | 샷 2~3개가 의도대로 나온다 |
+| **SC-5 룩 1차** | 밤하늘 HDRI 교체(하늘이 거의 검정인 것), `environmentIntensity`·네온 색·세기, 웅덩이 마스크 재생성 | 레퍼런스와 나란히 놓았을 때 색과 명암 대비가 같은 방향 |
+| 이후 | 화면에서 부족한 것부터: **10-7 평면 반사**, 안개(12), Horizon Occlusion, MSAA, 그림자(9), 배포 빌드·README, 영상 | |
+
+SC-1의 구도(마지막 샷, 동선, 분위기 키워드)는 사용자가 정한다. 에이전트는 그 결정을 받아 그레이박스 배치 가이드를 준다. 지금 있는 외부 모델(`dragonite`·`pikachu`·`zelda`)은 테스트용이라 데모에 쓰지 않는다(AGENTS §10). 작업 폴더의 `rusty_metal_04_4k.blend`는 Poly Haven 텍스처 세트의 Blender 미리보기라 `.blend`가 아니라 텍스처 맵 PNG를 받아 쓴다(아래 "테스트 에셋" 메모의 OpenGL 노멀 주의).
+
+10-5 IBL은 시간이 남으면 한다. 10-5보다 10-7을 앞세운 이유: 정적 큐브맵(10-4·10-5)은 골목 **밖** 하늘만 비추고, 이 데모의 주인공인 골목 **안** 네온은 평면 반사만 비춘다. 좁은 밤 골목이라 IBL 간접광 변화는 은은하다.
 
 | 완성 조건 | 상태 |
 |---|---|
 | 시작 → 탐색 → 스위치 → 순차 점등이 끊김 없이 이어지는 1~2분 플레이 | 흐름 ✅, 시작 벽 통과 버그 남음 |
-| 장면이 "골목"으로 읽히는 배치 (큐브 소품 + ambientCG 텍스처, 필요하면 Poly Haven CC0 모델) | ❌ |
+| 장면이 "골목"으로 읽히는 배치 (큐브 소품 + ambientCG 텍스처, 필요하면 Poly Haven CC0 모델) | ❌ ← SC-1~SC-4 |
 | **exe만으로 실행되는 빌드** (지금은 셰이더·에셋이 상대 경로라 작업 디렉터리 `MyPF/`가 필요) | ❌ |
 | 시연 영상·스크린샷 | ❌ |
 | README: 기술 하이라이트, 구조도, 실행 방법 | ❌ |
 
-진행 방식: 렌더링 단계(10-3·10-4·10-7)는 지금처럼 사용자가 설계·작성하고 에이전트가 리뷰한다. 씬 배치처럼 학습과 거리가 먼 반복 작업은 G-1처럼 에이전트가 참고 코드를 쓰고 사용자가 옮기는 방식으로 속도를 낸다.
+진행 방식: 렌더링 단계(10-3·10-4·10-7)는 지금처럼 사용자가 설계·작성하고 에이전트가 리뷰한다. 씬 배치처럼 학습과 거리가 먼 반복 작업은 G-1처럼 에이전트가 참고 코드를 쓰고 사용자가 옮기는 방식으로 속도를 낸다. 10-4에서 사용자가 자주 요청한 방식: **예제 코드 + 각 변수의 의미와 개념(논문·상용 엔진 출처)을 연결한 설명**을 받고 직접 작성한다.
 
 **다음에 이어서 할 작업 (순서)**
 
@@ -699,7 +747,7 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
 
 - ✅ **Step 3 — 밉맵** (`f91b0e6`, 2026-09-28). 모든 파일 텍스처가 `GenerateMips`로 전체 밉 체인을 갖는다. 구조는 §3, 결정 이유는 §4 "텍스처 색공간 선택", 기록은 §8.
 
-1. **로드맵 10번 — 젖은 바닥 반사. ← 진행 중 (10-1 Specular, 10-2 Fresnel 완료, 다음은 10-W 젖은 바닥 디테일).**
+1. **로드맵 10번 — 젖은 바닥 반사. ← 10-4까지 완료, 씬 단계(SC) 뒤 재개 (2026-10-28).**
    - **10-1 진행 상황 — 전부 완료 ✅** (설계 이유는 §4 "셰이더 구조 — 빛 쪽과 표면 쪽 분리", "Specular — 정규화된 Blinn-Phong과 재질값"):
      - ✅ 10-1a Material Roughness/Specular 값 경로 (`8e4cadc`)
      - ✅ A(R-1) `Common.hlsli` 신설, include 정리 (`8e4cadc`)
@@ -721,7 +769,8 @@ Specular를 넣기 전에 셰이더를 정리했다. diffuse 식이 방향광(`m
    - **10번 나머지 순서 (2026-10-23 보강, 강의 11~13장 분석 반영 — 근거는 §7 "강의 PBR 자료 지도")**: GGX는 10-W 뒤로 간다. GGX의 장점(하이라이트의 긴 꼬리)은 매끈한 웅덩이 위에서 가장 잘 보이기 때문이다.
      - ✅ **10-2' GGX + Smith, π 규약 전환 (2026-10-27)** (`01f7d38` G-1, `fb58d71` G-3) — G-1 π 규약 전환(diffuse·specular `/π`, 직접광 세기 × π) + Unreal 형식 `D_GGX`·`Vis_SmithJointApprox`·`F_Schlick`·`SpecularGGX`와 A/B 스위치 → G-2 비교(`false` 화면 그대로, `true` 꼬리) → G-3 Blinn-Phong·스위치 삭제, 웅덩이 roughness 0.1. 화면 확인 완료. 설계 이유는 §4 "GGX + Smith와 π 규약 전환"
      - ✅ **10-3 DDS 로더 + Skybox(HDRI) (2026-10-27)** (`26a062a` S-1·S-2, `81d104c` S-3, `e805963` `SkyBox` 분리) — S-1 DDS 큐브맵 로드 경로(`CreateCubeMapTexture` → `InitializeCubeMap` → `LoadCubeMap`) → S-2 스카이박스 VS/PS·깊이 상태·`DrawSkybox`(임시 큐브맵) → S-3 Poly Haven Hansaplatz를 float DDS로 변환, `environmentIntensity` → 강의 Ch11 `CubeMapping` 기준으로 `SkyBox` 클래스 분리. 화면 확인 완료. 설계 이유는 §4 "Skybox와 환경맵 경로"
-     - **10-4** 환경 매핑(`reflect(−V, N)`) **← 바로 다음** — 씬 PS에 환경맵 `TextureCube`를 추가해 반사 방향을 샘플, roughness로 밉 선택(`GetDimensions`로 밉 수), 세기는 Unreal `EnvBRDFApprox`(LUT 없는 split-sum 근사, N·V). 한계: 정적 큐브맵이라 웅덩이에 골목 벽 대신 광장 건물이 비친다(10-7에서 바닥 해결). 강의 Ch11은 큐브맵을 메시마다 `t0`·`t1`에 거는 방식이라 우리 슬롯 규칙(t0~t3 Material)에 맞춰 조정한다
+     - ✅ **10-4 환경 반사 (2026-10-28)** (`b6aee16` E-1·E-2, E-3 미커밋) — E-1a `t4` 배선(무효면 `nullptr`, 화면 그대로) → E-1b 반사 벡터로 크롬 골목(임시 출력) → E-2 roughness → 밉 LOD + Schlick, 빛 쪽 / 표면 쪽 함수 분리, `DielectricSpecularToF0` → E-3 `EnvBRDFApprox`. Horizon Occlusion은 가이드까지 하고 씬 단계 뒤로 보류(§5). 설계 이유는 §4 "환경 반사 — split-sum과 EnvBRDFApprox"
+     - **다음은 씬(SC-1~SC-5)** — 위 "B안 수정" 표. 10번의 나머지(10-7 등)는 씬 뒤에 화면에서 필요한 순서로
      - **10-5** IBL(split-sum) — `main`의 ambient 한 줄을 `ComputeIndirectLighting`으로, `PI` 사용. IBL용 Fresnel은 N·V
      - ~~10-6 탄젠트 + 노멀 맵~~ → W-3 앞으로 당겨 완료. AO 맵은 IBL(10-5)에서 간접광에 곱할 때 들인다
      - **10-7 ★ 평면 반사** — 13 Step1 Mirror(반사 행렬). 강의는 스텐실로 선명한 거울을 그리지만, 우리는 **반사 씬을 렌더 타깃에 그리고 roughness만큼 블러**(기존 Bloom 블러 재사용)해서 젖은 바닥에 쓴다. 골목 안 네온과 벽이 **실제로** 비치는 유일한 방법이라 효과가 가장 크다
@@ -778,9 +827,9 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
 6. ✅ 전원 상태와 Point Light·Emissive Material 순차 점등 연동
 7. ✅ 조명 역할 분류(`NeonSignFactory`), 네온 배치·색상 정리
 7-1. ✅ Rim Lighting (그래픽스 강의 연계, 원래 로드맵에 없던 항목 — 2026-09-14 완료. Pixel Shader가 카메라 월드 위치를 처음 받도록 Constant Buffer를 확장했다. 상세는 §4 "Rim Lighting과 카메라 위치 전달" 참고)
-8. 실제 골목 에셋 배치와 Scene 편집 보강 (보류 — 9번 이후 재판단)
+8. 실제 골목 에셋 배치와 Scene 편집 보강 ← **다음 (2026-10-28 앞당김 — 10-4 뒤, 10-7보다 먼저. §6 "B안 수정"의 SC-1~SC-5)**
 9. Shadow Mapping (그래픽스 강의 연계로 10·11번 다음 순서로 미룸 — §6 참고)
-10. Normal/Roughness Material과 젖은 바닥 반사 ← **진행 중** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular(2026-09-30)·10-2 Fresnel(2026-10-23) 완료, 10-W 젖은 바닥 디테일 완료(W-1 UV 타일링, W-2 roughness 맵, 10-6 탄젠트·노멀 맵(앞당김), N-5 벽 노멀 맵, W-3 웅덩이 마스크 — 2026-10-26), 10-2' GGX + Smith·π 규약 전환 완료(2026-10-27), 10-3 DDS + Skybox 완료(2026-10-27), 다음 10-4 환경 반사 — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
+10. Normal/Roughness Material과 젖은 바닥 반사 ← **일시 중단, 8번 뒤 재개** (Fresnel·GGX·Cube Mapping·IBL·재질 맵·**평면 반사**를 여기 묶어서 진행. 선행 조건인 텍스처 색공간 선택·밉맵은 완료. 10-1 Specular(2026-09-30)·10-2 Fresnel(2026-10-23) 완료, 10-W 젖은 바닥 디테일 완료(W-1 UV 타일링, W-2 roughness 맵, 10-6 탄젠트·노멀 맵(앞당김), N-5 벽 노멀 맵, W-3 웅덩이 마스크 — 2026-10-26), 10-2' GGX + Smith·π 규약 전환 완료(2026-10-27), 10-3 DDS + Skybox 완료(2026-10-27), 10-4 환경 반사 완료(2026-10-28). 나머지(10-7 평면 반사 등)는 8번 씬 배치 뒤 — 세부 순서는 §6, 강의 근거는 아래 "강의 PBR 자료 지도")
 11. ✅ HDR Scene Target, Bloom과 Tone Mapping (그래픽스 강의 연계로 9·10번보다 먼저 진행. HDR 씬 타깃·Exposure·Reinhard/ACES 톤 매핑·선형 색공간 2026-09-15, Bloom Step 5~7과 블러 반복·룩 재튜닝 2026-09-17에 완료)
 12. 안개, 비와 색조 보정 (기하 파이프라인 챕터의 기하 셰이더·빌보드가 여기 본체다 — 아래 "강의 연계 아이디어" 참고)
 13. 충돌/이동 제한, 디버그 UI와 최적화 (기본 플레이어-벽 충돌은 9번보다 먼저 앞당겨 완료 ✅ — `BoxCollisionComponent`/`PlayerCollision`. 이동 제한 나머지와 디버그 UI·최적화는 그대로 보류. 디버그 UI는 아래 "강의 연계 아이디어" A그룹으로 상당 부분 해결된다)
@@ -985,6 +1034,20 @@ Poly Haven `rusty_metal_04`(CC0)를 검토했고 **지금 넣지 않기로 했�
   - **Rim 데이터를 새 컴포넌트가 아니라 `Material`의 필드로 저장함**: `PlayerCollision`/`BoxCollisionComponent`와 달리 Rim은 표면 셰이딩 파라미터라 이미 `baseColor`/`emissiveColor`/`emissiveIntensity`를 들고 있는 `Material`의 책임 범위에 자연스럽게 속한다고 판단했다. 기본값을 `rimIntensity = 0`으로 둬서 Emissive와 같은 "기본 꺼짐, 오브젝트별로 opt-in" 패턴을 재사용했다 — 새 컴포넌트나 Has 플래그가 필요 없다.
   - **Pixel Shader가 카메라 월드 위치를 받도록 새 Constant Buffer 경로를 텄음**: 기존에는 Vertex Shader만 `view`/`projection`을 알았고 Pixel Shader는 몰랐다. Rim 계산(`viewDir = normalize(cameraPosition - posWorld)`)은 반드시 Pixel Shader에서 픽셀별 월드 위치가 필요해, `CameraConstantData`에 `cameraPosition`을 추가하고 같은 버퍼를 Pixel Shader의 `register(b2)`에도 바인딩하는 방식을 택했다 — 이 프로젝트에서 Pixel Shader가 카메라 데이터를 받는 첫 사례다.
   - **그래픽스 강의 진도(Rim → HDR/Bloom → Fresnel/Cube Mapping/IBL+CMFT)를 기존 로드맵 순서보다 우선함**: 강의에서 막 배운 개념을 바로 포트폴리오에 적용하는 게 학습 정착에도 낫고, HDR을 Shadow Mapping보다 먼저 하면 그동안 LDR `saturate`에 가려져 있던 Emissive/Rim 밝기 차이가 실제로 보이게 되는 이득도 있다고 판단해 §6/§7을 이 순서로 갱신했다. Shadow Mapping 자체는 다른 항목에 의존하지 않으므로 순서를 미뤄도 손해가 없다.
+
+### 2026-10-28 — 큐브맵 환경 반사 (10-4) ✅, 계획 변경: 씬 먼저
+
+- 완료한 작업 (전부 사용자 작성, 에이전트는 설계 가이드·예제 코드·리뷰):
+  - E-1a (`b6aee16`): `DrawRenderItem`의 `t4` 바인딩(유효할 때만 `GetSRV`, 아니면 `nullptr`), `pixelSRVs[5]`·개수 5, HLSL `TextureCube environmentMap : register(t4)`
+  - E-1b: `reflect(−viewDir, surfaceData.normal)`로 큐브맵을 읽어 임시 출력 — 크롬 골목 확인 후 삭제
+  - E-2 (`b6aee16`): 사용자가 "확장성을 고려해 메서드로" 요청 → `DielectricSpecularToF0`, `ComputeEnvironmentLOD`, `SampleEnvironmentRadiance`(빛 쪽), `ComputeEnvironmentSpecular`(표면 쪽)로 분리, `ComputeDirectLighting`의 F0도 공용 함수로. `finalColor`에 `environmentSpecular`
+  - E-3 (미커밋, 사용자가 커밋 예정): 사용자가 "바닥이 금속처럼 보인다"고 관찰 → `EnvBRDFApprox`로 교체. 출처(Karis 2013 split-sum, Karis 2014, Lazarov 2013)와 각 줄의 의미를 연결한 설명을 사용자가 요청했다
+- 확인한 결과: 각 단계 `fxc /T ps_5_0`으로 씬 PS·스카이박스 PS 컴파일(경고 0개), E-1b·E-2는 사용자 화면 확인. 2026-10-28 사용자 요청으로 에이전트가 **빌드 없이** 실행·캡처(exe가 마지막 셰이더 수정보다 새로웠음)해 레퍼런스 사이버펑크 씬과 비교 — 벽 은박지 무늬, 밝은 광장 하늘, 네온 반사 부재(§4)
+  - 리뷰 중 잡은 문제: ① 웅덩이 마스크 블록을 복사한 `ResolveTextureSRV(puddleMaskTexture, …)` + `return false` ② `if (!IsValid())` 조건 반전 + 자기 자신을 검사하는 조건 연산자(둘 다 `nullptr`로 수렴) ③ `PSSetShaderResources` 개수 4 ④ `Texture2D`로 선언(큐브 SRV와 차원 불일치 — 쓰지 않는 선언이라 컴파일러가 지워 증상이 숨음) ⑤ 반사를 계산만 하고 출력하지 않음(죽은 코드 제거) ⑥ `Sample` 대신 `SampleLevel`, `float4` 대신 `float3` ⑦ `EnvBRDFApprox`의 `const float c0 = float4(…)` — X3206, 모든 성분이 `1 − roughness`가 되어 정면 반사율 약 1.84 ⑧ 요청 밖 `F_Schlick`의 `pow` 변경(되돌림)
+- 계획 변경: 10-4 뒤 Horizon Occlusion 가이드·예제까지 했으나, 사용자가 **"최종 결과물이 목표이니 구도와 작은 사이버펑크 씬을 먼저, 그 뒤 필요한 작업을 하나씩"**으로 결정. Horizon Occlusion은 §5 예약, 로드맵 8번(씬)을 10-7보다 앞으로. 강의 Ch11 파이프라인과의 비교(골격 일치, MSAA·diffuse IBL·밉 체인 Bloom·`ImageFilter` 차이)도 이날 했다 — 앞의 둘은 §5 예약, 뒤의 둘은 기존 §5 항목
+- 남아 있는 문제: `hansaplatz_2k.hdr` 추적 해제(§2). `Renderer.cpp` 환경맵 `nullptr` 블록 위 의도 주석이 비어 있음(빈 줄). `F_Schlick`·`EnvBRDFApprox` 주석(§5). EditorUI ambient 슬라이더 주석 복원, 스카이박스 셰이더 `ExcludedFromBuild`(10-3에서 이어짐)
+- 다음에 이어서 할 작업: **SC-1 구도 확정** — 사용자가 마지막 샷, 동선(20m 직선 유지 / L자), 분위기 키워드를 정한다(§6).
+- 중요한 설계 결정과 이유: §4 "환경 반사 — split-sum과 EnvBRDFApprox".
 
 ### 2026-10-27 — DDS 큐브맵 + Skybox(HDRI), `SkyBox` 분리 (10-3) ✅
 

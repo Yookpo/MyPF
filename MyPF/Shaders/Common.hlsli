@@ -29,7 +29,5 @@ cbuffer CameraConstantBuffer : register(b1)
     float3 cameraPos;
     float cameraPad;
 }
-
-
 #endif
 
