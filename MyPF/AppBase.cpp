@@ -108,8 +108,14 @@ namespace My
 			m_postProcessSettings);
 		m_pointLightSequence.Initialize();
 
-		// Init GeryBox Scene
-		if (!InitGreyBoxScene())
+		//// Init GeryBox Scene
+		// if (!InitGreyBoxScene())
+		//{
+		//	return false;
+		// }
+
+		// Test Material View
+		if (!InitMaterialTestScene())
 		{
 			return false;
 		}
@@ -558,6 +564,51 @@ namespace My
 		powerSwitchObject->AddBoxCollisionComponent();
 
 		m_powerSwitch.Initialize(*powerSwitchObject);
+
+		return true;
+	}
+
+	bool AppBase::InitMaterialTestScene()
+	{
+		// Set Camera Pos
+		m_camera.SetPosition(Vector3(0.0f, 0.0f, -3.0f));
+
+		// Setting for Mesh, Material
+		MeshData sphere = GeometryGenerator::MakeSphere(0.4f, 100, 100);
+		auto	 sphereMesh = m_assetManager.CreateMesh("sphere", sphere);
+		if (!sphereMesh)
+		{
+			return false;
+		}
+
+		const Texture* defaultTex =
+			m_assetManager.LoadTexture("Assets\\Textures\\Default\\white_1x1.png", TextureType::Albedo);
+		if (!defaultTex)
+		{
+			return false;
+		}
+
+		auto testMat = m_assetManager.CreateMaterial("testMat");
+		if (!testMat)
+		{
+			return false;
+		}
+
+		testMat->SetAlbedoTexture(defaultTex);
+		testMat->SetBaseColor(Vector3(0.8f, 0.1f, 0.1f));
+		testMat->SetRoughness(0.4f);
+		testMat->SetSpecular(0.5f);
+
+		m_environmentMap = m_assetManager.LoadCubeMap("Assets\\Textures\\HDRI\\hansaplatz_cube512.dds");
+		if (!m_environmentMap)
+		{
+			OutputDebugStringW(L"Environment map load failed. Using background color\n");
+		}
+
+		auto testObj = &m_scene.CreateGameObject("testObj");
+		testObj->GetMeshComponent().SetMesh(sphereMesh);
+		testObj->GetMeshComponent().SetMaterial(testMat);
+		testObj->GetTransform().SetPosition(Vector3(0.0f));
 
 		return true;
 	}

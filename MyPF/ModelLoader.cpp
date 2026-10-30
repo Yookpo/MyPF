@@ -110,8 +110,6 @@ namespace My
 				v.uv.y = static_cast<float>(sourceMesh->mTextureCoords[0][i].y);
 			}
 
-			v.color = Vector3{ 1.0f };
-
 			meshData.vertices.push_back(v);
 		}
 

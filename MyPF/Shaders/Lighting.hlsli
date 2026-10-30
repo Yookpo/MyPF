@@ -109,7 +109,7 @@ IncidentLight GetPointLight(uint index, float3 posWorld)
     return outPointLight;
 }
 
-// GGX(Trowbridge-Reitz) 미세면 분포. a2 = α² = roughness⁴  [Walter 2007], Unreal BRDF.ush D_GGX
+// GGX(Trowbridge-Reitz) 미세면 분포. a2 = α² = roughness⁴
 // diffuse도 albedo / π라 /π는 정석 규약이다(2026-10-27 π 규약 전환)
 // 분모는 N·H ≤ 1에서 최솟값이 a2(> 0)라 0으로 나눌 일이 없다
 float D_GGX(float a2, float NdotH)
@@ -119,7 +119,7 @@ float D_GGX(float a2, float NdotH)
     return a2 / (PI * denom * denom);
 }
 
-// Smith 가시성 Vis = G / (4·N·L·N·V). 높이 상관 Smith의 근사  [Heitz 2014], Unreal BRDF.ush Vis_SmithJointApprox
+// Smith 가시성 Vis = G / (4·N·L·N·V). 높이 상관 Smith의 근사
 // N·V = 0이어도 분모가 N·L × a(> 0)로 남아 0으로 나눌 일이 없다
 float Vis_SmithJointApprox(float a2, float NdotV, float NdotL)
 {

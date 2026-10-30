@@ -19,8 +19,7 @@ PS_INPUT main(VS_INPUT input)
     pos = mul(pos, projection);
     
     output.pos = pos;
-    output.color = input.color;
-    
+
     float4 normal = float4(input.normal, 0.0f);
     output.normal = mul(normal, invTranspose).xyz;
     output.normal = normalize(output.normal);

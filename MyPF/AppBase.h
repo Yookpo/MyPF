@@ -66,6 +66,7 @@ namespace My
 		void DrawPlayPanel();
 
 		bool InitGreyBoxScene();
+		bool InitMaterialTestScene();
 
 	public:
 		HWND m_mainWindow;
